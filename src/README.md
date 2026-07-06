@@ -9,7 +9,7 @@ src/
   Synth.sln
   Synth.Api/          # ASP.NET Core Web API (.NET)
   Synth.Api.Tests/    # xUnit tests
-  ...                  # Core / Infrastructure / Mcp projects later (see docs/ROADMAP.md)
+  ...                  # Core / Infrastructure / Mcp projects later (see GitHub issues labeled `roadmap`)
   client/              # Vue 3 + Vite SPA (later)
 ```
 
