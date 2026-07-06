@@ -55,6 +55,10 @@ app.MapDefaultEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
+// Manual indexing trigger (POST /index { "path": "..." }) — the only way to actually
+// run IndexingPipeline against a real directory; previously it was only exercised by tests.
+app.MapIndexingEndpoints();
+
 // MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
 app.MapMcp("/mcp");
 
