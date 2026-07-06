@@ -1,6 +1,7 @@
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
+using Synth.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,11 @@ builder.AddSynthConfigStore();
 // The endpoint + model arrive via Aspire service discovery from the AppHost's Ollama
 // resource; the client connects lazily, so no live Ollama is needed to start up.
 builder.AddSynthEmbeddings();
+
+// Vector store for code chunks. Uses Qdrant when the AppHost supplies a "qdrant"
+// connection (endpoint + API key via service discovery), otherwise an in-memory Local
+// store — the same fallback tests and Docker-less local dev run on. Registers ICodeChunkStore.
+builder.AddSynthVectorStore();
 
 // Microsoft Agent Framework: register one minimal offline example agent.
 // Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.

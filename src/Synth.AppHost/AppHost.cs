@@ -17,13 +17,21 @@ var ollama = builder.AddOllama("ollama")
 
 var embeddings = ollama.AddModel("embeddings", "nomic-embed-text");
 
+// Qdrant is Synth's vector store. Run it as an Aspire-managed container with a
+// persistent data volume so the index survives restarts. The referenced resource
+// hands the API its gRPC endpoint + API key via service discovery (no hardcoded URL).
+var qdrant = builder.AddQdrant("qdrant")
+    .WithDataVolume();
+
 // Synth.Api runs as an Aspire project resource. It gets a MongoDB connection
-// string and the Ollama embedding endpoint via service discovery from the
-// referenced resources.
+// string, the Ollama embedding endpoint, and the Qdrant vector store via service
+// discovery from the referenced resources.
 builder.AddProject<Projects.Synth_Api>("api")
     .WithReference(configDb)
     .WaitFor(configDb)
     .WithReference(embeddings)
-    .WaitFor(embeddings);
+    .WaitFor(embeddings)
+    .WithReference(qdrant)
+    .WaitFor(qdrant);
 
 builder.Build().Run();
