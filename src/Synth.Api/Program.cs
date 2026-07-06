@@ -1,3 +1,4 @@
+using Synth.Api.Agents;
 using Synth.Api.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,10 @@ builder.AddMongoDBClient("synthconfig");
 // Config layering: appsettings.json (bootstrap) -> IConfigStore document
 // (File/Mongo, live-reloaded) -> environment variables (always win).
 builder.AddSynthConfigStore();
+
+// Microsoft Agent Framework: register one minimal offline example agent.
+// Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
+builder.Services.AddSynthAgents();
 
 var app = builder.Build();
 
