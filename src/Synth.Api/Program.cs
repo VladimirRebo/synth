@@ -2,6 +2,7 @@ using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
 using Synth.Api.Indexing;
+using Synth.Api.Search;
 using Synth.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,6 +33,10 @@ builder.AddSynthVectorStore();
 // Indexing pipeline: registers the file chunkers + IndexingPipeline that walks a
 // directory, chunks/embeds each file and upserts the chunks into the vector store.
 builder.AddSynthIndexing();
+
+// Search layer: registers QueryExpander + CodeSearchService (over-fetch, rerank, dedup)
+// on top of the embedding generator and vector store registered above.
+builder.AddSynthSearch();
 
 // Microsoft Agent Framework: register one minimal offline example agent.
 // Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
