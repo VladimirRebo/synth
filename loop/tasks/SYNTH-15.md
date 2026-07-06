@@ -1,7 +1,7 @@
 ---
 id: SYNTH-15
 summary: "Runtime base-path support for the client build"
-status: open
+status: done
 acceptance_command: "npm --prefix src/client install --no-audit --no-fund && npm --prefix src/client run build --silent && npm --prefix src/client test --silent -- run && ! grep -qE 'src=\"/assets|href=\"/assets' src/client/dist/index.html"
 acceptance_criterion: ""
 boundaries: "Only change how src/client resolves asset/base URLs at build and (if a runtime override is added) at load time, so ONE build of dist/ can be deployed under any sub-path without rebuilding. Do not add Vue Router or new pages/routes — there's nothing to route yet. Do not touch Synth.Api/Synth.Core/MCP/backend code. Do not add the Aspire AddNpmApp AppHost wiring (separate, still-unscheduled follow-up noted on issue #6)."
