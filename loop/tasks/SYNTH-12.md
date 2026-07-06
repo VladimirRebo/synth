@@ -1,7 +1,7 @@
 ---
 id: SYNTH-12
 summary: "MCP tool library exposing code search (HTTP transport)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'ModelContextProtocol' src/Synth.Api/Synth.Api.csproj"
 acceptance_criterion: ""
 boundaries: "Only add the MCP tool wiring (new Synth.Mcp project or Synth.Api/Mcp folder, whichever is simpler given the SDK's actual API) and register/expose CodeSearchService.SearchAsync (from SYNTH-11) as one MCP tool over HTTP transport in Synth.Api. Do not add a stdio host in this task (separate follow-up) and do not touch the indexing pipeline, chunkers, storage, or Vue client. No live Ollama/Qdrant/Docker required for the test — use the existing Local fallback store + a fake/deterministic embedding generator, same as SYNTH-11's tests."
