@@ -1,7 +1,7 @@
 ---
 id: SYNTH-3
 summary: "Add MongoDB as an Aspire resource for the config store"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -q AddMongoDB src/Synth.AppHost/AppHost.cs"
 acceptance_criterion: ""
 boundaries: "Only wire up the MongoDB Aspire resource and a basic connected client/health check in Synth.Api. Do not implement the actual config-layering read/write logic yet (that's SYNTH-4). No Qdrant/Ollama. No Vue client."

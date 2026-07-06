@@ -18,3 +18,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-1 | MERGED | PR #7 merged to main (47265f1) by human review, connector step 4 not yet automated |
 - | SYNTH-2 | COMPLETED | validator PASS, committed on fix/SYNTH-2 |
 - | SYNTH-2 | MERGED | PR #8 merged to main (8e891ed) |
+- | SYNTH-3 | COMPLETED | validator PASS, committed on fix/SYNTH-3 |
+- | SYNTH-3 | MERGED | PR #9 merged to main (227b6cd) |
