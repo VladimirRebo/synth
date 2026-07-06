@@ -1,7 +1,7 @@
 ---
 id: SYNTH-14
 summary: "Bootstrap Vue 3 + Vite SPA client scaffold"
-status: open
+status: done
 acceptance_command: "npm --prefix src/client install --no-audit --no-fund && npm --prefix src/client run build --silent && npm --prefix src/client test --silent -- run && test -f src/client/package.json"
 acceptance_criterion: ""
 boundaries: "Only scaffold the Vue 3 + Vite SPA under src/client (per AGENTS.md's documented `npm --prefix src/client` convention) and, if straightforward, one AppHost resource entry so it starts alongside the API in dev. Do not implement real pages/features beyond a minimal placeholder, do not add runtime base-path support yet (separate follow-up task), do not touch Synth.Api, Synth.Core, the MCP layer, or the indexing pipeline."

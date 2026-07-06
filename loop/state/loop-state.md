@@ -40,3 +40,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-12 | MERGED | PR #18 merged to main (051c86b); MCP tool (search_code, HTTP transport) exposed in Synth.Api, phase 3 (issue #4) in progress |
 - | SYNTH-13 | COMPLETED | validator PASS, committed on fix/SYNTH-13 |
 - | SYNTH-13 | MERGED | PR #19 merged to main (b668a27); stdio MCP transport host (Synth.Mcp.Stdio) added, completes issue #4 checklist item 1 (transport-agnostic library, stdio+HTTP) |
+- | SYNTH-14 | COMPLETED | validator PASS, committed on fix/SYNTH-14 |
+- | SYNTH-14 | MERGED | PR #20 merged to main (e22bc0f); Vue 3 + Vite SPA scaffold at src/client, phase 5 (issue #6) in progress. AddNpmApp/AppHost wiring skipped deliberately (needs real research), noted as follow-up |
