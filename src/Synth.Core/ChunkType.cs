@@ -12,6 +12,12 @@ public enum ChunkType
     /// <summary>A whole interface declaration.</summary>
     Interface,
 
+    /// <summary>A whole record declaration.</summary>
+    Record,
+
+    /// <summary>A whole struct declaration.</summary>
+    Struct,
+
     /// <summary>A whole method (signature + body).</summary>
     Method,
 
