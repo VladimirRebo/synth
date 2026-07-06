@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Generic host builder + console logging (needed to redirect logs off stdout). -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <!-- MCP stdio transport (WithStdioServerTransport). The tool attributes + AddMcpServer
+         come transitively via Synth.Api's ModelContextProtocol.AspNetCore reference. -->
+    <PackageReference Include="ModelContextProtocol" Version="1.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the search layer wiring (AddSynthEmbeddings/AddSynthVectorStore/AddSynthSearch)
+         and the transport-agnostic CodeSearchTool from Synth.Api — no duplication. -->
+    <ProjectReference Include="../Synth.Api/Synth.Api.csproj" />
+  </ItemGroup>
+
+</Project>
