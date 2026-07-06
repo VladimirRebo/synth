@@ -57,6 +57,20 @@ public sealed class CodeChunk
     public string FileHash { get; init; } = string.Empty;
 
     /// <summary>
+    /// Embedding vector for <see cref="EmbeddingText"/>. Empty until the chunk has
+    /// been run through the embedding model; vector stores read it on upsert and the
+    /// search side compares query vectors against it. Not part of the embedding input.
+    /// </summary>
+    public ReadOnlyMemory<float> Embedding { get; init; }
+
+    /// <summary>
+    /// Stable identity of this chunk within the index: repository-relative path plus
+    /// its line span. Used as the upsert key so re-indexing a file replaces its chunks
+    /// rather than duplicating them.
+    /// </summary>
+    public string ChunkId => $"{RelativePath}:{StartLine}-{EndLine}";
+
+    /// <summary>
     /// Dot-joined qualified name (<c>Namespace.ClassName.MethodName</c>),
     /// skipping empty parts. Empty when no naming parts are set.
     /// </summary>
