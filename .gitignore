@@ -1,0 +1,33 @@
+# --- Loop runtime ---
+loop/logs/
+loop/runs/
+*.loop.log
+
+# --- .NET ---
+bin/
+obj/
+*.user
+*.suo
+.vs/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.nupkg
+
+# --- Node / Vue ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+*.swp
