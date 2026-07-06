@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Synth.Api\Synth.Api.csproj" />
+    <ProjectReference Include="..\Synth.Mcp.Stdio\Synth.Mcp.Stdio.csproj" />
   </ItemGroup>
 
 </Project>
