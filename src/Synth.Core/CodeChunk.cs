@@ -134,6 +134,28 @@ public sealed class CodeChunk
         }
     }
 
+    /// <summary>
+    /// Returns a copy of this chunk carrying <paramref name="embedding"/> as its
+    /// <see cref="Embedding"/>, leaving every other field unchanged. Used by the
+    /// indexing pipeline to attach a computed vector without mutating the original
+    /// (the model is otherwise immutable via <c>init</c>-only setters).
+    /// </summary>
+    public CodeChunk WithEmbedding(ReadOnlyMemory<float> embedding) => new()
+    {
+        FilePath = FilePath,
+        RelativePath = RelativePath,
+        Namespace = Namespace,
+        ClassName = ClassName,
+        MethodName = MethodName,
+        ChunkType = ChunkType,
+        Content = Content,
+        Summary = Summary,
+        StartLine = StartLine,
+        EndLine = EndLine,
+        FileHash = FileHash,
+        Embedding = embedding,
+    };
+
     private static string TruncateContent(string content)
     {
         if (string.IsNullOrEmpty(content) || content.Length <= VerbatimContentThreshold)

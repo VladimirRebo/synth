@@ -1,6 +1,7 @@
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
+using Synth.Api.Indexing;
 using Synth.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,10 @@ builder.AddSynthEmbeddings();
 // connection (endpoint + API key via service discovery), otherwise an in-memory Local
 // store — the same fallback tests and Docker-less local dev run on. Registers ICodeChunkStore.
 builder.AddSynthVectorStore();
+
+// Indexing pipeline: registers the file chunkers + IndexingPipeline that walks a
+// directory, chunks/embeds each file and upserts the chunks into the vector store.
+builder.AddSynthIndexing();
 
 // Microsoft Agent Framework: register one minimal offline example agent.
 // Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
