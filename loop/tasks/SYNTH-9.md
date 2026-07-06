@@ -1,7 +1,7 @@
 ---
 id: SYNTH-9
 summary: "Qdrant as an Aspire resource + VectorStore wiring (+ Local store for tests)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'qdrant' src/Synth.AppHost/AppHost.cs"
 acceptance_criterion: ""
 boundaries: "Only wire up Qdrant as an Aspire resource, a VectorStore abstraction over CodeChunk with a Qdrant-backed implementation, and a simple in-memory 'Local' implementation used by tests. Do not add the indexing pipeline or search yet. No Vue client. Tests must not require a live Qdrant/Docker connection."
