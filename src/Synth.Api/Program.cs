@@ -2,6 +2,7 @@ using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
 using Synth.Api.Indexing;
+using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
 
@@ -42,6 +43,10 @@ builder.AddSynthSearch();
 // Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
 builder.Services.AddSynthAgents();
 
+// MCP layer: register the MCP server with HTTP transport and the transport-agnostic
+// `search_code` tool wrapping CodeSearchService. Endpoints are mapped via MapMcp below.
+builder.AddSynthMcp();
+
 var app = builder.Build();
 
 // Aspire default endpoints (liveness at /alive in development). Synth.Api keeps
@@ -49,6 +54,9 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+// MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
+app.MapMcp("/mcp");
 
 app.Run();
 
