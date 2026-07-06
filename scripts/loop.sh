@@ -63,7 +63,7 @@ fi
 
 record_state() {  # $1=section  $2=note
   local ts="manual-run"  # timestamps are added by the human/CI; loop.sh stays deterministic
-  printf '\n- | %s | %s | %s\n' "$TASK_ID" "$1" "$2" >> "$STATE"
+  printf -- '- | %s | %s | %s |\n' "$TASK_ID" "$1" "$2" >> "$STATE"
 }
 
 # -------------------------------------------------------------------- make ----

@@ -11,7 +11,8 @@ set -uo pipefail
 
 TASK_ID="${1:?usage: validate.sh <task-id>}"
 # Resolve the repo root of the *current* checkout (worktree-aware).
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$ROOT" ] || ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TASK_FILE="$ROOT/loop/tasks/${TASK_ID}.md"
 
 pass() { echo "VALIDATION_RESULT: PASS"; exit 0; }
