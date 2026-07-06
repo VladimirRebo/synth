@@ -20,3 +20,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-2 | MERGED | PR #8 merged to main (8e891ed) |
 - | SYNTH-3 | COMPLETED | validator PASS, committed on fix/SYNTH-3 |
 - | SYNTH-3 | MERGED | PR #9 merged to main (227b6cd) |
+- | SYNTH-4 | COMPLETED | validator PASS, committed on fix/SYNTH-4 |
+- | SYNTH-4 | MERGED | PR #10 merged to main (2e07366) |

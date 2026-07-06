@@ -1,7 +1,7 @@
 ---
 id: SYNTH-4
 summary: "Config layering: IConfigStore (File/Mongo) with live-reload + env override"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq IConfigStore src/Synth.Api"
 acceptance_criterion: ""
 boundaries: "Only add the config-store abstraction, its two implementations (File/Mongo), the configuration-source glue, and tests. Do not add any real domain settings yet (no VectorStore/Embedding/etc. config sections — those belong to later RAG-core tasks). No Qdrant/Ollama wiring. No Vue client."
