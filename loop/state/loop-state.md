@@ -34,3 +34,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-9 | MERGED | PR #15 merged to main (eaefd3e) |
 - | SYNTH-10 | COMPLETED | validator PASS, committed on fix/SYNTH-10 |
 - | SYNTH-10 | MERGED | PR #16 merged to main (6f19c01) |
+- | SYNTH-11 | COMPLETED | validator PASS, committed on fix/SYNTH-11 |
+- | SYNTH-11 | MERGED | PR #17 merged to main (37812f0); closed issue #3 — phase 2 (RAG core) complete |

@@ -1,7 +1,7 @@
 ---
 id: SYNTH-11
 summary: "Search with reranking + basic RU->EN query expansion"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'CodeSearchService' src/Synth.Core"
 acceptance_criterion: ""
 boundaries: "Only add the CodeSearchService (over-fetch + rerank + dedup) and a small query-expansion helper, plus tests. Do not touch the indexing pipeline, chunkers, or storage internals beyond calling ICodeChunkStore.SearchAsync. No HTTP endpoint required. No Vue client. Tests must not require live Ollama/Qdrant/Docker."
