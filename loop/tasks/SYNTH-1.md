@@ -1,7 +1,7 @@
 ---
 id: SYNTH-1
 summary: "Bootstrap the .NET solution with a minimal Web API and a /health endpoint"
-status: open
+status: done
 acceptance_command: "dotnet test src/Synth.slnx --nologo -v q"
 acceptance_criterion: ""
 boundaries: "Create only the solution skeleton under src/. Do not add Qdrant/Mongo integration yet, no Vue client yet."
