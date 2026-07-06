@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Synth.AppHost/Synth.AppHost.csproj" />
   <Project Path="Synth.Api.Tests/Synth.Api.Tests.csproj" />
   <Project Path="Synth.Api/Synth.Api.csproj" />
+  <Project Path="Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
 </Solution>
