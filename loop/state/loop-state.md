@@ -13,3 +13,4 @@ Statuses: `COMPLETED` · `FAILED` · `NO-CHANGES` · `IN-PROGRESS`
 ## In progress
 
 _(nothing yet — run `./scripts/loop.sh` to start)_
+- | SYNTH-1 | FAILED | validator exit=1 |

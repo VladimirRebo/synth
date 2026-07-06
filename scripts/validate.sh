@@ -39,10 +39,11 @@ echo "root: $ROOT"
 
 # --- 1. build (only if a project actually exists) ------------------------------
 CSPROJ="$(find "$ROOT/src" -name '*.csproj' 2>/dev/null | head -1)"
-SLN="$(find "$ROOT/src" -name '*.sln' 2>/dev/null | head -1)"
-if [ -n "$CSPROJ" ] || [ -n "$SLN" ]; then
+SLN="$(find "$ROOT/src" \( -name '*.sln' -o -name '*.slnx' \) 2>/dev/null | head -1)"
+BUILD_TARGET="${SLN:-$CSPROJ}"
+if [ -n "$BUILD_TARGET" ]; then
   echo "-- dotnet build"
-  (cd "$ROOT" && dotnet build --nologo -v q) || fail "dotnet build failed"
+  (cd "$ROOT" && dotnet build "$BUILD_TARGET" --nologo -v q) || fail "dotnet build failed"
 fi
 if [ -f "$ROOT/src/client/package.json" ]; then
   echo "-- npm build"
@@ -53,7 +54,7 @@ fi
 TESTPROJ="$(find "$ROOT/src" -name '*Tests*.csproj' -o -name '*.Tests.csproj' 2>/dev/null | head -1)"
 if [ -n "$TESTPROJ" ]; then
   echo "-- dotnet test"
-  (cd "$ROOT" && dotnet test --nologo -v q) || fail "dotnet test failed"
+  (cd "$ROOT" && dotnet test "$BUILD_TARGET" --nologo -v q) || fail "dotnet test failed"
 fi
 
 # --- 3. acceptance criterion (the actual contract) -----------------------------
