@@ -38,3 +38,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-11 | MERGED | PR #17 merged to main (37812f0); closed issue #3 — phase 2 (RAG core) complete |
 - | SYNTH-12 | COMPLETED | validator PASS, committed on fix/SYNTH-12 |
 - | SYNTH-12 | MERGED | PR #18 merged to main (051c86b); MCP tool (search_code, HTTP transport) exposed in Synth.Api, phase 3 (issue #4) in progress |
+- | SYNTH-13 | COMPLETED | validator PASS, committed on fix/SYNTH-13 |
+- | SYNTH-13 | MERGED | PR #19 merged to main (b668a27); stdio MCP transport host (Synth.Mcp.Stdio) added, completes issue #4 checklist item 1 (transport-agnostic library, stdio+HTTP) |

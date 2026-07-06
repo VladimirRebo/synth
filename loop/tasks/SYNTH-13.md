@@ -1,7 +1,7 @@
 ---
 id: SYNTH-13
 summary: "Stdio MCP transport host for code search"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'WithStdioServerTransport' src/Synth.Mcp.Stdio"
 acceptance_criterion: ""
 boundaries: "Only add a new console host project (e.g. Synth.Mcp.Stdio) that registers the existing, already transport-agnostic CodeSearchTool (src/Synth.Api/Mcp/CodeSearchTool.cs, SYNTH-12) over ModelContextProtocol's stdio transport, reusing AddSynthEmbeddings/AddSynthVectorStore/AddSynthSearch as-is. Do not change CodeSearchTool, CodeSearchService, the HTTP transport wiring in Synth.Api, the indexing pipeline, or the Vue client. No live Ollama/Qdrant/Docker required for the test."
