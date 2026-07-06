@@ -1,7 +1,7 @@
 ---
 id: SYNTH-10
 summary: "Indexing pipeline (chunk -> embed -> upsert)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'IndexingPipeline' src/Synth.Core"
 acceptance_criterion: ""
 boundaries: "Only add the IndexingPipeline that ties together IFileChunker + IEmbeddingGenerator + ICodeChunkStore for a directory of files, plus its tests. Do not add search/reranking (SYNTH-11) or any HTTP endpoint to trigger it (that can be a tiny follow-up, not required here). No Vue client. Tests must not require live Ollama/Qdrant/Docker."
