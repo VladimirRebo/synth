@@ -1,7 +1,7 @@
 ---
 id: SYNTH-8
 summary: "Ollama as an Aspire resource + embedding generator wiring"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'ollama' src/Synth.AppHost/AppHost.cs && grep -riq 'ollama' src/Synth.Api/Synth.Api.csproj"
 acceptance_criterion: ""
 boundaries: "Only wire up Ollama as an Aspire resource and an IEmbeddingGenerator<string, Embedding<float>> in Synth.Api/Synth.Core. Do not add Qdrant, the indexing pipeline, or search yet. No Vue client. Tests must not require a live Ollama server/Docker to pass."
