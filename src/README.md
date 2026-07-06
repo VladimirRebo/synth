@@ -1,16 +1,16 @@
 # src/
 
-Application code goes here — this is where the loop builds Walter.
+Application code goes here — this is where the loop builds Synth.
 
-Planned layout (created incrementally by loop tasks, starting with `WALTER-1`):
+Planned layout (created incrementally by loop tasks, starting with `SYNTH-1`):
 
 ```
 src/
-  Walter.sln
-  Walter.Api/          # ASP.NET Core Web API (.NET)
-  Walter.Api.Tests/    # xUnit tests
+  Synth.sln
+  Synth.Api/          # ASP.NET Core Web API (.NET)
+  Synth.Api.Tests/    # xUnit tests
   ...                  # Core / Infrastructure / Mcp projects later (see docs/ROADMAP.md)
   client/              # Vue 3 + Vite SPA (later)
 ```
 
-Empty for now on purpose — `WALTER-1` bootstraps the solution.
+Empty for now on purpose — `SYNTH-1` bootstraps the solution.

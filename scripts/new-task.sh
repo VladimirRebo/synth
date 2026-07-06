@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./scripts/new-task.sh "Short summary of the task"
-#   ./scripts/new-task.sh "Add /health endpoint" WALTER-3
+#   ./scripts/new-task.sh "Add /health endpoint" SYNTH-3
 #
 set -euo pipefail
 
@@ -15,14 +15,14 @@ TASKS="$ROOT/loop/tasks"
 if [ -n "${2:-}" ]; then
   ID="$2"
 else
-  # WALTER-<n>: next number after the highest existing WALTER-* task.
+  # SYNTH-<n>: next number after the highest existing SYNTH-* task.
   n=0
-  for f in "$TASKS"/WALTER-*.md; do
+  for f in "$TASKS"/SYNTH-*.md; do
     [ -e "$f" ] || continue
     b="$(basename "$f" .md)"; num="${b##*-}"
     [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -gt "$n" ] && n="$num"
   done
-  ID="WALTER-$((n + 1))"
+  ID="SYNTH-$((n + 1))"
 fi
 
 FILE="$TASKS/${ID}.md"

@@ -2,7 +2,7 @@
 
 One task = one file = one contract the loop will try to satisfy.
 
-Create tasks with `./scripts/new-task.sh "summary"` (or copy `WALTER-1.md`).
+Create tasks with `./scripts/new-task.sh "summary"` (or copy `SYNTH-1.md`).
 
 ## The contract (frontmatter)
 Every task **must** define one of:

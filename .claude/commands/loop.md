@@ -1,10 +1,10 @@
 ---
-description: Run one iteration of Walter's agent loop over a task (discover → isolate → make → verify → act)
+description: Run one iteration of Synth's agent loop over a task (discover → isolate → make → verify → act)
 argument-hint: "[task-id or path; empty = first open task]"
 allowed-tools: Read, Bash, Glob, Grep, Task
 ---
 
-Run one iteration of the Walter agent loop using the `loop` skill.
+Run one iteration of the Synth agent loop using the `loop` skill.
 
 Target task: **$ARGUMENTS** (if empty, pick the first `open` task under `loop/tasks/` that is not already Completed in `loop/state/loop-state.md`).
 

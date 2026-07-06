@@ -1,6 +1,6 @@
-# Loop Engineering in Walter
+# Loop Engineering in Synth
 
-Walter is built *by a loop*, not by hand-prompting an agent turn by turn. This
+Synth is built *by a loop*, not by hand-prompting an agent turn by turn. This
 doc is the operational adaptation of the pattern for this repo. Background and
 sources: Addy Osmani, "Loop Engineering" (2026-06); AI4DEV write-up and demo.
 
@@ -25,7 +25,7 @@ and decides the next step.
 ## The five components (+ memory)
 1. **Automations** — for now, manual (`./scripts/loop.sh`) or `/loop` in a session.
    Later: cron / GitLab webhooks (see `[[webhook-pipeline-pattern]]` in the wiki).
-2. **Worktrees** — one per task (`../Walter-wt-<id>`, branch `fix/<id>`).
+2. **Worktrees** — one per task (`../synth-wt-<id>`, branch `fix/<id>`).
 3. **Skills** — `.claude/skills/loop/SKILL.md` encodes the orchestration.
 4. **Connectors** — MCP (GitLab/GitHub, CI). Not wired yet; PR creation is the
    first connector to add.
@@ -46,7 +46,7 @@ proof — that's the gotcha the demo calls out. Green on an *empty* validator is
 proof either.
 
 ## Maturity ladder (raise autonomy gradually)
-1. **Manual** — every step watched. ← Walter is here.
+1. **Manual** — every step watched. ← Synth is here.
 2. **Task prep** — loop drafts/triages tasks, human runs them.
 3. **Worktree edits** — loop implements in a worktree, human reviews the diff.
 4. **PR checker** — loop opens PRs, an independent checker gates them.

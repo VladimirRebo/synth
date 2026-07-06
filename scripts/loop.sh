@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# loop.sh — one iteration of Walter's agent loop.
+# loop.sh — one iteration of Synth's agent loop.
 #   discover → isolate → make → verify → act
 #
 # Usage:
@@ -50,9 +50,9 @@ TASK_ID="$(basename "$TASK_FILE" .md)"
 log "discovered task: ${TASK_ID}"
 
 # ----------------------------------------------------------------- isolate ----
-WT="$ROOT/../Walter-wt-${TASK_ID}"
+WT="$ROOT/../synth-wt-${TASK_ID}"
 BRANCH="fix/${TASK_ID}"
-if git -C "$ROOT" worktree list --porcelain | grep -qF "$(cd "$ROOT/.." && pwd)/Walter-wt-${TASK_ID}"; then
+if git -C "$ROOT" worktree list --porcelain | grep -qF "$(cd "$ROOT/.." && pwd)/synth-wt-${TASK_ID}"; then
   warn "worktree already exists, reusing: $WT"
 else
   git -C "$ROOT" worktree add "$WT" -b "$BRANCH" >/dev/null 2>&1 \
