@@ -1,7 +1,7 @@
 ---
 id: SYNTH-6
 summary: "CodeChunk model + Synth.Core project (computed EmbeddingText)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'class CodeChunk' src/Synth.Core"
 acceptance_criterion: ""
 boundaries: "Only add the new Synth.Core class library project, the CodeChunk model + its computed EmbeddingText property, a Synth.Core.Tests project, and wiring into the solution (and a project reference from Synth.Api, even if unused yet). Do NOT add chunkers, embeddings, or vector store code — those are later tasks. No Qdrant/Ollama/Vue."
