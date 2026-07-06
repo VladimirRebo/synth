@@ -1,7 +1,7 @@
 ---
 id: SYNTH-2
 summary: "Add .NET Aspire AppHost for local orchestration"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && test -f src/Synth.AppHost/Synth.AppHost.csproj && test -f src/Synth.ServiceDefaults/Synth.ServiceDefaults.csproj"
 acceptance_criterion: ""
 boundaries: "Only add Aspire scaffolding (AppHost + ServiceDefaults) and wire Synth.Api to it. Do not add Qdrant/Mongo/Ollama resources yet — those are separate follow-up tasks. No Vue client."
