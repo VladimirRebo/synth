@@ -1,7 +1,7 @@
 ---
 id: SYNTH-7
 summary: "Roslyn-based C# chunker (IFileChunker)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'IFileChunker' src/Synth.Core"
 acceptance_criterion: ""
 boundaries: "Only add the IFileChunker abstraction and ONE implementation (Roslyn-based C# chunker) in Synth.Core, plus its tests. Do not add embeddings, vector store, or the indexing pipeline — those are later tasks. No regex fallback for other languages yet (C# only for now). No Qdrant/Ollama/Vue."
