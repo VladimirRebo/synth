@@ -1,5 +1,6 @@
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
+using Synth.Api.Embeddings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,11 @@ builder.AddMongoDBClient("synthconfig");
 // Config layering: appsettings.json (bootstrap) -> IConfigStore document
 // (File/Mongo, live-reloaded) -> environment variables (always win).
 builder.AddSynthConfigStore();
+
+// Embedding generator (Ollama-backed IEmbeddingGenerator<string, Embedding<float>>).
+// The endpoint + model arrive via Aspire service discovery from the AppHost's Ollama
+// resource; the client connects lazily, so no live Ollama is needed to start up.
+builder.AddSynthEmbeddings();
 
 // Microsoft Agent Framework: register one minimal offline example agent.
 // Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
