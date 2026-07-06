@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Synth.Api.Tests/Synth.Api.Tests.csproj" />
+  <Project Path="Synth.Api/Synth.Api.csproj" />
+</Solution>
