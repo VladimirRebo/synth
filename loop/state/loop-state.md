@@ -22,3 +22,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-3 | MERGED | PR #9 merged to main (227b6cd) |
 - | SYNTH-4 | COMPLETED | validator PASS, committed on fix/SYNTH-4 |
 - | SYNTH-4 | MERGED | PR #10 merged to main (2e07366) |
+- | SYNTH-5 | COMPLETED | validator PASS, committed on fix/SYNTH-5 |
+- | SYNTH-5 | MERGED | PR #11 merged to main (a5ee6f5); closed issue #2 — phase 1 (backend scaffold) complete |

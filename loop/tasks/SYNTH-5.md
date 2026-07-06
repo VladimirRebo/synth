@@ -1,7 +1,7 @@
 ---
 id: SYNTH-5
 summary: "Wire up Microsoft Agent Framework (minimal proof-of-wiring, no loop replacement)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rqi 'Microsoft.Agents.AI\|Microsoft.Extensions.AI.Agents\|AgentFramework' src/Synth.Api/Synth.Api.csproj"
 acceptance_criterion: ""
 boundaries: "Only add the Microsoft Agent Framework package(s) and ONE minimal example agent/workflow to prove it builds and runs in this repo. Do NOT replace, touch, or reimplement scripts/loop.sh, the maker/checker subagent scaffold, or any of the existing agent-loop plumbing — that is a separate, deliberately-scoped future decision. No Qdrant/real embeddings/Vue. The example must not require live LLM credentials (Anthropic/OpenAI/Azure API keys) to build or to pass its test — use a mock/stub chat client or a deterministic function-based agent if the framework supports one."
