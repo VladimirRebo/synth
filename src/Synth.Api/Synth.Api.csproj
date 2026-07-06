@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Synth.Core/Synth.Core.csproj" />
     <ProjectReference Include="../Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
   </ItemGroup>
 
