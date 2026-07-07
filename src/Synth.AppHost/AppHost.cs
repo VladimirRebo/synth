@@ -1,9 +1,20 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // MongoDB is Synth's config store. Run it as an Aspire-managed container with a
-// persistent data volume so config survives restarts. Follow-up tasks will add
-// the Qdrant vector store here.
-var mongo = builder.AddMongoDB("mongo")
+// persistent data volume so config survives restarts.
+//
+// Pin the admin credentials instead of letting Aspire generate a new random
+// password per run: AddMongoDB otherwise regenerates the password on every
+// `dotnet run`, but WithDataVolume keeps the *previous* run's admin user (with
+// the *old* password) on disk — the new random password then fails to
+// authenticate against it ("SCRAM authentication failed, storedKey mismatch"),
+// the resource never reports healthy, and `WaitFor` blocks the API from
+// starting forever. A fixed local-dev-only password keeps the volume and the
+// credentials in sync across restarts. Not meant to protect real secrets.
+var mongoUser = builder.AddParameter("mongo-username", "synth", publishValueAsDefault: true);
+var mongoPassword = builder.AddParameter("mongo-password", "synth-local-dev-only", secret: true);
+
+var mongo = builder.AddMongoDB("mongo", userName: mongoUser, password: mongoPassword)
     .WithDataVolume();
 
 var configDb = mongo.AddDatabase("synthconfig");
