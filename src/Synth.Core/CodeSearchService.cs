@@ -3,6 +3,14 @@ using Microsoft.Extensions.AI;
 namespace Synth.Core;
 
 /// <summary>
+/// A <see cref="CodeChunk"/> paired with its final rerank score from
+/// <see cref="CodeSearchService.SearchAsync"/>. Not bounded to [0, 1] — it is raw cosine
+/// similarity multiplied by chunk-type weight (up to 1.15) and keyword boost (1 + 0.5 per
+/// matching token), so it can exceed 1. Treat it as a relative ranking signal, not a percentage.
+/// </summary>
+public readonly record struct ScoredCodeChunk(CodeChunk Chunk, double Score);
+
+/// <summary>
 /// Search entry point over the indexed <see cref="CodeChunk"/>s: expands the query, embeds it,
 /// over-fetches candidates from the vector store and reranks them with a lightweight scoring
 /// model (vector similarity × chunk-type weight × keyword boost) before deduplicating and
@@ -36,10 +44,10 @@ public sealed class CodeSearchService
 
     /// <summary>
     /// Returns up to <paramref name="limit"/> code chunks most relevant to <paramref name="query"/>,
-    /// ordered by descending rerank score. Returns an empty list for a non-positive limit or a
-    /// blank query.
+    /// each paired with its rerank score, ordered by descending score. Returns an empty list for
+    /// a non-positive limit or a blank query.
     /// </summary>
-    public async Task<IReadOnlyList<CodeChunk>> SearchAsync(
+    public async Task<IReadOnlyList<ScoredCodeChunk>> SearchAsync(
         string query,
         int limit,
         CancellationToken cancellationToken = default)
@@ -56,11 +64,10 @@ public sealed class CodeSearchService
         var candidates = await _store.SearchAsync(queryVector, limit * OverFetchFactor, cancellationToken);
 
         var ranked = candidates
-            .Select(candidate => (
+            .Select(candidate => new ScoredCodeChunk(
                 candidate.Chunk,
-                Score: candidate.Score * ChunkTypeWeight(candidate.Chunk.ChunkType) * KeywordBoost(query, candidate.Chunk)))
-            .OrderByDescending(scored => scored.Score)
-            .Select(scored => scored.Chunk);
+                candidate.Score * ChunkTypeWeight(candidate.Chunk.ChunkType) * KeywordBoost(query, candidate.Chunk)))
+            .OrderByDescending(scored => scored.Score);
 
         return Deduplicate(ranked).Take(limit).ToList();
     }
@@ -99,13 +106,14 @@ public sealed class CodeSearchService
     // RelativePath::ClassName.MethodName, and at most two hits sharing a method name
     // (the method-name cap only applies to chunks that actually carry a method name, so
     // type-level chunks aren't collapsed against each other).
-    private static IEnumerable<CodeChunk> Deduplicate(IEnumerable<CodeChunk> chunks)
+    private static IEnumerable<ScoredCodeChunk> Deduplicate(IEnumerable<ScoredCodeChunk> scored)
     {
         var seenExact = new HashSet<string>(StringComparer.Ordinal);
         var perMethodName = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        foreach (var chunk in chunks)
+        foreach (var entry in scored)
         {
+            var chunk = entry.Chunk;
             var exactKey = $"{chunk.RelativePath}::{chunk.ClassName}.{chunk.MethodName}";
             if (!seenExact.Add(exactKey))
                 continue;
@@ -118,7 +126,7 @@ public sealed class CodeSearchService
                 perMethodName[chunk.MethodName] = count + 1;
             }
 
-            yield return chunk;
+            yield return entry;
         }
     }
 }

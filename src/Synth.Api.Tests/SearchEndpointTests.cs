@@ -69,6 +69,11 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             Assert.DoesNotContain("\"chunkType\":0", raw);
             Assert.DoesNotMatch("\"chunkType\":\\d", raw);
 
+            // score must be present as a plain JSON number (the fake embedding generator
+            // produces an all-zero vector, so cosine similarity — and thus the final rerank
+            // score — is deterministically 0 here; a real Ollama vector would vary).
+            Assert.Matches("\"score\":\\s*-?\\d", raw);
+
             var deserializeOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             deserializeOptions.Converters.Add(new JsonStringEnumConverter());
             var results = JsonSerializer.Deserialize<List<CodeSearchResult>>(raw, deserializeOptions);

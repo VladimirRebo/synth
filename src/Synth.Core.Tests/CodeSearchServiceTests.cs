@@ -74,8 +74,9 @@ public class CodeSearchServiceTests
         var results = await ServiceFor(store).SearchAsync("zzz unrelated", limit: 5);
 
         Assert.Equal(2, results.Count);
-        Assert.Equal("Beta", results[0].ClassName);   // Class weight wins
-        Assert.Equal("Alpha", results[1].ClassName);
+        Assert.Equal("Beta", results[0].Chunk.ClassName);   // Class weight wins
+        Assert.Equal("Alpha", results[1].Chunk.ClassName);
+        Assert.True(results[0].Score > results[1].Score);   // The score reflects the reordering
     }
 
     [Fact]
@@ -92,8 +93,8 @@ public class CodeSearchServiceTests
 
         var results = await ServiceFor(store).SearchAsync("user", limit: 5);
 
-        Assert.Equal("GetUserById", results[0].MethodName);
-        Assert.Equal("ComputeChecksum", results[1].MethodName);
+        Assert.Equal("GetUserById", results[0].Chunk.MethodName);
+        Assert.Equal("ComputeChecksum", results[1].Chunk.MethodName);
     }
 
     [Fact]
@@ -111,7 +112,7 @@ public class CodeSearchServiceTests
         var results = await ServiceFor(store).SearchAsync("handle", limit: 10);
 
         Assert.Equal(2, results.Count);
-        Assert.All(results, chunk => Assert.Equal("Handle", chunk.MethodName));
+        Assert.All(results, scored => Assert.Equal("Handle", scored.Chunk.MethodName));
     }
 
     [Fact]
