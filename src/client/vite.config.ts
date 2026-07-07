@@ -10,6 +10,19 @@ export default defineConfig({
   // Do NOT change this back to an absolute base — see SYNTH-15 / issue #6.
   base: './',
   plugins: [vue()],
+  server: {
+    // Proxy same-origin /api/* to the real backend instead of dealing with CORS (the API has
+    // no CORS policy, and its port is dynamic under Aspire). Aspire's AppHost.cs already
+    // references the `api` resource from `client`, which injects API_HTTP — falls back to
+    // Synth.Api's fixed launchSettings.json port for standalone `npm run dev` without Aspire.
+    proxy: {
+      '/api': {
+        target: process.env.API_HTTP || 'http://localhost:5042',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
   },

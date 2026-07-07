@@ -7,4 +7,9 @@ describe('App', () => {
     const wrapper = mount(App)
     expect(wrapper.get('h1').text()).toBe('Synth')
   })
+
+  it('renders the index and search panels', () => {
+    const wrapper = mount(App)
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Index a directory', 'Search'])
+  })
 })

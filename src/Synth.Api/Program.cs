@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
@@ -10,6 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Aspire service defaults: OpenTelemetry, health checks, and service discovery.
 builder.AddServiceDefaults();
+
+// Serialize enums (e.g. CodeSearchResult.ChunkType) as their string name, not the underlying
+// int, in Minimal API JSON responses — matches the MCP tool's own serialization (which already
+// renders ChunkType as e.g. "Method"), so the two search transports agree on the wire shape.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // MongoDB config store. The connection string is supplied by Aspire service
 // discovery via the "synthconfig" reference from the AppHost (no hardcoded value).
@@ -58,6 +65,10 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Manual indexing trigger (POST /index { "path": "..." }) — the only way to actually
 // run IndexingPipeline against a real directory; previously it was only exercised by tests.
 app.MapIndexingEndpoints();
+
+// Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
+// /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
+app.MapSearchEndpoints();
 
 // MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
 app.MapMcp("/mcp");
