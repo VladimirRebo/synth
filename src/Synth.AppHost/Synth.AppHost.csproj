@@ -18,6 +18,8 @@
     <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.4.6" />
     <!-- Aspire Community Toolkit: hosting integration for Ollama (embedding provider). -->
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.4.0" />
+    <!-- Aspire hosting integration for the Vue/Vite client (AddViteApp). -->
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
   </ItemGroup>
 
   <ItemGroup>

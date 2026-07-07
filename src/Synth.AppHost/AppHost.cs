@@ -37,12 +37,21 @@ var qdrant = builder.AddQdrant("qdrant")
 // Synth.Api runs as an Aspire project resource. It gets a MongoDB connection
 // string, the Ollama embedding endpoint, and the Qdrant vector store via service
 // discovery from the referenced resources.
-builder.AddProject<Projects.Synth_Api>("api")
+var api = builder.AddProject<Projects.Synth_Api>("api")
     .WithReference(configDb)
     .WaitFor(configDb)
     .WithReference(embeddings)
     .WaitFor(embeddings)
     .WithReference(qdrant)
     .WaitFor(qdrant);
+
+// The Vue client (src/client) runs as an Aspire-managed Vite dev server. AddViteApp
+// wires Aspire's assigned HTTP endpoint straight into `vite --port <n>`, so no
+// vite.config.ts changes are needed. Was deliberately left out of the AppHost by
+// SYNTH-14 ("needs real research") — this is that follow-up.
+builder.AddViteApp("client", "../client")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();
