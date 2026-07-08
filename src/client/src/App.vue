@@ -6,6 +6,7 @@ import Icon from './components/Icon.vue'
 import IndexPanel from './components/IndexPanel.vue'
 import McpConnectPanel from './components/McpConnectPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import LogsPanel from './components/LogsPanel.vue'
 import SearchPanel from './components/SearchPanel.vue'
 
 const { theme, toggle } = useTheme()
@@ -41,6 +42,7 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
     <IndexPanel />
     <McpConnectPanel />
     <SettingsPanel />
+    <LogsPanel />
     <SearchPanel />
   </main>
 </template>

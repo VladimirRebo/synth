@@ -66,6 +66,17 @@ const icons: Record<string, IconDef> = {
       'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
     ],
   },
+  list: {
+    // feather-icons' list glyph — used for the Logs panel.
+    lines: [
+      { x1: 8, y1: 6, x2: 21, y2: 6 },
+      { x1: 8, y1: 12, x2: 21, y2: 12 },
+      { x1: 8, y1: 18, x2: 21, y2: 18 },
+      { x1: 3, y1: 6, x2: 3.01, y2: 6 },
+      { x1: 3, y1: 12, x2: 3.01, y2: 12 },
+      { x1: 3, y1: 18, x2: 3.01, y2: 18 },
+    ],
+  },
   sliders: {
     // feather-icons' sliders glyph — used for the Settings panel.
     lines: [

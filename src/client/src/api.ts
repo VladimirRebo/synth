@@ -66,6 +66,20 @@ export interface EmbeddingSettingsPatch {
   openai?: { apiKey?: string; model?: string | null }
 }
 
+// Mirrors Synth.Api.Logging.LogEntry.
+export interface LogEntry {
+  timestamp: string
+  level: 'Verbose' | 'Debug' | 'Information' | 'Warning' | 'Error' | 'Fatal'
+  message: string
+  exception: string | null
+}
+
+export interface LogsQuery {
+  level?: string
+  since?: string
+  search?: string
+}
+
 interface ApiError {
   error?: string
 }
@@ -166,4 +180,20 @@ export async function updateEmbeddingSettings(patch: EmbeddingSettingsPatch): Pr
   }
 
   return (await response.json()) as EmbeddingSettings
+}
+
+export async function getLogs(query: LogsQuery = {}): Promise<LogEntry[]> {
+  const params = new URLSearchParams()
+  if (query.level) params.set('level', query.level)
+  if (query.since) params.set('since', query.since)
+  if (query.search) params.set('search', query.search)
+  const qs = params.toString()
+
+  const response = await fetch(`/api/logs${qs ? `?${qs}` : ''}`)
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading logs failed (${response.status})`))
+  }
+
+  return (await response.json()) as LogEntry[]
 }

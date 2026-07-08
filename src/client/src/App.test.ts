@@ -21,6 +21,7 @@ describe('App', () => {
       'Index a repository',
       'Connect via MCP',
       'Settings',
+      'Logs',
       'Search',
     ])
   })
