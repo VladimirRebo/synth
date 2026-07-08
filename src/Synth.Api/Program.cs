@@ -104,6 +104,10 @@ app.MapEmbeddingSettingsEndpoints();
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
 app.MapSearchEndpoints();
 
+// Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
+// client can poll the live log — `since` returns only entries newer than the last poll.
+app.MapLogsEndpoints();
+
 // MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
 app.MapMcp("/mcp");
 
