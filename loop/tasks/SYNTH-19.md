@@ -1,7 +1,7 @@
 ---
 id: SYNTH-19
 summary: "Wire remote repo indexing into POST /index + a Mongo-backed repository registry"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'RepoUrl' src/Synth.Api/Indexing/IndexingEndpoints.cs && grep -riq 'RepositoryRegistry' src/Synth.Api -r"
 acceptance_criterion: ""
 boundaries: "Only wire GitRepoService (SYNTH-18) into the indexing endpoint and add the repository registry + its listing endpoint. Do not touch the Vue client. Do not add webhooks, AI review, or issue automation (backlog, issue #22). Existing local-path indexing behavior (POST /index with just \"path\") must be unchanged, still using CollectionNames.Default."
