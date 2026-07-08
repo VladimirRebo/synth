@@ -93,7 +93,18 @@ public sealed class ConfigurableEmbeddingGenerator : IEmbeddingGenerator<string,
         }
     }
 
-    private IEmbeddingGenerator<string, Embedding<float>> Build(EmbeddingOptions options)
+    private IEmbeddingGenerator<string, Embedding<float>> Build(EmbeddingOptions options) =>
+        BuildGenerator(options, _aspireDefault);
+
+    /// <summary>
+    /// Builds the inner generator for one <see cref="EmbeddingOptions"/> snapshot against the given
+    /// Aspire fallback connection — the single place provider selection/construction lives, shared by
+    /// this generator's live path and SYNTH-22's probe-before-persist path (so the endpoint validates a
+    /// candidate config with exactly the same construction logic instead of duplicating it). Constructing
+    /// the returned client opens no socket; an incomplete config yields a <see cref="NotConfiguredEmbeddingGenerator"/>
+    /// that only throws when actually used.
+    /// </summary>
+    public static IEmbeddingGenerator<string, Embedding<float>> BuildGenerator(EmbeddingOptions options, OllamaConnection aspireDefault)
     {
         var provider = options.Provider?.Trim();
 
@@ -101,16 +112,17 @@ public sealed class ConfigurableEmbeddingGenerator : IEmbeddingGenerator<string,
             return BuildOpenAI(options.OpenAI);
 
         if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase))
-            return BuildOllama(options.Ollama.Endpoint, options.Ollama.Model);
+            return BuildOllama(options.Ollama.Endpoint, options.Ollama.Model, aspireDefault);
 
         // No/unknown provider: keep today's behavior — Ollama via the Aspire-supplied endpoint/model.
-        return BuildOllama(null, null);
+        return BuildOllama(null, null, aspireDefault);
     }
 
-    private IEmbeddingGenerator<string, Embedding<float>> BuildOllama(string? endpointOverride, string? modelOverride)
+    private static IEmbeddingGenerator<string, Embedding<float>> BuildOllama(
+        string? endpointOverride, string? modelOverride, OllamaConnection aspireDefault)
     {
-        var endpoint = FirstNonEmpty(endpointOverride, _aspireDefault.Endpoint);
-        var model = FirstNonEmpty(modelOverride, _aspireDefault.Model);
+        var endpoint = FirstNonEmpty(endpointOverride, aspireDefault.Endpoint);
+        var model = FirstNonEmpty(modelOverride, aspireDefault.Model);
 
         if (string.IsNullOrWhiteSpace(endpoint))
             return new NotConfiguredEmbeddingGenerator(
