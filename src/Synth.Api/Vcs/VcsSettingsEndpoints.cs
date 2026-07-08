@@ -7,7 +7,7 @@ using Synth.Core.Vcs;
 namespace Synth.Api.Vcs;
 
 /// <summary>
-/// Maps <c>GET</c>/<c>PUT /api/settings/vcs</c>: the read/write API over the <c>Vcs</c> config
+/// Maps <c>GET</c>/<c>PUT /settings/vcs</c>: the read/write API over the <c>Vcs</c> config
 /// section (<see cref="VcsOptions"/>). Reads report whether a token is set rather than echoing the
 /// secret; writes are partial (an absent field is left unchanged, an explicit empty string clears a
 /// token) and persist through <see cref="ConfigSectionUpdater"/> so the change is picked up live by
@@ -22,12 +22,12 @@ public static class VcsSettingsEndpoints
 
     public static IEndpointRouteBuilder MapVcsSettingsEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // GET /api/settings/vcs — current effective VcsOptions, with tokens masked to a set/not-set flag.
-        endpoints.MapGet("/api/settings/vcs",
+        // GET /settings/vcs — current effective VcsOptions, with tokens masked to a set/not-set flag.
+        endpoints.MapGet("/settings/vcs",
             (IOptionsMonitor<VcsOptions> options) => Results.Ok(Mask(options.CurrentValue)));
 
-        // PUT /api/settings/vcs — partial update; returns the same masked shape as GET.
-        endpoints.MapPut("/api/settings/vcs", async (
+        // PUT /settings/vcs — partial update; returns the same masked shape as GET.
+        endpoints.MapPut("/settings/vcs", async (
             JsonElement body,
             ConfigSectionUpdater updater,
             IOptionsMonitor<VcsOptions> options,

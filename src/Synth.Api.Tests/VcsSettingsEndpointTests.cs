@@ -9,7 +9,7 @@ using Synth.Api.Configuration;
 
 namespace Synth.Api.Tests;
 
-// Drives GET/PUT /api/settings/vcs over HTTP. A single in-memory IConfigStore is shared between the
+// Drives GET/PUT /settings/vcs over HTTP. A single in-memory IConfigStore is shared between the
 // endpoint (via DI) and an extra configuration layer, so the round trip is hermetic (no Mongo,
 // Docker, or ~/.synth/config.json) AND the store's Changed event genuinely reloads
 // IOptionsMonitor<VcsOptions> — the reload path the endpoint relies on.
@@ -45,7 +45,7 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var (client, _) = CreateClient(
             """{ "Vcs": { "WorkspaceRoot": "/w", "GitHub": { "Token": "ghp_secret" }, "GitLab": { "Token": null } } }""");
 
-        var response = await client.GetAsync("/api/settings/vcs");
+        var response = await client.GetAsync("/settings/vcs");
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadAsStringAsync();
 
@@ -61,7 +61,7 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
     {
         var (client, _) = CreateClient();
 
-        var put = await client.PutAsJsonAsync("/api/settings/vcs", new
+        var put = await client.PutAsJsonAsync("/settings/vcs", new
         {
             workspaceRoot = "/work",
             github = new { token = "ghp_live" },
@@ -70,7 +70,7 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var putBody = await put.Content.ReadAsStringAsync();
         Assert.DoesNotContain("ghp_live", putBody);
 
-        var get = await client.GetFromJsonAsync<JsonElement>("/api/settings/vcs");
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
         Assert.Equal("/work", get.GetProperty("workspaceRoot").GetString());
         Assert.True(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
         Assert.False(get.GetProperty("gitlab").GetProperty("tokenSet").GetBoolean());
@@ -83,10 +83,10 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
             """{ "Vcs": { "GitLab": { "Token": "glpat_keep" } } }""");
 
         // Update only the GitHub token; GitLab is not mentioned and must survive.
-        var put = await client.PutAsJsonAsync("/api/settings/vcs", new { github = new { token = "ghp_new" } });
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { github = new { token = "ghp_new" } });
         put.EnsureSuccessStatusCode();
 
-        var get = await client.GetFromJsonAsync<JsonElement>("/api/settings/vcs");
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
         Assert.True(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
         Assert.True(get.GetProperty("gitlab").GetProperty("tokenSet").GetBoolean());
 
@@ -102,10 +102,10 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var (client, _) = CreateClient(
             """{ "Vcs": { "GitHub": { "Token": "ghp_old" } } }""");
 
-        var put = await client.PutAsJsonAsync("/api/settings/vcs", new { github = new { token = "" } });
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { github = new { token = "" } });
         put.EnsureSuccessStatusCode();
 
-        var get = await client.GetFromJsonAsync<JsonElement>("/api/settings/vcs");
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
         Assert.False(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
     }
 
@@ -114,7 +114,7 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
     {
         var (client, _) = CreateClient();
 
-        var put = await client.PutAsJsonAsync("/api/settings/vcs", new { gitlab = new { token = "glpat_live" } });
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { gitlab = new { token = "glpat_live" } });
         put.EnsureSuccessStatusCode();
 
         // The endpoint builds its response from IOptionsMonitor<VcsOptions>.CurrentValue *after* the

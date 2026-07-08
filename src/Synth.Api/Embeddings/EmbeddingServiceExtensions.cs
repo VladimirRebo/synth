@@ -49,7 +49,7 @@ public static class EmbeddingServiceExtensions
                 sp.GetRequiredService<OllamaConnection>(),
                 sp.GetRequiredService<IOptionsMonitor<EmbeddingOptions>>()));
 
-        // Factory used by PUT /api/settings/embedding to build a candidate generator for the
+        // Factory used by PUT /settings/embedding to build a candidate generator for the
         // probe-before-persist check (tests swap this for a fake to control probe success/failure).
         builder.Services.AddSingleton<IEmbeddingGeneratorFactory, EmbeddingGeneratorFactory>();
 

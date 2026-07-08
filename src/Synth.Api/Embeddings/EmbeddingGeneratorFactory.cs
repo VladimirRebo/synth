@@ -5,7 +5,7 @@ namespace Synth.Api.Embeddings;
 
 /// <summary>
 /// Builds a throwaway <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/> from a candidate
-/// <see cref="EmbeddingOptions"/> snapshot. SYNTH-22's <c>PUT /api/settings/embedding</c> uses this to
+/// <see cref="EmbeddingOptions"/> snapshot. SYNTH-22's <c>PUT /settings/embedding</c> uses this to
 /// probe a config (generate one real embedding) <b>before</b> persisting it, so a broken provider is
 /// never saved. It's a seam, not just a helper: tests replace it with a fake so the probe can be made
 /// to succeed or fail deterministically without a live Ollama/OpenAI server.

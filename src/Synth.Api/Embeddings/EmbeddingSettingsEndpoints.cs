@@ -9,7 +9,7 @@ using Synth.Core.Embeddings;
 namespace Synth.Api.Embeddings;
 
 /// <summary>
-/// Maps <c>GET</c>/<c>PUT /api/settings/embedding</c>: the read/write API over the <c>Embedding</c>
+/// Maps <c>GET</c>/<c>PUT /settings/embedding</c>: the read/write API over the <c>Embedding</c>
 /// config section (<see cref="EmbeddingOptions"/>). Reads report whether the OpenAI API key is set
 /// rather than echoing it (same masking as <c>SYNTH-20</c>'s VCS tokens); writes are partial (an absent
 /// field is left unchanged) and persist through <see cref="ConfigSectionUpdater"/> so the change is
@@ -40,12 +40,12 @@ public static class EmbeddingSettingsEndpoints
 
     public static IEndpointRouteBuilder MapEmbeddingSettingsEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // GET /api/settings/embedding — current effective EmbeddingOptions, API key masked to a flag.
-        endpoints.MapGet("/api/settings/embedding",
+        // GET /settings/embedding — current effective EmbeddingOptions, API key masked to a flag.
+        endpoints.MapGet("/settings/embedding",
             (IOptionsMonitor<EmbeddingOptions> options) => Results.Ok(Mask(options.CurrentValue)));
 
-        // PUT /api/settings/embedding — probe the candidate config, then partial-update on success.
-        endpoints.MapPut("/api/settings/embedding", async (
+        // PUT /settings/embedding — probe the candidate config, then partial-update on success.
+        endpoints.MapPut("/settings/embedding", async (
             JsonElement body,
             IEmbeddingGeneratorFactory factory,
             ConfigSectionUpdater updater,

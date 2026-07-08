@@ -11,7 +11,7 @@ using Synth.Core.Embeddings;
 
 namespace Synth.Api.Tests;
 
-// Drives GET/PUT /api/settings/embedding over HTTP. As with the VCS settings tests, one in-memory
+// Drives GET/PUT /settings/embedding over HTTP. As with the VCS settings tests, one in-memory
 // IConfigStore backs both the endpoint's writes and a configuration layer, so the round trip is
 // hermetic and the store's Changed event genuinely reloads IOptionsMonitor<EmbeddingOptions>. The
 // network-talking piece (the probe generator) is faked, so no live Ollama/OpenAI is needed and the
@@ -51,7 +51,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
         var (client, _) = CreateClient(
             """{ "Embedding": { "Provider": "OpenAI", "OpenAI": { "ApiKey": "sk-topsecret", "Model": "text-embedding-3-small" } } }""");
 
-        var response = await client.GetAsync("/api/settings/embedding");
+        var response = await client.GetAsync("/settings/embedding");
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadAsStringAsync();
 
@@ -67,7 +67,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
     {
         var (client, store) = CreateClient(probeFactory: FakeEmbeddingGeneratorFactory.Succeeding());
 
-        var put = await client.PutAsJsonAsync("/api/settings/embedding", new
+        var put = await client.PutAsJsonAsync("/settings/embedding", new
         {
             provider = "OpenAI",
             openai = new { apiKey = "sk-live", model = "text-embedding-3-small" },
@@ -75,7 +75,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
         put.EnsureSuccessStatusCode();
         Assert.DoesNotContain("sk-live", await put.Content.ReadAsStringAsync());
 
-        var response = await client.GetAsync("/api/settings/embedding");
+        var response = await client.GetAsync("/settings/embedding");
         var getBody = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("sk-live", getBody); // masking never leaks the raw key
         var get = JsonDocument.Parse(getBody).RootElement;
@@ -97,7 +97,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
             FakeEmbeddingGeneratorFactory.Failing());
         var before = store.Current;
 
-        var put = await client.PutAsJsonAsync("/api/settings/embedding", new
+        var put = await client.PutAsJsonAsync("/settings/embedding", new
         {
             provider = "OpenAI",
             openai = new { apiKey = "sk-bad" },
@@ -109,7 +109,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
         Assert.DoesNotContain("sk-bad", store.Current!);
 
         // ...and a subsequent GET still shows the original config, untouched.
-        var get = await client.GetFromJsonAsync<JsonElement>("/api/settings/embedding");
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/embedding");
         Assert.Equal("Ollama", get.GetProperty("provider").GetString());
         Assert.False(get.GetProperty("openai").GetProperty("apiKeySet").GetBoolean());
         Assert.Equal("http://good:11434", get.GetProperty("ollama").GetProperty("endpoint").GetString());
@@ -120,7 +120,7 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
     {
         var (client, store) = CreateClient(probeFactory: FakeEmbeddingGeneratorFactory.ReturningEmptyVector());
 
-        var put = await client.PutAsJsonAsync("/api/settings/embedding", new
+        var put = await client.PutAsJsonAsync("/settings/embedding", new
         {
             provider = "Ollama",
             ollama = new { endpoint = "http://x:11434", model = "m" },
@@ -138,10 +138,10 @@ public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactor
             FakeEmbeddingGeneratorFactory.Succeeding());
 
         // Update only the model; provider and key are not mentioned and must survive.
-        var put = await client.PutAsJsonAsync("/api/settings/embedding", new { openai = new { model = "new-model" } });
+        var put = await client.PutAsJsonAsync("/settings/embedding", new { openai = new { model = "new-model" } });
         put.EnsureSuccessStatusCode();
 
-        var get = await client.GetFromJsonAsync<JsonElement>("/api/settings/embedding");
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/embedding");
         Assert.Equal("OpenAI", get.GetProperty("provider").GetString());
         Assert.True(get.GetProperty("openai").GetProperty("apiKeySet").GetBoolean());
         Assert.Equal("new-model", get.GetProperty("openai").GetProperty("model").GetString());

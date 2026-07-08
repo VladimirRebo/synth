@@ -74,11 +74,11 @@ app.MapIndexingEndpoints();
 // Lists the known collections and their metadata (GET /repositories) from the repository registry.
 app.MapRepositoryEndpoints();
 
-// Settings API for the Vcs config section (GET/PUT /api/settings/vcs): read/write the workspace
+// Settings API for the Vcs config section (GET/PUT /settings/vcs): read/write the workspace
 // root and provider tokens at runtime, masking secrets and live-reloading IOptionsMonitor<VcsOptions>.
 app.MapVcsSettingsEndpoints();
 
-// Settings API for the Embedding config section (GET/PUT /api/settings/embedding): read/write the
+// Settings API for the Embedding config section (GET/PUT /settings/embedding): read/write the
 // provider/model/key at runtime, masking the OpenAI key and probing a candidate config before it is
 // persisted so a broken provider is never saved.
 app.MapEmbeddingSettingsEndpoints();
