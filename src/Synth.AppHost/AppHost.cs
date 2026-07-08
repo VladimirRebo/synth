@@ -37,7 +37,13 @@ var qdrant = builder.AddQdrant("qdrant")
 // Synth.Api runs as an Aspire project resource. It gets a MongoDB connection
 // string, the Ollama embedding endpoint, and the Qdrant vector store via service
 // discovery from the referenced resources.
+//
+// IsProxied=false pins the externally-reachable port to the app's own launchSettings.json
+// port (5042) instead of a DCP-assigned proxy port that changes every run — otherwise the
+// MCP connect panel's copy-paste snippets, `make index`, and anyone hitting the API directly
+// have to re-discover the port each time. Same discipline Sonar's AppHost uses.
 var api = builder.AddProject<Projects.Synth_Api>("api")
+    .WithEndpoint("http", e => e.IsProxied = false)
     .WithReference(configDb)
     .WaitFor(configDb)
     .WithReference(embeddings)
@@ -49,9 +55,18 @@ var api = builder.AddProject<Projects.Synth_Api>("api")
 // wires Aspire's assigned HTTP endpoint straight into `vite --port <n>`, so no
 // vite.config.ts changes are needed. Was deliberately left out of the AppHost by
 // SYNTH-14 ("needs real research") — this is that follow-up.
+//
+// Pinned to the conventional Vite dev port (5173, IsProxied=false) for the same reason as
+// the API above: a stable URL instead of a new random port every `dotnet run`.
 builder.AddViteApp("client", "../client")
     .WithReference(api)
     .WaitFor(api)
+    .WithEndpoint("http", e =>
+    {
+        e.Port = 5173;
+        e.TargetPort = 5173;
+        e.IsProxied = false;
+    })
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
