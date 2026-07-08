@@ -46,6 +46,12 @@ if [ -n "$BUILD_TARGET" ]; then
   (cd "$ROOT" && dotnet build "$BUILD_TARGET" --nologo -v q) || fail "dotnet build failed"
 fi
 if [ -f "$ROOT/src/client/package.json" ]; then
+  # Fresh git worktrees never carry node_modules/ (gitignored) — install first if missing,
+  # so this check doesn't spuriously fail tasks that never touched the client.
+  if [ ! -d "$ROOT/src/client/node_modules" ]; then
+    echo "-- npm install"
+    (cd "$ROOT/src/client" && npm install --no-audit --no-fund --silent) || fail "npm install failed"
+  fi
   echo "-- npm build"
   (cd "$ROOT/src/client" && npm run build --silent) || fail "npm build failed"
 fi
