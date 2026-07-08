@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Synth.Api.Vcs;
 using Synth.Core;
+using Synth.Core.Vcs;
 
 namespace Synth.Api.Tests;
 
@@ -77,5 +79,46 @@ public class IndexingEndpointTests : IClassFixture<WebApplicationFactory<Program
         var response = await client.PostAsJsonAsync("/index", new { path = "/no/such/directory" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Index_returns_400_when_neither_path_nor_repoUrl_is_given()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/index", new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Index_indexes_a_remote_repo_by_url_and_records_it_in_the_registry()
+    {
+        using var fixture = GitRepoFixture.CreateWithCSharpFile();
+        var workspace = Directory.CreateTempSubdirectory("synth-index-workspace-");
+        try
+        {
+            // Point GitRepoService's workspace at a temp dir so the file:// clone lands there.
+            var factory = _factory.WithWebHostBuilder(builder =>
+                builder.UseSetting("Vcs:WorkspaceRoot", workspace.FullName));
+            var client = factory.CreateClient();
+
+            var response = await client.PostAsJsonAsync("/index", new { repoUrl = fixture.Url });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var summary = await response.Content.ReadFromJsonAsync<IndexingSummary>();
+            Assert.True(summary.ChunksIndexed > 0);
+
+            var collection = RepoUrlInfo.Parse(fixture.Url).Slug;
+            var repositories = await client.GetFromJsonAsync<List<RepositoryEntry>>("/repositories");
+            Assert.NotNull(repositories);
+            var entry = Assert.Single(repositories!, r => r.Collection == collection);
+            Assert.Equal(fixture.Url, entry.Source);
+            Assert.Equal(summary.ChunksIndexed, entry.ChunkCount);
+        }
+        finally
+        {
+            workspace.Delete(recursive: true);
+        }
     }
 }
