@@ -20,6 +20,9 @@
     <!-- Model Context Protocol C# SDK (ASP.NET Core hosting). Transitively brings in
          ModelContextProtocol + ModelContextProtocol.Core (tool attributes, AddMcpServer). -->
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+    <!-- Serilog for ASP.NET Core: UseSerilog + WriteTo.Console in one package. Brings in
+         Serilog + Serilog.Core (ILogEventSink) used by the in-memory RingBufferLogSink. -->
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
