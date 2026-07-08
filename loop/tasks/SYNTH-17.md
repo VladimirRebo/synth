@@ -1,7 +1,7 @@
 ---
 id: SYNTH-17
 summary: "Multi-collection support across the store, indexing pipeline and search"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q"
 acceptance_criterion: ""
 boundaries: "Only thread a collection identifier through the existing store/pipeline/search/endpoint types. Do not add git cloning, a repository registry, or any client changes — those are later tasks (SYNTH-18, SYNTH-19). Do not change the chunking/reranking logic itself."
