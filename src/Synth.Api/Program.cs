@@ -74,6 +74,10 @@ app.MapIndexingEndpoints();
 // Lists the known collections and their metadata (GET /repositories) from the repository registry.
 app.MapRepositoryEndpoints();
 
+// Settings API for the Vcs config section (GET/PUT /api/settings/vcs): read/write the workspace
+// root and provider tokens at runtime, masking secrets and live-reloading IOptionsMonitor<VcsOptions>.
+app.MapVcsSettingsEndpoints();
+
 // Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
 app.MapSearchEndpoints();

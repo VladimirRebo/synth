@@ -18,6 +18,10 @@ public static class ConfigStoreExtensions
 
         builder.Services.AddSingleton(store);
 
+        // Thread-safe read-merge-write of one section of the store document, used by the Settings
+        // write APIs (e.g. PUT /api/settings/vcs) to persist a section and live-reload IConfiguration.
+        builder.Services.AddSingleton<ConfigSectionUpdater>();
+
         // Layer 2: the config-store document, above appsettings.json.
         // ConfigurationManager implements IConfigurationBuilder explicitly, so add
         // the source through that interface.
