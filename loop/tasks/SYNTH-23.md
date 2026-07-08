@@ -2,7 +2,7 @@
 id: SYNTH-23
 summary: "Serilog + in-memory ring-buffer log sink"
 status: open
-acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'class RingBufferLogSink\\|class RingBufferSink' src/Synth.Api/"
+acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'class RingBufferLogSink' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only wire Serilog and the in-memory ring buffer that captures log events. Do not add the GET /api/logs endpoint (SYNTH-24) or touch the Vue client. Do not add SignalR/real-time push — Vladimir decided REST polling, no separate hub."
 limits: "max_iterations=25; max_minutes=120"
