@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "synth-aspire",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Synth.AppHost", "--no-launch-profile"],
+      "port": 5173
+    }
+  ]
+}

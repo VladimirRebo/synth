@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import App from './App.vue'
+import * as api from './api'
+
+vi.mock('./api')
+
+beforeEach(() => {
+  vi.mocked(api.listRepositories).mockResolvedValue([])
+})
 
 describe('App', () => {
   it('renders the Synth heading', () => {
@@ -11,7 +18,7 @@ describe('App', () => {
   it('renders the index, MCP connect and search panels', () => {
     const wrapper = mount(App)
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
-      'Index a directory',
+      'Index a repository',
       'Connect via MCP',
       'Search',
     ])

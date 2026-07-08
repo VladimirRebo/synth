@@ -6,22 +6,25 @@ import * as api from '../api'
 
 vi.mock('../api')
 
-const mockedIndexDirectory = vi.mocked(api.indexDirectory)
+const mockedIndexSource = vi.mocked(api.indexSource)
+const mockedListRepositories = vi.mocked(api.listRepositories)
 
 beforeEach(() => {
-  mockedIndexDirectory.mockReset()
+  mockedIndexSource.mockReset()
+  mockedListRepositories.mockReset()
+  mockedListRepositories.mockResolvedValue([])
 })
 
 describe('IndexPanel', () => {
-  it('calls indexDirectory with the entered path and shows the summary', async () => {
-    mockedIndexDirectory.mockResolvedValue({ filesIndexed: 3, filesSkipped: 1, chunksIndexed: 12 })
+  it('calls indexSource with the entered path and shows the summary', async () => {
+    mockedIndexSource.mockResolvedValue({ filesIndexed: 3, filesSkipped: 1, chunksIndexed: 12 })
 
     const wrapper = mount(IndexPanel)
-    await wrapper.get('input').setValue('/repo/src')
+    await wrapper.get('input[aria-label="Directory path"]').setValue('/repo/src')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(mockedIndexDirectory).toHaveBeenCalledWith('/repo/src')
+    expect(mockedIndexSource).toHaveBeenCalledWith({ path: '/repo/src' })
     expect(wrapper.text()).toContain('Indexed 3 files')
     expect(wrapper.text()).toContain('12 chunks')
     expect(wrapper.text()).toContain('1 skipped')
@@ -29,10 +32,10 @@ describe('IndexPanel', () => {
   })
 
   it('shows an error message when indexing fails', async () => {
-    mockedIndexDirectory.mockRejectedValue(new Error('Directory not found: /nope'))
+    mockedIndexSource.mockRejectedValue(new Error('Directory not found: /nope'))
 
     const wrapper = mount(IndexPanel)
-    await wrapper.get('input').setValue('/nope')
+    await wrapper.get('input[aria-label="Directory path"]').setValue('/nope')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -45,6 +48,32 @@ describe('IndexPanel', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(mockedIndexDirectory).not.toHaveBeenCalled()
+    expect(mockedIndexSource).not.toHaveBeenCalled()
+  })
+
+  it('switches to repository-URL mode and calls indexSource with repoUrl + branch', async () => {
+    mockedIndexSource.mockResolvedValue({ filesIndexed: 5, filesSkipped: 0, chunksIndexed: 20 })
+
+    const wrapper = mount(IndexPanel)
+    await wrapper.get('[role="tab"]:nth-of-type(2)').trigger('click')
+    await wrapper.get('input[aria-label="Repository URL"]').setValue('https://github.com/owner/repo')
+    await wrapper.get('input[aria-label="Branch"]').setValue('main')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mockedIndexSource).toHaveBeenCalledWith({
+      repoUrl: 'https://github.com/owner/repo',
+      branch: 'main',
+    })
+    expect(wrapper.get('.status').text()).toBe('Done')
+  })
+
+  it('does not submit a blank repository URL', async () => {
+    const wrapper = mount(IndexPanel)
+    await wrapper.get('[role="tab"]:nth-of-type(2)').trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mockedIndexSource).not.toHaveBeenCalled()
   })
 })

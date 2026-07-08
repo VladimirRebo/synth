@@ -66,6 +66,17 @@ const icons: Record<string, IconDef> = {
       'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
     ],
   },
+  'git-branch': {
+    // feather-icons' git-branch glyph — used for the remote-repository indexing mode.
+    lines: [
+      { x1: 6, y1: 3, x2: 6, y2: 15 },
+    ],
+    circles: [
+      { cx: 18, cy: 6, r: 3 },
+      { cx: 6, cy: 18, r: 3 },
+    ],
+    paths: ['M18 9a9 9 0 0 1-9 9'],
+  },
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number }>(), { size: 16 })

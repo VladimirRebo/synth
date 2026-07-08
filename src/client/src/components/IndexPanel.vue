@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { indexDirectory, type IndexSummary } from '../api'
+import { indexSource, type IndexSummary } from '../api'
+import { useRepositories } from '../composables/useRepositories'
 import Icon from './Icon.vue'
 
 type Status = 'idle' | 'indexing' | 'done' | 'error'
+type Mode = 'local' | 'remote'
 
+const { refresh: refreshRepositories } = useRepositories()
+
+const mode = ref<Mode>('local')
 const path = ref('')
+const repoUrl = ref('')
+const branch = ref('')
 const loading = ref(false)
 const error = ref('')
 const summary = ref<IndexSummary | null>(null)
@@ -24,14 +31,25 @@ const statusLabel: Record<Status, string> = {
   error: 'Error',
 }
 
+const canSubmit = computed(() =>
+  mode.value === 'local' ? path.value.trim().length > 0 : repoUrl.value.trim().length > 0,
+)
+
 async function onSubmit() {
-  if (!path.value.trim()) return
+  if (!canSubmit.value) return
 
   loading.value = true
   error.value = ''
   summary.value = null
   try {
-    summary.value = await indexDirectory(path.value)
+    summary.value =
+      mode.value === 'local'
+        ? await indexSource({ path: path.value.trim() })
+        : await indexSource({
+            repoUrl: repoUrl.value.trim(),
+            branch: branch.value.trim() || undefined,
+          })
+    await refreshRepositories()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -42,19 +60,60 @@ async function onSubmit() {
 
 <template>
   <section class="panel">
-    <h2>Index a directory</h2>
+    <h2>Index a repository</h2>
+    <div class="mode-toggle" role="tablist" aria-label="Indexing mode">
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="mode === 'local'"
+        :class="{ active: mode === 'local' }"
+        @click="mode = 'local'"
+      >
+        <Icon name="folder" :size="14" /> Local path
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="mode === 'remote'"
+        :class="{ active: mode === 'remote' }"
+        @click="mode = 'remote'"
+      >
+        <Icon name="git-branch" :size="14" /> Repository URL
+      </button>
+    </div>
+
     <form class="index-form" @submit.prevent="onSubmit">
-      <div class="input-wrap">
-        <Icon name="folder" :size="16" class="folder-icon" />
+      <template v-if="mode === 'local'">
+        <div class="input-wrap">
+          <Icon name="folder" :size="16" class="mode-icon" />
+          <input
+            v-model="path"
+            type="text"
+            placeholder="/absolute/path/to/a/directory"
+            aria-label="Directory path"
+          />
+        </div>
+      </template>
+      <template v-else>
+        <div class="input-wrap">
+          <Icon name="git-branch" :size="16" class="mode-icon" />
+          <input
+            v-model="repoUrl"
+            type="text"
+            placeholder="https://github.com/owner/repo"
+            aria-label="Repository URL"
+          />
+        </div>
         <input
-          v-model="path"
+          v-model="branch"
           type="text"
-          placeholder="/absolute/path/to/a/directory"
-          aria-label="Directory path"
+          placeholder="branch (optional)"
+          aria-label="Branch"
+          class="branch"
         />
-      </div>
+      </template>
       <span class="status" :class="status">{{ statusLabel[status] }}</span>
-      <button type="submit" :disabled="loading">Index</button>
+      <button type="submit" :disabled="loading || !canSubmit">Index</button>
     </form>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -73,6 +132,31 @@ async function onSubmit() {
   text-align: left;
   padding: 24px 0;
   border-bottom: 1px solid var(--border);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.mode-toggle button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mode-toggle button.active {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
 }
 
 .index-form {
@@ -102,9 +186,13 @@ async function onSubmit() {
   outline: none;
 }
 
-.folder-icon {
+.mode-icon {
   color: var(--text);
   flex-shrink: 0;
+}
+
+.branch {
+  width: 140px;
 }
 
 input,

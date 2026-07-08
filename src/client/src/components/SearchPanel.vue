@@ -2,13 +2,19 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { search, type SearchResult } from '../api'
 import { useSearchFocus } from '../composables/useSearchFocus'
+import { useRepositories } from '../composables/useRepositories'
 import SearchResultItem from './SearchResultItem.vue'
 import Icon from './Icon.vue'
 
 const { inputRef } = useSearchFocus()
+const { repositories, refresh: refreshRepositories } = useRepositories()
 
 const query = ref('')
 const limit = ref(10)
+// Empty selection lets GET /search fall back to its own default (CollectionNames.Default,
+// "default" — the same collection local-path indexing uses, so it shows up in the picker too
+// once something's been indexed).
+const collection = ref('')
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -20,6 +26,7 @@ let searchAbort: AbortController | null = null
 interface HistoryEntry {
   query: string
   limit: number
+  collection?: string
   timestamp: number
 }
 
@@ -39,9 +46,9 @@ const history = ref<HistoryEntry[]>(loadHistory())
 const showHistory = ref(false)
 const historyRoot = ref<HTMLElement | null>(null)
 
-function saveToHistory(q: string, lim: number) {
+function saveToHistory(q: string, lim: number, col: string) {
   const entries = history.value.filter((h) => h.query !== q)
-  entries.unshift({ query: q, limit: lim, timestamp: Date.now() })
+  entries.unshift({ query: q, limit: lim, collection: col || undefined, timestamp: Date.now() })
   entries.length = Math.min(entries.length, MAX_HISTORY)
   history.value = entries
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
@@ -50,6 +57,7 @@ function saveToHistory(q: string, lim: number) {
 function applyHistory(entry: HistoryEntry) {
   query.value = entry.query
   limit.value = entry.limit
+  collection.value = entry.collection ?? ''
   showHistory.value = false
   onSubmit()
 }
@@ -66,10 +74,11 @@ function onDocumentClick(e: MouseEvent) {
 }
 
 // --- URL deep-link sync ------------------------------------------------------------------
-function syncUrl(q: string, lim: number) {
+function syncUrl(q: string, lim: number, col: string) {
   const params = new URLSearchParams()
   if (q) params.set('q', q)
   if (lim !== 10) params.set('limit', String(lim))
+  if (col) params.set('collection', col)
   const search = params.toString()
   window.history.replaceState({}, '', search ? `?${search}` : window.location.pathname)
 }
@@ -78,7 +87,9 @@ function loadFromUrl(): boolean {
   const params = new URLSearchParams(window.location.search)
   const q = params.get('q')
   const lim = params.get('limit')
+  const col = params.get('collection')
   if (lim) limit.value = parseInt(lim, 10) || 10
+  if (col) collection.value = col
   if (q) {
     query.value = q
     return true
@@ -100,12 +111,12 @@ async function onSubmit() {
   filterFile.value = ''
 
   try {
-    const found = await search(q, limit.value, abort.signal)
+    const found = await search(q, limit.value, collection.value || undefined, abort.signal)
     if (abort.signal.aborted) return
     results.value = found
     hasSearched.value = true
-    saveToHistory(q, limit.value)
-    syncUrl(q, limit.value)
+    saveToHistory(q, limit.value, collection.value)
+    syncUrl(q, limit.value, collection.value)
   } catch (err) {
     if (abort.signal.aborted) return
     error.value = err instanceof Error ? err.message : String(err)
@@ -173,6 +184,7 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  refreshRepositories()
   if (loadFromUrl()) onSubmit()
   document.addEventListener('click', onDocumentClick, true)
   document.addEventListener('keydown', onKeydown)
@@ -224,6 +236,16 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+      <select v-model="collection" aria-label="Collection to search" class="collection">
+        <option value="">Default</option>
+        <option
+          v-for="repo in repositories.filter((r) => r.collection !== 'default')"
+          :key="repo.collection"
+          :value="repo.collection"
+        >
+          {{ repo.collection }} ({{ repo.sourceType }})
+        </option>
+      </select>
       <input
         v-model.number="limit"
         type="number"
@@ -339,6 +361,10 @@ select {
 
 .limit {
   width: 72px;
+}
+
+.collection {
+  max-width: 160px;
 }
 
 button {

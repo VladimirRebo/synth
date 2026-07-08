@@ -6,6 +6,7 @@ import * as api from '../api'
 vi.mock('../api')
 
 const mockedSearch = vi.mocked(api.search)
+const mockedListRepositories = vi.mocked(api.listRepositories)
 
 function result(overrides: Partial<api.SearchResult> = {}): api.SearchResult {
   return {
@@ -26,6 +27,8 @@ const sampleResult = result()
 
 beforeEach(() => {
   mockedSearch.mockReset()
+  mockedListRepositories.mockReset()
+  mockedListRepositories.mockResolvedValue([])
   localStorage.clear()
   window.history.replaceState({}, '', '/')
 })
@@ -39,7 +42,7 @@ describe('SearchPanel', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, expect.any(AbortSignal))
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, undefined, expect.any(AbortSignal))
     expect(wrapper.text()).toContain('Greeter.cs')
     expect(wrapper.text()).toContain('Sample.Greeter.Greet')
   })
@@ -91,7 +94,7 @@ describe('SearchPanel', () => {
     await wrapper.get('.history-entry').trigger('click')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, expect.any(AbortSignal))
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, undefined, expect.any(AbortSignal))
   })
 
   it('filters results by chunk type client-side', async () => {
@@ -121,6 +124,6 @@ describe('SearchPanel', () => {
     mount(SearchPanel)
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, expect.any(AbortSignal))
+    expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, undefined, expect.any(AbortSignal))
   })
 })
