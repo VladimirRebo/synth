@@ -1,7 +1,7 @@
 ---
 id: SYNTH-22
 summary: "Settings CRUD for embedding config (GET/PUT /api/settings/embedding), probe-before-persist"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'settings/embedding' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add the embedding Settings HTTP endpoints on top of SYNTH-21's ConfigurableEmbeddingGenerator/EmbeddingOptions and SYNTH-20's config-section-update helper. Do not touch the Vue client (later, direct) or Qdrant (out of scope for this phase)."
