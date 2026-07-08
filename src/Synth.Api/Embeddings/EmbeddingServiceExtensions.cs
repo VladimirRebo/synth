@@ -38,14 +38,20 @@ public static class EmbeddingServiceExtensions
             builder.Configuration.GetSection(EmbeddingOptions.SectionName));
 
         // Read the Aspire-supplied Ollama connection once, at registration time (as AddOllamaApiClient
-        // did) — it's the fallback used until/unless Settings selects a different provider.
+        // did) — it's the fallback used until/unless Settings selects a different provider. Registered
+        // so both the live generator and the Settings probe factory resolve the same fallback.
         var aspireDefault = OllamaConnection.Parse(
             builder.Configuration.GetConnectionString(EmbeddingConnectionName));
+        builder.Services.AddSingleton(aspireDefault);
 
         builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp =>
             new ConfigurableEmbeddingGenerator(
-                aspireDefault,
+                sp.GetRequiredService<OllamaConnection>(),
                 sp.GetRequiredService<IOptionsMonitor<EmbeddingOptions>>()));
+
+        // Factory used by PUT /api/settings/embedding to build a candidate generator for the
+        // probe-before-persist check (tests swap this for a fake to control probe success/failure).
+        builder.Services.AddSingleton<IEmbeddingGeneratorFactory, EmbeddingGeneratorFactory>();
 
         return builder;
     }

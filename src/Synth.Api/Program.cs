@@ -78,6 +78,11 @@ app.MapRepositoryEndpoints();
 // root and provider tokens at runtime, masking secrets and live-reloading IOptionsMonitor<VcsOptions>.
 app.MapVcsSettingsEndpoints();
 
+// Settings API for the Embedding config section (GET/PUT /api/settings/embedding): read/write the
+// provider/model/key at runtime, masking the OpenAI key and probing a candidate config before it is
+// persisted so a broken provider is never saved.
+app.MapEmbeddingSettingsEndpoints();
+
 // Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
 app.MapSearchEndpoints();
