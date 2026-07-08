@@ -1,7 +1,7 @@
 ---
 id: SYNTH-24
 summary: "GET /api/logs — filterable read of the ring buffer (level, since, search)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq '\"/logs\"' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add the GET /api/logs endpoint on top of SYNTH-23's RingBufferLogSink. Do not touch the Vue client (later, direct). Register the route bare (\"/logs\"), matching every other endpoint in this app (index, search, repositories, settings) — do NOT bake an \"/api\" prefix into the route string, that exact mistake was already made and fixed once for the Settings endpoints (see the fix commit for VcsSettingsEndpoints/EmbeddingSettingsEndpoints) and must not be repeated here."
