@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Synth</title>
+    <script>
+      // Anti-FOUC: set the theme attribute before Vue mounts / any CSS paints, so there's no
+      // flash of the wrong theme. Mirrors useTheme.ts's storage key and fallback.
+      document.documentElement.setAttribute(
+        'data-theme',
+        localStorage.getItem('synth:theme') ||
+          (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'),
+      )
+    </script>
   </head>
   <body>
     <div id="app"></div>

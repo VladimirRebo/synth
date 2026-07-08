@@ -25,6 +25,7 @@ describe('IndexPanel', () => {
     expect(wrapper.text()).toContain('Indexed 3 files')
     expect(wrapper.text()).toContain('12 chunks')
     expect(wrapper.text()).toContain('1 skipped')
+    expect(wrapper.get('.status').text()).toBe('Done')
   })
 
   it('shows an error message when indexing fails', async () => {
@@ -36,6 +37,7 @@ describe('IndexPanel', () => {
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toBe('Directory not found: /nope')
+    expect(wrapper.get('.status').text()).toBe('Error')
   })
 
   it('does not submit for a blank path', async () => {

@@ -7,23 +7,31 @@ vi.mock('../api')
 
 const mockedSearch = vi.mocked(api.search)
 
-const sampleResult: api.SearchResult = {
-  relativePath: 'Greeter.cs',
-  className: 'Greeter',
-  methodName: 'Greet',
-  qualifiedName: 'Sample.Greeter.Greet',
-  chunkType: 'Method',
-  startLine: 4,
-  endLine: 4,
-  snippet: 'public string Greet(string name) => $"Hello, {name}!";',
+function result(overrides: Partial<api.SearchResult> = {}): api.SearchResult {
+  return {
+    relativePath: 'Greeter.cs',
+    className: 'Greeter',
+    methodName: 'Greet',
+    qualifiedName: 'Sample.Greeter.Greet',
+    chunkType: 'Method',
+    startLine: 4,
+    endLine: 4,
+    snippet: 'public string Greet(string name) => $"Hello, {name}!";',
+    score: 1.2,
+    ...overrides,
+  }
 }
+
+const sampleResult = result()
 
 beforeEach(() => {
   mockedSearch.mockReset()
+  localStorage.clear()
+  window.history.replaceState({}, '', '/')
 })
 
 describe('SearchPanel', () => {
-  it('calls search with the query and default limit, and renders results', async () => {
+  it('calls search with the query, default limit and an abort signal, and renders results', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
     const wrapper = mount(SearchPanel)
@@ -31,7 +39,7 @@ describe('SearchPanel', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('greet', 10)
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, expect.any(AbortSignal))
     expect(wrapper.text()).toContain('Greeter.cs')
     expect(wrapper.text()).toContain('Sample.Greeter.Greet')
   })
@@ -64,5 +72,55 @@ describe('SearchPanel', () => {
     await flushPromises()
 
     expect(mockedSearch).not.toHaveBeenCalled()
+  })
+
+  it('saves a search to localStorage history and reapplies it on click', async () => {
+    mockedSearch.mockResolvedValue([sampleResult])
+
+    const wrapper = mount(SearchPanel)
+    await wrapper.get('input[type="text"]').setValue('greet')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const stored = JSON.parse(localStorage.getItem('synth:searchHistory') ?? '[]')
+    expect(stored).toHaveLength(1)
+    expect(stored[0].query).toBe('greet')
+
+    mockedSearch.mockClear()
+    await wrapper.get('[aria-label="Search history"]').trigger('click')
+    await wrapper.get('.history-entry').trigger('click')
+    await flushPromises()
+
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, expect.any(AbortSignal))
+  })
+
+  it('filters results by chunk type client-side', async () => {
+    mockedSearch.mockResolvedValue([
+      result({ chunkType: 'Method', relativePath: 'A.cs' }),
+      result({ chunkType: 'Class', relativePath: 'B.cs' }),
+    ])
+
+    const wrapper = mount(SearchPanel)
+    await wrapper.get('input[type="text"]').setValue('anything')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('A.cs')
+    expect(wrapper.text()).toContain('B.cs')
+
+    await wrapper.get('select[aria-label="Filter by chunk type"]').setValue('Class')
+
+    expect(wrapper.text()).not.toContain('A.cs')
+    expect(wrapper.text()).toContain('B.cs')
+  })
+
+  it('auto-searches on mount when the URL has a q param', async () => {
+    window.history.replaceState({}, '', '/?q=preloaded&limit=5')
+    mockedSearch.mockResolvedValue([sampleResult])
+
+    mount(SearchPanel)
+    await flushPromises()
+
+    expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, expect.any(AbortSignal))
   })
 })

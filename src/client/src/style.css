@@ -1,4 +1,19 @@
-:root {
+:root,
+[data-theme='dark'] {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #16171d;
+  --border: #2e303a;
+  --code-bg: #1f2028;
+  --accent: #c084fc;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --accent-border: rgba(192, 132, 252, 0.5);
+  --status-red: #e5484d;
+  --status-yellow: #eab308;
+  --status-green: #22c55e;
+}
+
+[data-theme='light'] {
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
@@ -7,7 +22,12 @@
   --accent: #aa3bff;
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
+  --status-red: #e5484d;
+  --status-yellow: #b45309;
+  --status-green: #16a34a;
+}
 
+:root {
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -24,19 +44,6 @@
 
   @media (max-width: 1024px) {
     font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
   }
 }
 
@@ -93,4 +100,48 @@ code {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* highlight.js theme, keyed off the same data-theme attribute as everything else. */
+[data-theme='dark'] {
+  --hljs-keyword: #c678dd;
+  --hljs-string: #98c379;
+  --hljs-number: #d19a66;
+  --hljs-function: #61afef;
+  --hljs-class: #e5c07b;
+  --hljs-comment: #7f848e;
+}
+
+[data-theme='light'] {
+  --hljs-keyword: #a626a4;
+  --hljs-string: #50a14f;
+  --hljs-number: #986801;
+  --hljs-function: #4078f2;
+  --hljs-class: #c18401;
+  --hljs-comment: #a0a1a7;
+}
+
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
+  color: var(--hljs-keyword);
+}
+.hljs-string {
+  color: var(--hljs-string);
+}
+.hljs-number {
+  color: var(--hljs-number);
+}
+.hljs-title,
+.hljs-title.function_ {
+  color: var(--hljs-function);
+}
+.hljs-title.class_,
+.hljs-type {
+  color: var(--hljs-class);
+}
+.hljs-comment,
+.hljs-doctag {
+  color: var(--hljs-comment);
+  font-style: italic;
 }

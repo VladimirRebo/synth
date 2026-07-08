@@ -12,6 +12,10 @@ export interface SearchResult {
   startLine: number
   endLine: number
   snippet: string
+  // Rerank score: vector similarity x chunk-type weight x keyword boost. NOT bounded to
+  // [0, 1] (the weight/boost multipliers can push it above 1) — treat as a relative ranking
+  // signal within one result set, not a percentage. See CodeSearchService.SearchAsync.
+  score: number
 }
 
 export interface IndexSummary {
@@ -33,9 +37,13 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
   }
 }
 
-export async function search(query: string, limit = 10): Promise<SearchResult[]> {
+export async function search(
+  query: string,
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
   const params = new URLSearchParams({ q: query, limit: String(limit) })
-  const response = await fetch(`/api/search?${params.toString()}`)
+  const response = await fetch(`/api/search?${params.toString()}`, { signal })
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, `Search failed (${response.status})`))
