@@ -1,14 +1,31 @@
 using System.Text.Json.Serialization;
+using Serilog;
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
 using Synth.Api.Indexing;
+using Synth.Api.Logging;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
 using Synth.Api.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// In-memory ring buffer capturing the most recent log events so a REST endpoint (SYNTH-24) can
+// read them back in-process. Constructed once here and shared two ways below: as a Serilog sink
+// (so it receives events) and as a DI singleton (so the endpoint injects this exact instance).
+var logSink = new RingBufferLogSink();
+
+// Serilog, wired early (before other builder calls that might log) so structured events exist to
+// capture. Console output is preserved for local-dev visibility; writeToProviders keeps the
+// Aspire/OpenTelemetry logging pipeline (registered by AddServiceDefaults) working alongside.
+builder.Host.UseSerilog((context, loggerConfig) => loggerConfig
+    .ReadFrom.Configuration(context.Configuration)
+    .WriteTo.Console()
+    .WriteTo.Sink(logSink), writeToProviders: true);
+
+builder.Services.AddSingleton(logSink);
 
 // Aspire service defaults: OpenTelemetry, health checks, and service discovery.
 builder.AddServiceDefaults();
