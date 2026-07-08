@@ -29,9 +29,14 @@ public sealed class CodeSearchTool
         string query,
         [Description("Maximum number of results to return. Defaults to 5.")]
         int limit = 5,
+        [Description(
+            "Name of the indexed collection (repository) to search. Leave unset to search the " +
+            "main indexed codebase.")]
+        string? collection = null,
         CancellationToken cancellationToken = default)
     {
-        var chunks = await searchService.SearchAsync(query, limit, cancellationToken);
+        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var chunks = await searchService.SearchAsync(target, query, limit, cancellationToken);
         return chunks.Select(CodeSearchResult.From).ToList();
     }
 }

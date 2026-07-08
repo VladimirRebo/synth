@@ -15,9 +15,6 @@ namespace Synth.Api.Storage;
 /// </summary>
 public sealed class QdrantCodeChunkStore : ICodeChunkStore
 {
-    // Single collection for all code chunks; cosine distance matches the Local store.
-    internal const string CollectionName = "code_chunks";
-
     // Payload keys. Kept in one place so write (Upsert) and read (Search/GetByFile) agree.
     private const string FilePathKey = "filePath";
     private const string RelativePathKey = "relativePath";
@@ -35,9 +32,11 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
 
     public QdrantCodeChunkStore(QdrantClient client) => _client = client;
 
-    public async Task UpsertAsync(IEnumerable<CodeChunk> chunks, CancellationToken cancellationToken = default)
+    public async Task UpsertAsync(string collection, IEnumerable<CodeChunk> chunks, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(chunks);
+
+        var collectionName = SanitizeCollectionName(collection);
 
         var points = new List<PointStruct>();
         var vectorSize = 0;
@@ -75,22 +74,25 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
         if (points.Count == 0)
             return;
 
-        await EnsureCollectionAsync((ulong)vectorSize, cancellationToken).ConfigureAwait(false);
+        await EnsureCollectionAsync(collectionName, (ulong)vectorSize, cancellationToken).ConfigureAwait(false);
 
-        await _client.UpsertAsync(CollectionName, points, cancellationToken: cancellationToken)
+        await _client.UpsertAsync(collectionName, points, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<(CodeChunk Chunk, float Score)>> SearchAsync(
+        string collection,
         ReadOnlyMemory<float> queryVector,
         int limit,
         CancellationToken cancellationToken = default)
     {
-        if (limit <= 0 || !await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (limit <= 0 || !await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
             return [];
 
         var hits = await _client.SearchAsync(
-            CollectionName,
+            collectionName,
             queryVector,
             limit: (ulong)limit,
             payloadSelector: true,
@@ -100,14 +102,17 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
     }
 
     public async Task<IReadOnlyList<CodeChunk>> GetByFileAsync(
+        string collection,
         string relativePath,
         CancellationToken cancellationToken = default)
     {
-        if (!await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
             return [];
 
         var response = await _client.ScrollAsync(
-            CollectionName,
+            collectionName,
             filter: Conditions.MatchKeyword(RelativePathKey, relativePath),
             limit: uint.MaxValue,
             payloadSelector: true,
@@ -119,18 +124,36 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
             .ToList();
     }
 
-    private Task<bool> CollectionExistsAsync(CancellationToken cancellationToken) =>
-        _client.CollectionExistsAsync(CollectionName, cancellationToken);
+    private Task<bool> CollectionExistsAsync(string collectionName, CancellationToken cancellationToken) =>
+        _client.CollectionExistsAsync(collectionName, cancellationToken);
 
-    private async Task EnsureCollectionAsync(ulong vectorSize, CancellationToken cancellationToken)
+    private async Task EnsureCollectionAsync(string collectionName, ulong vectorSize, CancellationToken cancellationToken)
     {
-        if (await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        if (await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
             return;
 
         await _client.CreateCollectionAsync(
-            CollectionName,
+            collectionName,
             new VectorParams { Size = vectorSize, Distance = Distance.Cosine },
             cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    // Qdrant collection names must be non-empty and are used verbatim in URLs/gRPC, so map the
+    // caller's name to a safe form: lowercase, and anything outside [a-z0-9_-] becomes '-'. Falls
+    // back to the default when the input reduces to nothing. This sanitization matters once
+    // SYNTH-18 derives collection names from git URLs.
+    private static string SanitizeCollectionName(string collection)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        var sanitized = new StringBuilder(collection.Length);
+        foreach (var ch in collection.ToLowerInvariant())
+        {
+            sanitized.Append(ch is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_' or '-' ? ch : '-');
+        }
+
+        var result = sanitized.ToString();
+        return string.IsNullOrEmpty(result) ? CollectionNames.Default : result;
     }
 
     private static CodeChunk ToChunk(IReadOnlyDictionary<string, Value> payload) => new()

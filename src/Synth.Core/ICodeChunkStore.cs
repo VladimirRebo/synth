@@ -5,29 +5,37 @@ namespace Synth.Core;
 /// nearest-neighbour search by query vector, and retrieval of all chunks for a file.
 /// Deliberately minimal infrastructure plumbing — reranking/query-expansion live in a
 /// later task. Mirrors Sonar's Qdrant/Milvus/Local store split.
+///
+/// Every operation is scoped to a named <c>collection</c> (see <see cref="CollectionNames"/>):
+/// chunks upserted/searched/fetched under one collection are never visible from another, so
+/// multiple repositories can be indexed side by side without their chunks colliding.
 /// </summary>
 public interface ICodeChunkStore
 {
     /// <summary>
-    /// Inserts or updates the given chunks, keyed by <see cref="CodeChunk.ChunkId"/>.
-    /// Each chunk is expected to carry a populated <see cref="CodeChunk.Embedding"/>.
+    /// Inserts or updates the given chunks in <paramref name="collection"/>, keyed by
+    /// <see cref="CodeChunk.ChunkId"/>. Each chunk is expected to carry a populated
+    /// <see cref="CodeChunk.Embedding"/>.
     /// </summary>
-    Task UpsertAsync(IEnumerable<CodeChunk> chunks, CancellationToken cancellationToken = default);
+    Task UpsertAsync(string collection, IEnumerable<CodeChunk> chunks, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns up to <paramref name="limit"/> chunks whose embedding is most similar to
-    /// <paramref name="queryVector"/> (cosine), ordered by descending similarity score.
+    /// Returns up to <paramref name="limit"/> chunks in <paramref name="collection"/> whose
+    /// embedding is most similar to <paramref name="queryVector"/> (cosine), ordered by
+    /// descending similarity score.
     /// </summary>
     Task<IReadOnlyList<(CodeChunk Chunk, float Score)>> SearchAsync(
+        string collection,
         ReadOnlyMemory<float> queryVector,
         int limit,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns every stored chunk whose <see cref="CodeChunk.RelativePath"/> matches
-    /// <paramref name="relativePath"/>, in ascending <see cref="CodeChunk.StartLine"/> order.
+    /// Returns every chunk in <paramref name="collection"/> whose <see cref="CodeChunk.RelativePath"/>
+    /// matches <paramref name="relativePath"/>, in ascending <see cref="CodeChunk.StartLine"/> order.
     /// </summary>
     Task<IReadOnlyList<CodeChunk>> GetByFileAsync(
+        string collection,
         string relativePath,
         CancellationToken cancellationToken = default);
 }

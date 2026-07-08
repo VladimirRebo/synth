@@ -14,12 +14,15 @@ public static class SearchEndpoints
 {
     public static IEndpointRouteBuilder MapSearchEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/search", async (string? q, int? limit, CodeSearchService searchService, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/search", async (string? q, int? limit, string? collection, CodeSearchService searchService, CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(q))
                 return Results.BadRequest(new { error = "q is required" });
 
-            var chunks = await searchService.SearchAsync(q, limit ?? 10, cancellationToken);
+            // Optional ?collection= scopes the search to one indexed repo; defaults to the main
+            // codebase so existing callers are unaffected (ready for SYNTH-20's collection picker).
+            var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+            var chunks = await searchService.SearchAsync(target, q, limit ?? 10, cancellationToken);
             return Results.Ok(chunks.Select(CodeSearchResult.From).ToList());
         });
 

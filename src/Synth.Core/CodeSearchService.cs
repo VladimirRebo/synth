@@ -43,11 +43,12 @@ public sealed class CodeSearchService
     }
 
     /// <summary>
-    /// Returns up to <paramref name="limit"/> code chunks most relevant to <paramref name="query"/>,
-    /// each paired with its rerank score, ordered by descending score. Returns an empty list for
-    /// a non-positive limit or a blank query.
+    /// Returns up to <paramref name="limit"/> code chunks in <paramref name="collection"/> most
+    /// relevant to <paramref name="query"/>, each paired with its rerank score, ordered by
+    /// descending score. Returns an empty list for a non-positive limit or a blank query.
     /// </summary>
     public async Task<IReadOnlyList<ScoredCodeChunk>> SearchAsync(
+        string collection,
         string query,
         int limit,
         CancellationToken cancellationToken = default)
@@ -61,7 +62,7 @@ public sealed class CodeSearchService
 
         // Over-fetch so reranking has room to reorder and dedup can drop near-duplicates
         // without starving the final result set.
-        var candidates = await _store.SearchAsync(queryVector, limit * OverFetchFactor, cancellationToken);
+        var candidates = await _store.SearchAsync(collection, queryVector, limit * OverFetchFactor, cancellationToken);
 
         var ranked = candidates
             .Select(candidate => new ScoredCodeChunk(
