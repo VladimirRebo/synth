@@ -1,0 +1,174 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Options;
+
+namespace Synth.Core.Vcs;
+
+/// <summary>
+/// Ensures a remote GitHub/GitLab repository is available as a local checkout: clones it the first
+/// time, fetches + hard-resets it on subsequent calls. Shells out to the <c>git</c> CLI (no NuGet
+/// git dependency). A trimmed-down mirror of Sonar's <c>GitRepoService</c> — no webhooks, no
+/// Bitbucket <c>/scm/</c> special-casing, no CI auth plumbing. Auth tokens (when configured) are
+/// passed to git via an in-memory <c>http.extraHeader</c>, so they never land on disk or in the
+/// stored remote URL.
+/// </summary>
+public sealed class GitRepoService
+{
+    private readonly IOptionsMonitor<VcsOptions> _options;
+
+    public GitRepoService(IOptionsMonitor<VcsOptions> options) => _options = options;
+
+    /// <summary>
+    /// Returns the local checkout path for <paramref name="repoUrl"/>, cloning or refreshing as needed.
+    /// </summary>
+    /// <param name="repoUrl">HTTPS (or <c>file://</c>) git remote URL.</param>
+    /// <param name="branch">
+    /// Branch to check out; when null/empty the repository's default branch (<c>origin/HEAD</c>) is used.
+    /// </param>
+    public async Task<string> EnsureRepoAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repoUrl);
+
+        var info = RepoUrlInfo.Parse(repoUrl);
+        var options = _options.CurrentValue;
+        var root = ResolveWorkspaceRoot(options.WorkspaceRoot);
+        var checkout = Path.Combine(root, info.Slug);
+        var auth = AuthArgs(info.Provider, TokenFor(info.Provider, options));
+
+        if (IsGitCheckout(checkout))
+        {
+            // Existing checkout: fetch the latest refs and move the working tree to the target,
+            // discarding any local drift. Mirrors Sonar's re-clone/refresh, minus the special-casing.
+            await RunGitAsync(checkout, [.. auth, "fetch", "--prune", "origin"], cancellationToken).ConfigureAwait(false);
+            var target = string.IsNullOrWhiteSpace(branch) ? "origin/HEAD" : $"origin/{branch}";
+            await RunGitAsync(checkout, [.. auth, "reset", "--hard", target], cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            Directory.CreateDirectory(root);
+            // A leftover non-git directory (interrupted clone) would make `git clone` fail into a
+            // non-empty target, so clear it and start clean.
+            if (Directory.Exists(checkout))
+                Directory.Delete(checkout, recursive: true);
+
+            var clone = new List<string>(auth) { "clone" };
+            if (!string.IsNullOrWhiteSpace(branch))
+            {
+                clone.Add("--branch");
+                clone.Add(branch);
+            }
+
+            clone.Add(repoUrl);
+            clone.Add(checkout);
+            await RunGitAsync(root, clone, cancellationToken).ConfigureAwait(false);
+        }
+
+        return checkout;
+    }
+
+    // A directory counts as a usable checkout only if it carries a .git entry (dir for a normal
+    // clone, file for a worktree/submodule). Otherwise we (re)clone.
+    private static bool IsGitCheckout(string checkout)
+    {
+        if (!Directory.Exists(checkout))
+            return false;
+
+        var gitPath = Path.Combine(checkout, ".git");
+        return Directory.Exists(gitPath) || File.Exists(gitPath);
+    }
+
+    private static string ResolveWorkspaceRoot(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured))
+            return Environment.ExpandEnvironmentVariables(configured);
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, ".synth", "workspaces");
+    }
+
+    private static string? TokenFor(GitProvider provider, VcsOptions options) => provider switch
+    {
+        GitProvider.GitHub => options.GitHub?.Token,
+        GitProvider.GitLab => options.GitLab?.Token,
+        _ => null,
+    };
+
+    // Global `git -c http.extraHeader=...` args placed before the subcommand. Kept out of the remote
+    // URL and off disk (no credential helper). Empty for public repos / unknown providers.
+    private static IReadOnlyList<string> AuthArgs(GitProvider provider, string? token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return [];
+
+        var header = provider switch
+        {
+            GitProvider.GitHub => $"Authorization: Bearer {token}",
+            GitProvider.GitLab => $"PRIVATE-TOKEN: {token}",
+            _ => null,
+        };
+
+        return header is null ? [] : ["-c", $"http.extraHeader={header}"];
+    }
+
+    private static async Task<string> RunGitAsync(string workingDirectory, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+
+        using var process = new Process { StartInfo = startInfo };
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            throw new GitCommandException("git", -1, string.Empty, $"failed to start git: {ex.Message}");
+        }
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        var stdout = await stdoutTask.ConfigureAwait(false);
+        var stderr = await stderrTask.ConfigureAwait(false);
+
+        if (process.ExitCode != 0)
+            throw new GitCommandException(Redact(arguments), process.ExitCode, stdout, stderr);
+
+        return stdout;
+    }
+
+    // Rebuilds the command line for error messages with any auth header value masked, so a failing
+    // git call can be logged without leaking the token that lives in `-c http.extraHeader=...`.
+    private static string Redact(IReadOnlyList<string> arguments)
+    {
+        var safe = arguments
+            .Select(a => a.StartsWith("http.extraHeader=", StringComparison.Ordinal) ? "http.extraHeader=***" : a);
+        return string.Join(' ', safe);
+    }
+}
+
+/// <summary>Thrown when a <c>git</c> invocation exits non-zero. Never carries the auth token — that
+/// lives only in the process arguments, not in the captured message.</summary>
+public sealed class GitCommandException : Exception
+{
+    public GitCommandException(string command, int exitCode, string standardOutput, string standardError)
+        : base($"git {command} exited with code {exitCode}: {standardError.Trim()}")
+    {
+        ExitCode = exitCode;
+        StandardOutput = standardOutput;
+        StandardError = standardError;
+    }
+
+    public int ExitCode { get; }
+
+    public string StandardOutput { get; }
+
+    public string StandardError { get; }
+}
