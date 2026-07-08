@@ -6,6 +6,7 @@ using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
+using Synth.Api.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,10 @@ builder.AddSynthVectorStore();
 // directory, chunks/embeds each file and upserts the chunks into the vector store.
 builder.AddSynthIndexing();
 
+// VCS layer: GitRepoService (clone/fetch remote repos) + the repository registry that
+// records what has been indexed. Uses Mongo when configured, an in-memory fallback otherwise.
+builder.AddSynthVcs();
+
 // Search layer: registers QueryExpander + CodeSearchService (over-fetch, rerank, dedup)
 // on top of the embedding generator and vector store registered above.
 builder.AddSynthSearch();
@@ -65,6 +70,9 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Manual indexing trigger (POST /index { "path": "..." }) — the only way to actually
 // run IndexingPipeline against a real directory; previously it was only exercised by tests.
 app.MapIndexingEndpoints();
+
+// Lists the known collections and their metadata (GET /repositories) from the repository registry.
+app.MapRepositoryEndpoints();
 
 // Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
