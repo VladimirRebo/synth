@@ -1,7 +1,7 @@
 ---
 id: SYNTH-21
 summary: "ConfigurableEmbeddingGenerator supporting Ollama and OpenAI, hot-swappable"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'class ConfigurableEmbeddingGenerator' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add the provider-selectable, hot-swappable embedding generator and its config binding. Do not add the Settings HTTP endpoints yet (SYNTH-22) or touch the Vue client. Do not touch Qdrant/vector-store wiring — Vladimir decided Qdrant stays the only, Aspire-managed vector store, no provider abstraction needed there."

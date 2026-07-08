@@ -57,3 +57,4 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-18 | COMPLETED | validator PASS, committed on fix/SYNTH-18 |
 - | SYNTH-19 | COMPLETED | validator PASS, committed on fix/SYNTH-19 |
 - | SYNTH-20 | COMPLETED | validator PASS, committed on fix/SYNTH-20 |
+- | SYNTH-21 | COMPLETED | validator PASS, committed on fix/SYNTH-21 |
