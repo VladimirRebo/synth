@@ -12,6 +12,9 @@
     <PackageReference Include="Aspire.Qdrant.Client" Version="13.4.6" />
     <!-- Aspire Community Toolkit: Ollama client + Microsoft.Extensions.AI embedding generator. -->
     <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.4.0" />
+    <!-- OpenAI-backed IEmbeddingGenerator: EmbeddingClient.AsIEmbeddingGenerator() (brings in the
+         official OpenAI SDK transitively) for the OpenAI provider in ConfigurableEmbeddingGenerator. -->
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.7.0" />
     <!-- Microsoft Agent Framework (MAF): agent/workflow orchestration primitives. -->
     <PackageReference Include="Microsoft.Agents.AI" Version="1.13.0" />
     <!-- Model Context Protocol C# SDK (ASP.NET Core hosting). Transitively brings in
