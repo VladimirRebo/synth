@@ -51,3 +51,8 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | RUN-CHECK | 2026-07-08 | Follow-up check same day as ROADMAP-COMPLETE: no stray worktrees, no open PRs, no open task files (all loop/tasks/*.md status:done). Issues unchanged — #1-#4 and #6 closed, #5 confirmed still on hold via Vladimir's own comment on the issue ("Paused for now — focusing on the local environment first. Revisit once phases 1-3 are solid."). No new comments on #4 or #5 since the roadmap-complete entry. Nothing independently actionable; not inventing scope, waiting on Vladimir. |
 - | RUN-CHECK | 2026-07-08 | Hourly autopilot check: no stray worktrees, no open PRs, no open task files (all loop/tasks/*.md status:done). Issues #1-#4 and #6 confirmed closed; #5 confirmed still on-hold (no new comment from Vladimir since the pause). Nothing independently actionable; not inventing scope, waiting on Vladimir's next instruction. Stale remote branches fix/SYNTH-12..15 noted (already merged, harmless leftovers) but left alone since cleanup wasn't part of this run's mandate.
 - | SYNTH-17 | FAILED | validator exit=1 |
+- | SYNTH-17 | FAILED | validator exit=1 |
+- | SYNTH-17 | FAILED | validator exit=1 |
+- | SYNTH-17 | COMPLETED | validator PASS, committed on fix/SYNTH-17 |
+- | SYNTH-18 | COMPLETED | validator PASS, committed on fix/SYNTH-18 |
+- | SYNTH-19 | COMPLETED | validator PASS, committed on fix/SYNTH-19 |
