@@ -37,6 +37,35 @@ export interface RepositoryEntry {
 
 export type IndexSource = { path: string } | { repoUrl: string; branch?: string }
 
+// Mirrors Synth.Api.Vcs.VcsSettingsResponse. Tokens are never sent by the server — only
+// whether one is currently set.
+export interface VcsSettings {
+  workspaceRoot: string | null
+  github: { tokenSet: boolean }
+  gitlab: { tokenSet: boolean }
+}
+
+// PUT patch shape: a field present-but-omitted-here is left unchanged server-side; an explicit
+// empty string clears a token back to anonymous access.
+export interface VcsSettingsPatch {
+  workspaceRoot?: string | null
+  github?: { token?: string }
+  gitlab?: { token?: string }
+}
+
+// Mirrors Synth.Api.Embeddings.EmbeddingSettingsResponse.
+export interface EmbeddingSettings {
+  provider: 'Ollama' | 'OpenAI' | null
+  ollama: { endpoint: string | null; model: string | null }
+  openai: { apiKeySet: boolean; model: string | null }
+}
+
+export interface EmbeddingSettingsPatch {
+  provider?: string | null
+  ollama?: { endpoint?: string | null; model?: string | null }
+  openai?: { apiKey?: string; model?: string | null }
+}
+
 interface ApiError {
   error?: string
 }
@@ -89,4 +118,52 @@ export async function listRepositories(): Promise<RepositoryEntry[]> {
   }
 
   return (await response.json()) as RepositoryEntry[]
+}
+
+export async function getVcsSettings(): Promise<VcsSettings> {
+  const response = await fetch('/api/settings/vcs')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading VCS settings failed (${response.status})`))
+  }
+
+  return (await response.json()) as VcsSettings
+}
+
+export async function updateVcsSettings(patch: VcsSettingsPatch): Promise<VcsSettings> {
+  const response = await fetch('/api/settings/vcs', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Saving VCS settings failed (${response.status})`))
+  }
+
+  return (await response.json()) as VcsSettings
+}
+
+export async function getEmbeddingSettings(): Promise<EmbeddingSettings> {
+  const response = await fetch('/api/settings/embedding')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading embedding settings failed (${response.status})`))
+  }
+
+  return (await response.json()) as EmbeddingSettings
+}
+
+export async function updateEmbeddingSettings(patch: EmbeddingSettingsPatch): Promise<EmbeddingSettings> {
+  const response = await fetch('/api/settings/embedding', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Saving embedding settings failed (${response.status})`))
+  }
+
+  return (await response.json()) as EmbeddingSettings
 }

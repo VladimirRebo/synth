@@ -20,6 +20,7 @@ describe('App', () => {
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
       'Index a repository',
       'Connect via MCP',
+      'Settings',
       'Search',
     ])
   })

@@ -5,6 +5,7 @@ import { useSearchFocus } from './composables/useSearchFocus'
 import Icon from './components/Icon.vue'
 import IndexPanel from './components/IndexPanel.vue'
 import McpConnectPanel from './components/McpConnectPanel.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import SearchPanel from './components/SearchPanel.vue'
 
 const { theme, toggle } = useTheme()
@@ -39,6 +40,7 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
     </header>
     <IndexPanel />
     <McpConnectPanel />
+    <SettingsPanel />
     <SearchPanel />
   </main>
 </template>

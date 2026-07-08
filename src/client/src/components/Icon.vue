@@ -66,6 +66,20 @@ const icons: Record<string, IconDef> = {
       'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
     ],
   },
+  sliders: {
+    // feather-icons' sliders glyph — used for the Settings panel.
+    lines: [
+      { x1: 4, y1: 21, x2: 4, y2: 14 },
+      { x1: 4, y1: 10, x2: 4, y2: 3 },
+      { x1: 12, y1: 21, x2: 12, y2: 12 },
+      { x1: 12, y1: 8, x2: 12, y2: 3 },
+      { x1: 20, y1: 21, x2: 20, y2: 16 },
+      { x1: 20, y1: 12, x2: 20, y2: 3 },
+      { x1: 1, y1: 14, x2: 7, y2: 14 },
+      { x1: 9, y1: 8, x2: 15, y2: 8 },
+      { x1: 17, y1: 16, x2: 23, y2: 16 },
+    ],
+  },
   'git-branch': {
     // feather-icons' git-branch glyph — used for the remote-repository indexing mode.
     lines: [
