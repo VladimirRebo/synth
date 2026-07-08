@@ -1,7 +1,7 @@
 ---
 id: SYNTH-18
 summary: "Git clone/fetch service for GitHub/GitLab repository URLs"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'class GitRepoService' src/Synth.Core/"
 acceptance_criterion: ""
 boundaries: "Only add the git clone/fetch service and URL-parsing/collection-naming helper as standalone, testable units in Synth.Core. Do not wire this into POST /index, do not add a repository registry, do not touch the Vue client — those are SYNTH-19/SYNTH-20. Do not add webhooks, AI review, or issue automation (backlog, issue #22)."
