@@ -1,7 +1,7 @@
 ---
 id: SYNTH-20
 summary: "Settings CRUD for VcsOptions (GET/PUT /api/settings/vcs)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq '/api/settings/vcs\\|MapGet(\"/vcs\"\\|MapPut(\"/vcs\"' src/Synth.Api/ || grep -riq 'settings/vcs' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add Settings CRUD for the existing Vcs config section. Do not touch embeddings, Qdrant, or the Vue client — those are SYNTH-21/22 and a later direct client task. Do not add auth/RBAC (Synth has none, single local user)."
