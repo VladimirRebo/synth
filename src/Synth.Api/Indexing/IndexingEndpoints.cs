@@ -22,7 +22,8 @@ public static class IndexingEndpoints
             if (string.IsNullOrWhiteSpace(request.Path) || !Directory.Exists(request.Path))
                 return Results.BadRequest(new { error = $"Directory not found: {request.Path}" });
 
-            var summary = await pipeline.IndexDirectoryAsync(request.Path, cancellationToken);
+            // Local-path indexing lands in the default collection; per-repo collections arrive in SYNTH-19.
+            var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, request.Path, cancellationToken);
             return Results.Ok(summary);
         });
 

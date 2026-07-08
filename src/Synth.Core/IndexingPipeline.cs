@@ -32,14 +32,17 @@ public sealed class IndexingPipeline
 
     /// <summary>
     /// Indexes every supported file under <paramref name="rootPath"/> (recursively,
-    /// skipping <c>bin/</c>, <c>obj/</c> and <c>.git/</c>). Files that no chunker
-    /// handles, are empty, or cannot be read are skipped rather than aborting the run.
+    /// skipping <c>bin/</c>, <c>obj/</c> and <c>.git/</c>) into <paramref name="collection"/>.
+    /// Files that no chunker handles, are empty, or cannot be read are skipped rather than
+    /// aborting the run.
     /// </summary>
     /// <returns>A summary of how many files were indexed vs. skipped and the chunk total.</returns>
     public async Task<IndexingSummary> IndexDirectoryAsync(
+        string collection,
         string rootPath,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         if (!Directory.Exists(rootPath))
             throw new DirectoryNotFoundException($"Index root not found: {rootPath}");
@@ -86,7 +89,7 @@ public sealed class IndexingPipeline
             }
 
             var embedded = await EmbedAsync(chunks, cancellationToken);
-            await _store.UpsertAsync(embedded, cancellationToken);
+            await _store.UpsertAsync(collection, embedded, cancellationToken);
 
             filesIndexed++;
             chunksIndexed += embedded.Count;

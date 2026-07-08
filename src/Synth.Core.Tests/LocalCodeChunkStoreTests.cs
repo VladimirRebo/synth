@@ -28,9 +28,9 @@ public class LocalCodeChunkStoreTests
         var mid = Chunk("b.cs", 1, [0.8f, 0.2f, 0f], "Mid");
         var far = Chunk("c.cs", 1, [0f, 1f, 0f], "Far");
 
-        await store.UpsertAsync([far, near, mid]);
+        await store.UpsertAsync(CollectionNames.Default, [far, near, mid]);
 
-        var results = await store.SearchAsync(new[] { 1f, 0f, 0f }, limit: 3);
+        var results = await store.SearchAsync(CollectionNames.Default, new[] { 1f, 0f, 0f }, limit: 3);
 
         Assert.Equal(3, results.Count);
         Assert.Equal("Near", results[0].Chunk.MethodName);
@@ -46,14 +46,14 @@ public class LocalCodeChunkStoreTests
     public async Task SearchAsync_honours_the_limit()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync(
+        await store.UpsertAsync(CollectionNames.Default,
         [
             Chunk("a.cs", 1, [1f, 0f]),
             Chunk("b.cs", 1, [0f, 1f]),
             Chunk("c.cs", 1, [1f, 1f]),
         ]);
 
-        var results = await store.SearchAsync(new[] { 1f, 0f }, limit: 2);
+        var results = await store.SearchAsync(CollectionNames.Default, new[] { 1f, 0f }, limit: 2);
 
         Assert.Equal(2, results.Count);
     }
@@ -62,7 +62,7 @@ public class LocalCodeChunkStoreTests
     public async Task GetByFileAsync_returns_matching_chunks_ordered_by_start_line()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync(
+        await store.UpsertAsync(CollectionNames.Default,
         [
             Chunk("target.cs", 30, [1f, 0f], "Third"),
             Chunk("target.cs", 10, [1f, 0f], "First"),
@@ -70,7 +70,7 @@ public class LocalCodeChunkStoreTests
             Chunk("target.cs", 20, [1f, 0f], "Second"),
         ]);
 
-        var chunks = await store.GetByFileAsync("target.cs");
+        var chunks = await store.GetByFileAsync(CollectionNames.Default, "target.cs");
 
         Assert.Equal(["First", "Second", "Third"], chunks.Select(c => c.MethodName));
     }
@@ -79,9 +79,9 @@ public class LocalCodeChunkStoreTests
     public async Task GetByFileAsync_returns_empty_when_no_match()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync([Chunk("a.cs", 1, [1f, 0f])]);
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("a.cs", 1, [1f, 0f])]);
 
-        Assert.Empty(await store.GetByFileAsync("missing.cs"));
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, "missing.cs"));
     }
 
     [Fact]
@@ -89,12 +89,42 @@ public class LocalCodeChunkStoreTests
     {
         var store = new LocalCodeChunkStore();
         // Same RelativePath + line span => same ChunkId => the second upsert replaces the first.
-        await store.UpsertAsync([Chunk("a.cs", 5, [1f, 0f], "Old")]);
-        await store.UpsertAsync([Chunk("a.cs", 5, [1f, 0f], "New")]);
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("a.cs", 5, [1f, 0f], "Old")]);
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("a.cs", 5, [1f, 0f], "New")]);
 
-        var chunks = await store.GetByFileAsync("a.cs");
+        var chunks = await store.GetByFileAsync(CollectionNames.Default, "a.cs");
 
         var only = Assert.Single(chunks);
         Assert.Equal("New", only.MethodName);
+    }
+
+    [Fact]
+    public async Task Collections_are_isolated_from_each_other_for_search_and_get_by_file()
+    {
+        // Proves SYNTH-17 isolation: chunks upserted under one collection must never surface
+        // from a search or get-by-file scoped to another. Both chunks share the same file name
+        // and embedding on purpose, so only the collection boundary can keep them apart.
+        var store = new LocalCodeChunkStore();
+        var chunkA = Chunk("shared.cs", 1, [1f, 0f], "FromRepoA");
+        var chunkB = Chunk("shared.cs", 1, [1f, 0f], "FromRepoB");
+
+        await store.UpsertAsync("repo-a", [chunkA]);
+        await store.UpsertAsync("repo-b", [chunkB]);
+
+        // Search stays scoped: each collection returns only its own chunk.
+        var hitsA = await store.SearchAsync("repo-a", new[] { 1f, 0f }, limit: 10);
+        var hitsB = await store.SearchAsync("repo-b", new[] { 1f, 0f }, limit: 10);
+        Assert.Equal("FromRepoA", Assert.Single(hitsA).Chunk.MethodName);
+        Assert.Equal("FromRepoB", Assert.Single(hitsB).Chunk.MethodName);
+
+        // Get-by-file stays scoped too, even though the relative path is identical.
+        var fileA = await store.GetByFileAsync("repo-a", "shared.cs");
+        var fileB = await store.GetByFileAsync("repo-b", "shared.cs");
+        Assert.Equal("FromRepoA", Assert.Single(fileA).MethodName);
+        Assert.Equal("FromRepoB", Assert.Single(fileB).MethodName);
+
+        // A collection that was never written to is empty, not a view over everything.
+        Assert.Empty(await store.SearchAsync("repo-c", new[] { 1f, 0f }, limit: 10));
+        Assert.Empty(await store.GetByFileAsync("repo-c", "shared.cs"));
     }
 }

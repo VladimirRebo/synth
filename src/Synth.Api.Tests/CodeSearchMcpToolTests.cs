@@ -53,7 +53,7 @@ public class CodeSearchMcpToolTests
     public async Task Search_code_tool_returns_matching_chunks_projected_to_results()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync([
+        await store.UpsertAsync(CollectionNames.Default, [
             Chunk("repo.cs", "UserRepository", "GetUserById", startLine: 10),
             Chunk("hash.cs", "Hasher", "ComputeChecksum", startLine: 20),
         ]);
@@ -74,7 +74,7 @@ public class CodeSearchMcpToolTests
     public async Task Search_code_tool_honours_the_limit()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync(Enumerable.Range(0, 6)
+        await store.UpsertAsync(CollectionNames.Default, Enumerable.Range(0, 6)
             .Select(i => Chunk($"f{i}.cs", $"Class{i}", $"Method{i}", startLine: i + 1)));
 
         var results = await CodeSearchTool.SearchCodeAsync(ServiceOver(store), "anything", limit: 2);
@@ -86,7 +86,7 @@ public class CodeSearchMcpToolTests
     public async Task Search_code_tool_returns_empty_for_blank_query()
     {
         var store = new LocalCodeChunkStore();
-        await store.UpsertAsync([Chunk("f.cs", "A", "M")]);
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("f.cs", "A", "M")]);
 
         var results = await CodeSearchTool.SearchCodeAsync(ServiceOver(store), "   ", limit: 5);
 

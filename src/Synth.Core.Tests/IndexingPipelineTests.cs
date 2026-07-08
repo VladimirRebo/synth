@@ -100,16 +100,16 @@ public class IndexingPipelineTests : IDisposable
         var generator = new FakeEmbeddingGenerator();
         var pipeline = PipelineFor(store, generator);
 
-        var summary = await pipeline.IndexDirectoryAsync(_root);
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
 
         Assert.Equal(2, summary.FilesIndexed);
         Assert.Equal(0, summary.FilesSkipped);
         Assert.Equal(5, summary.ChunksIndexed);
 
-        var fooChunks = await store.GetByFileAsync("Foo.cs");
+        var fooChunks = await store.GetByFileAsync(CollectionNames.Default, "Foo.cs");
         Assert.Equal(3, fooChunks.Count);
 
-        var barChunks = await store.GetByFileAsync("nested/Bar.cs");
+        var barChunks = await store.GetByFileAsync(CollectionNames.Default, "nested/Bar.cs");
         Assert.Equal(2, barChunks.Count);
 
         // Every stored chunk carries an embedding of the fake generator's dimension.
@@ -131,13 +131,13 @@ public class IndexingPipelineTests : IDisposable
         var store = new LocalCodeChunkStore();
         var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
 
-        var summary = await pipeline.IndexDirectoryAsync(_root);
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
 
         // Only Real.cs is indexed; the build-output/VCS files are never enumerated.
         Assert.Equal(1, summary.FilesIndexed);
-        Assert.Empty(await store.GetByFileAsync("bin/Generated.cs"));
-        Assert.Empty(await store.GetByFileAsync("obj/Generated.cs"));
-        Assert.Empty(await store.GetByFileAsync(".git/Hook.cs"));
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, "bin/Generated.cs"));
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, "obj/Generated.cs"));
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, ".git/Hook.cs"));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class IndexingPipelineTests : IDisposable
         var store = new LocalCodeChunkStore();
         var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
 
-        var summary = await pipeline.IndexDirectoryAsync(_root);
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
 
         Assert.Equal(1, summary.FilesIndexed);
         Assert.Equal(2, summary.FilesSkipped);
@@ -169,7 +169,7 @@ public class IndexingPipelineTests : IDisposable
         var generator = new FakeEmbeddingGenerator();
         var pipeline = PipelineFor(new LocalCodeChunkStore(), generator);
 
-        await pipeline.IndexDirectoryAsync(_root);
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
 
         Assert.Equal(2, generator.CallCount);
     }
@@ -180,6 +180,6 @@ public class IndexingPipelineTests : IDisposable
         var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator());
 
         await Assert.ThrowsAsync<DirectoryNotFoundException>(
-            () => pipeline.IndexDirectoryAsync(Path.Combine(_root, "does-not-exist")));
+            () => pipeline.IndexDirectoryAsync(CollectionNames.Default, Path.Combine(_root, "does-not-exist")));
     }
 }
