@@ -15,8 +15,17 @@ var builder = DistributedApplication.CreateBuilder(args);
 var mongoUser = builder.AddParameter("mongo-username", "synth", publishValueAsDefault: true);
 var mongoPassword = builder.AddParameter("mongo-password", "synth-local-dev-only", secret: true);
 
+// Pinned to the conventional Mongo port (27017, IsProxied=false) for the same reason as the
+// API/client below: a stable connection string instead of a new random host port every
+// `dotnet run` — external tools (the mongodb-synth MCP server, mongosh, Compass) would
+// otherwise need reconfiguring after every restart.
 var mongo = builder.AddMongoDB("mongo", userName: mongoUser, password: mongoPassword)
-    .WithDataVolume();
+    .WithDataVolume()
+    .WithEndpoint("tcp", e =>
+    {
+        e.Port = 27017;
+        e.IsProxied = false;
+    });
 
 var dataDb = mongo.AddDatabase("synthdata");
 
