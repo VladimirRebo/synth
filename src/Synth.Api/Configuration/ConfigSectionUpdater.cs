@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Synth.Api.Configuration;
@@ -48,6 +49,61 @@ public sealed class ConfigSectionUpdater(IConfigStore store)
             mutate(section);
 
             await store.SaveAsync(root.ToJsonString(), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Returns the whole stored document as-is (secrets included — the raw editor is a deliberate
+    /// power-user escape hatch, unlike the masked section endpoints), or <c>"{}"</c> when nothing is
+    /// stored yet — the same empty-document default <see cref="UpdateSectionAsync"/> starts from.
+    /// Reads under <see cref="_gate"/> so it can't observe a half-written document mid-replace.
+    /// </summary>
+    public async Task<string> LoadDocumentAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var json = await store.LoadAsync(cancellationToken).ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(json) ? "{}" : json;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Replaces the entire stored document with <paramref name="json"/>. Validates that the input is a
+    /// well-formed JSON <em>object</em> before touching the store — the raw editor trusts the caller with
+    /// the section <em>values</em>, but a malformed or non-object document would break the config
+    /// provider's flattening, so it is rejected with a <see cref="FormatException"/> (which the endpoint
+    /// turns into a 400) and never reaches <see cref="IConfigStore.SaveAsync"/>. On success the exact
+    /// input text is persisted under the same <see cref="_gate"/> as <see cref="UpdateSectionAsync"/>, so
+    /// a whole-document write can't race a concurrent section update and clobber it.
+    /// </summary>
+    public async Task ReplaceDocumentAsync(string json, CancellationToken cancellationToken = default)
+    {
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(json);
+        }
+        catch (JsonException ex)
+        {
+            throw new FormatException("Request body must be well-formed JSON.", ex);
+        }
+
+        if (node is not JsonObject)
+            throw new FormatException("Request body must be a JSON object.");
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await store.SaveAsync(json, cancellationToken).ConfigureAwait(false);
         }
         finally
         {

@@ -112,6 +112,11 @@ app.MapVcsSettingsEndpoints();
 // persisted so a broken provider is never saved.
 app.MapEmbeddingSettingsEndpoints();
 
+// Advanced Settings escape hatch (GET/PUT /settings/raw): read/replace the whole config document as
+// plain JSON, secrets unmasked, no probe — a deliberate power-user path that trusts the caller and
+// validates only that the body is a well-formed JSON object. Shares the section endpoints' reload path.
+app.MapRawSettingsEndpoints();
+
 // Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
 app.MapSearchEndpoints();
