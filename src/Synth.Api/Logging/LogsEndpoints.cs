@@ -4,19 +4,19 @@ using Serilog.Events;
 namespace Synth.Api.Logging;
 
 /// <summary>
-/// Maps <c>GET /logs</c>: a filterable, read-only view over the in-process
-/// <see cref="RingBufferLogSink"/> (SYNTH-23). The Vue client polls this — an initial call with no
-/// parameters loads the recent buffer, then subsequent calls pass <c>since</c> to fetch only newer
-/// entries. Registered bare as <c>/logs</c> (no <c>/api</c> prefix): the Vite dev proxy strips
-/// <c>/api</c> before forwarding, matching every other endpoint in this app.
+/// Maps <c>GET /logs</c>: a filterable, read-only view over the active <see cref="ILogEntryStore"/>
+/// (SYNTH-28: Mongo-backed and durable when configured, in-memory otherwise). The Vue client polls
+/// this — an initial call with no parameters loads the recent buffer, then subsequent calls pass
+/// <c>since</c> to fetch only newer entries. Registered bare as <c>/logs</c> (no <c>/api</c> prefix):
+/// the Vite dev proxy strips <c>/api</c> before forwarding, matching every other endpoint in this app.
 /// </summary>
 public static class LogsEndpoints
 {
     public static IEndpointRouteBuilder MapLogsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         // GET /logs?level=&since=&search= — all optional, combined with AND, oldest first.
-        endpoints.MapGet("/logs", (
-            RingBufferLogSink sink,
+        endpoints.MapGet("/logs", async (
+            ILogEntryStore store,
             string? level,
             string? since,
             string? search) =>
@@ -42,7 +42,7 @@ public static class LogsEndpoints
                 sinceTimestamp = parsedSince;
             }
 
-            IEnumerable<LogEntry> entries = sink.Snapshot();
+            IEnumerable<LogEntry> entries = await store.SnapshotAsync();
 
             if (minLevel is { } floor)
             {
@@ -60,7 +60,7 @@ public static class LogsEndpoints
                 entries = entries.Where(e =>
                     e.Message.Contains(search, StringComparison.OrdinalIgnoreCase));
 
-            // Snapshot() already yields oldest-first; the filters preserve that order.
+            // SnapshotAsync() already yields oldest-first; the filters preserve that order.
             return Results.Ok(entries.ToArray());
         });
 

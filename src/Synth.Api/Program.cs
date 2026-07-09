@@ -13,10 +13,11 @@ using Synth.Api.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// In-memory ring buffer capturing the most recent log events so a REST endpoint (SYNTH-24) can
-// read them back in-process. Constructed once here and shared two ways below: as a Serilog sink
-// (so it receives events) and as a DI singleton (so the endpoint injects this exact instance).
-var logSink = new RingBufferLogSink();
+// Serilog sink that captures log events onto a bounded channel (SYNTH-28). Constructed once here
+// so it can be attached to Serilog below; the actual persistence happens off the request hot path
+// on LogEntryStoreWriter's background thread, into the ILogEntryStore chosen by AddSynthLogging
+// (Mongo when configured, in-memory otherwise). Emit itself never touches Mongo.
+var logSink = new LogEntryStoreSink();
 
 // Serilog, wired early (before other builder calls that might log) so structured events exist to
 // capture. Console output is preserved for local-dev visibility; writeToProviders keeps the
@@ -26,7 +27,11 @@ builder.Host.UseSerilog((context, loggerConfig) => loggerConfig
     .WriteTo.Console()
     .WriteTo.Sink(logSink), writeToProviders: true);
 
-builder.Services.AddSingleton(logSink);
+// Log persistence: registers the sink as a DI singleton, selects the ILogEntryStore (Mongo when
+// the synthdata connection string is present, in-memory otherwise), and starts the background
+// service that drains the sink's channel into that store. The store builds its own MongoClient from
+// the connection string, like the config/registry/graph stores, so ordering here doesn't matter.
+builder.AddSynthLogging(logSink);
 
 // Aspire service defaults: OpenTelemetry, health checks, and service discovery.
 builder.AddServiceDefaults();
