@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Api.Embeddings;
+using Synth.Api.Graph;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
@@ -40,12 +41,17 @@ public static class StdioMcpHost
         builder.AddSynthVectorStore();
         builder.AddSynthSearch();
 
-        // MCP server over stdio (not HTTP): the same `search_code` tool, spawned by the client
-        // on stdin/stdout. No HTTP endpoints are mapped in this process.
+        // Same call-graph store as Synth.Api (Mongo-or-in-memory) so the find_callers/find_callees
+        // tools resolve ICodeGraphStore over stdio just as they do over HTTP.
+        builder.AddSynthCodeGraph();
+
+        // MCP server over stdio (not HTTP): the same `search_code` + call-graph tools, spawned by
+        // the client on stdin/stdout. No HTTP endpoints are mapped in this process.
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
-            .WithTools<CodeSearchTool>();
+            .WithTools<CodeSearchTool>()
+            .WithTools<CallGraphTool>();
 
         return builder;
     }

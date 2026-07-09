@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 using Synth.Core.Graph;
 
@@ -14,7 +17,7 @@ public static class CodeGraphServiceExtensions
     // The Aspire connection-string name for Synth's Mongo database (see AppHost / ConfigStoreExtensions).
     private const string ConnectionName = "synthdata";
 
-    public static WebApplicationBuilder AddSynthCodeGraph(this WebApplicationBuilder builder)
+    public static IHostApplicationBuilder AddSynthCodeGraph(this IHostApplicationBuilder builder)
     {
         builder.Services.AddSingleton(CreateStore(builder.Configuration));
         return builder;

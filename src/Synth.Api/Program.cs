@@ -111,6 +111,10 @@ app.MapEmbeddingSettingsEndpoints();
 // /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
 app.MapSearchEndpoints();
 
+// Plain REST call-graph queries (GET /callers?symbol=..., GET /callees?symbol=...) — the
+// human-facing equivalent of the find_callers/find_callees MCP tools over ICodeGraphStore.
+app.MapCallGraphEndpoints();
+
 // Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
 // client can poll the live log — `since` returns only entries newer than the last poll.
 app.MapLogsEndpoints();
