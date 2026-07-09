@@ -202,6 +202,73 @@ public class IndexingPipelineTests : IDisposable
         Assert.Equal(2, generator.CallCount);
     }
 
+    // A test double that captures every IndexingProgress the pipeline reports (SYNTH-30).
+    private sealed class ProgressCollector : IProgress<IndexingProgress>
+    {
+        public List<IndexingProgress> Reports { get; } = [];
+
+        public void Report(IndexingProgress value) => Reports.Add(value);
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_reports_progress_matching_the_final_counts()
+    {
+        // Foo: class + two methods => 3 chunks. Bar: class + one method => 2 chunks. Both are matching
+        // *.cs files; Notes.txt is not enumerated (only *.cs), so TotalFiles must be 2, not 3.
+        WriteFile("Foo.cs", """
+            namespace Sample;
+
+            public class Foo
+            {
+                public int A() => 1;
+                public int B() => 2;
+            }
+            """);
+        WriteFile("nested/Bar.cs", """
+            namespace Sample.Nested;
+
+            public class Bar
+            {
+                public void Run() { }
+            }
+            """);
+        WriteFile("Notes.txt", "not a source file");
+
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator());
+        var progress = new ProgressCollector();
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root, progress: progress);
+
+        Assert.NotEmpty(progress.Reports);
+
+        // TotalFiles is the upfront count of matching *.cs files and is constant across reports.
+        Assert.All(progress.Reports, report => Assert.Equal(2, report.TotalFiles));
+
+        // The final report matches the actual file counts the run produced.
+        var final = progress.Reports[^1];
+        Assert.Equal(summary.FilesIndexed, final.FilesIndexed);
+        Assert.Equal(summary.FilesSkipped, final.FilesSkipped);
+        Assert.Equal(2, final.FilesIndexed);
+        Assert.Equal(0, final.FilesSkipped);
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_without_progress_behaves_unchanged()
+    {
+        WriteFile("Good.cs", """
+            namespace Sample;
+            public class Good { public void M() { } }
+            """);
+
+        // Omitting the optional progress sink must leave the existing contract intact.
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator());
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(1, summary.FilesIndexed);
+        Assert.Equal(2, summary.ChunksIndexed);
+    }
+
     [Fact]
     public async Task IndexDirectoryAsync_throws_when_root_missing()
     {

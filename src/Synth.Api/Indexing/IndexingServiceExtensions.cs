@@ -21,6 +21,9 @@ public static class IndexingServiceExtensions
         builder.Services.AddSingleton<IFileChunker, CSharpRoslynChunker>();
         builder.Services.AddSingleton<IndexingPipeline>();
 
+        // Single, process-lifetime job tracker so a client can poll indexing progress (issue #39).
+        builder.Services.AddSingleton<IIndexJobTracker, InMemoryIndexJobTracker>();
+
         return builder;
     }
 }
