@@ -1,4 +1,5 @@
 using Synth.Core;
+using Synth.Core.Graph;
 
 namespace Synth.Core.Tests;
 
@@ -8,6 +9,9 @@ public class CSharpRoslynChunkerTests
 
     private static IReadOnlyList<CodeChunk> ChunkSource(string source) =>
         Chunker.Chunk("/repo/src/Sample.cs", "src/Sample.cs", source);
+
+    private static IReadOnlyList<RawCallSite> ExtractCallSites(string source) =>
+        Chunker.ExtractCallSites("/repo/src/Sample.cs", "src/Sample.cs", source);
 
     [Theory]
     [InlineData("/repo/src/Foo.cs", true)]
@@ -172,5 +176,94 @@ public class CSharpRoslynChunkerTests
 
         var classChunk = Assert.Single(ChunkSource(blockNs), c => c.ChunkType == ChunkType.Class);
         Assert.Equal("Block", classChunk.Namespace);
+    }
+
+    // --- Call-site extraction (SYNTH-26): raw, unresolved invocations per method/constructor. ---
+
+    [Fact]
+    public void ExtractCallSites_RecordsCallerNameInvokedNameAndLocation()
+    {
+        const string source = """
+            namespace Acme;
+
+            public class Service
+            {
+                public void Handle()
+                {
+                    Work();
+                }
+
+                public void Work() { }
+            }
+            """;
+
+        var site = Assert.Single(ExtractCallSites(source), s => s.InvokedName == "Work");
+        Assert.Equal("Acme.Service.Handle", site.CallerQualifiedName);
+        Assert.Equal("src/Sample.cs", site.SourceFile);
+        Assert.Equal(7, site.Line); // the `Work();` line (1-based).
+    }
+
+    [Fact]
+    public void ExtractCallSites_TakesLastSegmentOfQualifiedCall()
+    {
+        const string source = """
+            namespace Acme;
+
+            public class Service
+            {
+                private readonly Repo _repo = new();
+
+                public void Handle()
+                {
+                    this.Local();
+                    _repo.Load();
+                    System.Console.WriteLine("x");
+                }
+
+                public void Local() { }
+            }
+            """;
+
+        var invoked = ExtractCallSites(source).Select(s => s.InvokedName).ToList();
+        Assert.Contains("Local", invoked);   // this.Local()
+        Assert.Contains("Load", invoked);     // _repo.Load()
+        Assert.Contains("WriteLine", invoked); // System.Console.WriteLine(...)
+    }
+
+    [Fact]
+    public void ExtractCallSites_CapturesConstructorBodyCalls()
+    {
+        const string source = """
+            namespace Acme;
+
+            public class Service
+            {
+                public Service()
+                {
+                    Init();
+                }
+
+                public void Init() { }
+            }
+            """;
+
+        var site = Assert.Single(ExtractCallSites(source), s => s.InvokedName == "Init");
+        // A constructor's caller name is Namespace.Class.Class, matching its chunk metadata.
+        Assert.Equal("Acme.Service.Service", site.CallerQualifiedName);
+    }
+
+    [Fact]
+    public void ExtractCallSites_EmitsNothingForFileWithoutInvocations()
+    {
+        const string source = """
+            namespace Acme;
+
+            public class Data
+            {
+                public int Value { get; set; }
+            }
+            """;
+
+        Assert.Empty(ExtractCallSites(source));
     }
 }

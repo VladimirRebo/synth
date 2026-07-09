@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Synth.Core.Graph;
 
 namespace Synth.Core;
 
@@ -17,7 +18,7 @@ namespace Synth.Core;
 /// <see cref="ChunkType.MethodHead"/> chunk (first <see cref="MethodHeadLines"/> lines)
 /// and a <see cref="ChunkType.MethodBody"/> chunk (the remainder).
 /// </remarks>
-public sealed class CSharpRoslynChunker : IFileChunker
+public sealed class CSharpRoslynChunker : IFileChunker, ICallSiteExtractor
 {
     /// <summary>Methods with more source lines than this are split into head/body chunks.</summary>
     public const int LongMethodLineThreshold = 300;
@@ -46,6 +47,112 @@ public sealed class CSharpRoslynChunker : IFileChunker
 
         return chunks;
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A dedicated syntax walk, not folded into <see cref="Chunk"/>: the two walks share the
+    /// namespace → type → member skeleton but diverge in what they collect (chunk head/body
+    /// splitting and summaries here would only be noise, and there call sites would). Re-parsing the
+    /// same text is cheap next to the embedding round-trip the pipeline runs per file, so keeping the
+    /// two entry points independently readable wins over threading both through one walk.
+    /// </remarks>
+    public IReadOnlyList<RawCallSite> ExtractCallSites(string filePath, string relativePath, string content)
+    {
+        content ??= string.Empty;
+
+        var tree = CSharpSyntaxTree.ParseText(content);
+        var root = tree.GetCompilationUnitRoot();
+
+        var sites = new List<RawCallSite>();
+        WalkForCallSites(root.Members, ns: string.Empty, relativePath ?? string.Empty, sites);
+
+        return sites;
+    }
+
+    private static void WalkForCallSites(
+        IEnumerable<MemberDeclarationSyntax> members,
+        string ns,
+        string sourceFile,
+        List<RawCallSite> sites)
+    {
+        foreach (var member in members)
+        {
+            switch (member)
+            {
+                case BaseNamespaceDeclarationSyntax nsDecl:
+                    WalkForCallSites(nsDecl.Members, Combine(ns, nsDecl.Name.ToString()), sourceFile, sites);
+                    break;
+
+                case TypeDeclarationSyntax typeDecl:
+                    EmitTypeCallSites(typeDecl, ns, sourceFile, sites);
+                    break;
+            }
+        }
+    }
+
+    private static void EmitTypeCallSites(
+        TypeDeclarationSyntax typeDecl,
+        string ns,
+        string sourceFile,
+        List<RawCallSite> sites)
+    {
+        var className = typeDecl.Identifier.Text;
+
+        foreach (var member in typeDecl.Members)
+        {
+            switch (member)
+            {
+                case MethodDeclarationSyntax method:
+                    CollectInvocations(method, QualifyMember(ns, className, method.Identifier.Text), sourceFile, sites);
+                    break;
+
+                case ConstructorDeclarationSyntax ctor:
+                    CollectInvocations(ctor, QualifyMember(ns, className, ctor.Identifier.Text), sourceFile, sites);
+                    break;
+
+                case TypeDeclarationSyntax nested:
+                    // Nested types are qualified under the same namespace as EmitType does (not under the
+                    // outer type), so the caller name here stays identical to that member's chunk metadata.
+                    EmitTypeCallSites(nested, ns, sourceFile, sites);
+                    break;
+            }
+        }
+    }
+
+    private static void CollectInvocations(
+        SyntaxNode member,
+        string callerQualifiedName,
+        string sourceFile,
+        List<RawCallSite> sites)
+    {
+        foreach (var invocation in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            var invokedName = InvokedSimpleName(invocation.Expression);
+            if (invokedName is null)
+                continue;
+
+            var line = invocation.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+            sites.Add(new RawCallSite(callerQualifiedName, invokedName, sourceFile, line));
+        }
+    }
+
+    // The simple identifier of the invoked callee, taking the last segment of a qualified call
+    // (this.Foo() / obj.Foo() / Ns.Type.Foo() all resolve to "Foo"). Null when the callee is not a
+    // plain name (e.g. an invoked delegate expression) — such sites can never match a known method.
+    private static string? InvokedSimpleName(ExpressionSyntax expression) => expression switch
+    {
+        MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.Text,
+        MemberBindingExpressionSyntax memberBinding => memberBinding.Name.Identifier.Text,
+        SimpleNameSyntax simpleName => simpleName.Identifier.Text,
+        _ => null,
+    };
+
+    // {Namespace}.{ClassName}.{MethodName}, empty parts skipped — identical to CodeChunk.QualifiedName,
+    // so a caller/callee name here is exactly what chunk metadata renders for the same member.
+    private static string QualifyMember(string ns, string className, string methodName) =>
+        string.Join(
+            '.',
+            new[] { ns, className, methodName }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private static void WalkMembers(
         IEnumerable<MemberDeclarationSyntax> members,
