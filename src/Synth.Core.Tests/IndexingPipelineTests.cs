@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Core;
+using Synth.Core.Graph;
 
 namespace Synth.Core.Tests;
 
@@ -48,6 +50,29 @@ public class IndexingPipelineTests : IDisposable
         public void Dispose() { }
     }
 
+    // Minimal in-memory ICodeGraphStore for the pipeline's stage-2 output. The real fallback store
+    // (InMemoryCodeGraphStore) lives in Synth.Api, which Synth.Core.Tests does not reference, so this
+    // stands in — same delete-then-insert / by-collection lookup contract the pipeline relies on.
+    private sealed class FakeCodeGraphStore : ICodeGraphStore
+    {
+        private readonly ConcurrentDictionary<string, List<CallEdge>> _byCollection = new();
+
+        public Task ReplaceEdgesAsync(string collection, IReadOnlyList<CallEdge> edges, CancellationToken ct = default)
+        {
+            _byCollection[collection] = [.. edges];
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<CallEdge>> FindCallersAsync(string collection, string symbol, CancellationToken ct = default) =>
+            Task.FromResult(Query(collection, edge => edge.Callee == symbol));
+
+        public Task<IReadOnlyList<CallEdge>> FindCalleesAsync(string collection, string symbol, CancellationToken ct = default) =>
+            Task.FromResult(Query(collection, edge => edge.Caller == symbol));
+
+        private IReadOnlyList<CallEdge> Query(string collection, Func<CallEdge, bool> predicate) =>
+            _byCollection.TryGetValue(collection, out var edges) ? edges.Where(predicate).ToList() : [];
+    }
+
     private readonly string _root;
 
     public IndexingPipelineTests()
@@ -69,8 +94,11 @@ public class IndexingPipelineTests : IDisposable
         File.WriteAllText(full, content);
     }
 
-    private static IndexingPipeline PipelineFor(ICodeChunkStore store, FakeEmbeddingGenerator generator) =>
-        new([new CSharpRoslynChunker()], generator, store);
+    private static IndexingPipeline PipelineFor(
+        ICodeChunkStore store,
+        FakeEmbeddingGenerator generator,
+        ICodeGraphStore? graphStore = null) =>
+        new([new CSharpRoslynChunker()], generator, store, graphStore ?? new FakeCodeGraphStore());
 
     [Fact]
     public async Task IndexDirectoryAsync_chunks_embeds_and_stores_supported_files()
@@ -181,5 +209,134 @@ public class IndexingPipelineTests : IDisposable
 
         await Assert.ThrowsAsync<DirectoryNotFoundException>(
             () => pipeline.IndexDirectoryAsync(CollectionNames.Default, Path.Combine(_root, "does-not-exist")));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_populates_call_graph_across_files()
+    {
+        // Caller file: Service.Handle() calls a method declared in the other file.
+        WriteFile("Service.cs", """
+            namespace Sample;
+
+            public class Service
+            {
+                private readonly Repository _repo = new();
+
+                public void Handle()
+                {
+                    _repo.Load();
+                }
+            }
+            """);
+
+        // Callee file: Repository.Load lives in a separate file — resolution is collection-wide.
+        WriteFile("Repository.cs", """
+            namespace Sample;
+
+            public class Repository
+            {
+                public void Load() { }
+            }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        // The edge is resolved by simple name ("Load") across the two files.
+        var callees = await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Service.Handle");
+        var edge = Assert.Single(callees);
+        Assert.Equal("Sample.Repository.Load", edge.Callee);
+        Assert.Equal("Service.cs", edge.SourceFile);
+
+        var callers = await graphStore.FindCallersAsync(CollectionNames.Default, "Sample.Repository.Load");
+        Assert.Equal("Sample.Service.Handle", Assert.Single(callers).Caller);
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_leaves_empty_graph_when_no_calls_resolve()
+    {
+        // Handle() calls Missing(), which no file declares — no edge, no error.
+        WriteFile("Lonely.cs", """
+            namespace Sample;
+
+            public class Lonely
+            {
+                public void Handle() { Missing(); }
+            }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Empty(await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Lonely.Handle"));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_same_named_method_resolves_to_every_match()
+    {
+        // Two unrelated classes both declare Save(). Resolution is by simple name only, so a single
+        // `Save()` call produces an edge to BOTH — this is the documented, accepted approximation
+        // (issue #33), not a bug: no semantic model exists to disambiguate the receiver's type.
+        WriteFile("Callers.cs", """
+            namespace Sample;
+
+            public class Caller
+            {
+                public void Run() { Save(); }
+            }
+            """);
+        WriteFile("Targets.cs", """
+            namespace Sample;
+
+            public class RepoA { public void Save() { } }
+            public class RepoB { public void Save() { } }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        var callees = await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Caller.Run");
+        Assert.Equal(2, callees.Count);
+        Assert.Contains(callees, e => e.Callee == "Sample.RepoA.Save");
+        Assert.Contains(callees, e => e.Callee == "Sample.RepoB.Save");
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_re_index_replaces_stale_edges()
+    {
+        WriteFile("Pair.cs", """
+            namespace Sample;
+
+            public class Pair
+            {
+                public void A() { B(); }
+                public void B() { }
+            }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        Assert.Single(await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Pair.A"));
+
+        // Rewrite the file so A no longer calls B, then re-index: the old edge must be gone.
+        WriteFile("Pair.cs", """
+            namespace Sample;
+
+            public class Pair
+            {
+                public void A() { }
+                public void B() { }
+            }
+            """);
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Empty(await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Pair.A"));
     }
 }

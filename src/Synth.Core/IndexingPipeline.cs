@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Synth.Core.Graph;
 
 namespace Synth.Core;
 
@@ -9,6 +10,8 @@ namespace Synth.Core;
 /// via the registered <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/>, and upsert
 /// the embedded chunks into <see cref="ICodeChunkStore"/>. Mirrors Sonar's
 /// <c>IndexingPipeline</c>, simplified. Search/reranking live in a later task.
+/// Chunkers that also implement <see cref="ICallSiteExtractor"/> additionally feed a syntax-heuristic
+/// call graph into <see cref="ICodeGraphStore"/>, resolved collection-wide at the end of a run.
 /// </summary>
 public sealed class IndexingPipeline
 {
@@ -18,16 +21,19 @@ public sealed class IndexingPipeline
     private readonly IReadOnlyList<IFileChunker> _chunkers;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
     private readonly ICodeChunkStore _store;
+    private readonly ICodeGraphStore _graphStore;
 
     public IndexingPipeline(
         IEnumerable<IFileChunker> chunkers,
         IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
-        ICodeChunkStore store)
+        ICodeChunkStore store,
+        ICodeGraphStore graphStore)
     {
         ArgumentNullException.ThrowIfNull(chunkers);
         _chunkers = chunkers.ToList();
         _embeddingGenerator = embeddingGenerator ?? throw new ArgumentNullException(nameof(embeddingGenerator));
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _graphStore = graphStore ?? throw new ArgumentNullException(nameof(graphStore));
     }
 
     /// <summary>
@@ -50,6 +56,11 @@ public sealed class IndexingPipeline
         var filesIndexed = 0;
         var filesSkipped = 0;
         var chunksIndexed = 0;
+
+        // Call-graph accumulators (stage 1). Only lightweight strings are held across files — never the
+        // full CodeChunk content — so this stays within the existing per-file streaming design.
+        var rawCallSites = new List<RawCallSite>();
+        var knownSymbols = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var filePath in EnumerateSourceFiles(rootPath))
         {
@@ -91,11 +102,65 @@ public sealed class IndexingPipeline
             var embedded = await EmbedAsync(chunks, cancellationToken);
             await _store.UpsertAsync(collection, embedded, cancellationToken);
 
+            // Stage 1: remember this file's declared method/constructor names (candidate callees) and,
+            // if the chunker supports it, its raw call sites — for collection-wide resolution below.
+            foreach (var chunk in chunks)
+            {
+                if (IsCallableMember(chunk.ChunkType) && chunk.QualifiedName.Length > 0)
+                    knownSymbols.Add(chunk.QualifiedName);
+            }
+
+            if (chunker is ICallSiteExtractor extractor)
+                rawCallSites.AddRange(extractor.ExtractCallSites(filePath, relativePath, content));
+
             filesIndexed++;
             chunksIndexed += embedded.Count;
         }
 
+        // Stage 2: resolve every raw call site against the whole collection's known method names and
+        // replace the graph in one shot. An empty edge set (no .cs files, or no resolved calls) still
+        // replaces — clearing any stale edges from a previous index run.
+        var edges = ResolveEdges(collection, rawCallSites, knownSymbols);
+        await _graphStore.ReplaceEdgesAsync(collection, edges, cancellationToken);
+
         return new IndexingSummary(filesIndexed, filesSkipped, chunksIndexed);
+    }
+
+    // Chunk kinds that represent a callable member (a candidate callee). Class/interface/property/etc.
+    // chunks are never call targets. MethodHead/MethodBody are two halves of one long method, so they
+    // fold to the same qualified name — the HashSet in stage 1 dedups them.
+    private static bool IsCallableMember(ChunkType chunkType) =>
+        chunkType is ChunkType.Method or ChunkType.Constructor or ChunkType.MethodHead or ChunkType.MethodBody;
+
+    // Resolves raw call sites into edges by matching each invoked simple name against every known
+    // qualified name sharing that last segment. One invoked name matching several methods emits one
+    // edge per match (approximate, by design — issue #33); a name matching nothing emits no edge.
+    private static IReadOnlyList<CallEdge> ResolveEdges(
+        string collection,
+        List<RawCallSite> callSites,
+        HashSet<string> knownSymbols)
+    {
+        var bySimpleName = knownSymbols
+            .GroupBy(SimpleNameOf, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+
+        var edges = new List<CallEdge>();
+        foreach (var site in callSites)
+        {
+            if (!bySimpleName.TryGetValue(site.InvokedName, out var callees))
+                continue;
+
+            foreach (var callee in callees)
+                edges.Add(new CallEdge(collection, site.CallerQualifiedName, callee, site.SourceFile, site.Line));
+        }
+
+        return edges;
+    }
+
+    private static string SimpleNameOf(string qualifiedName)
+    {
+        var lastDot = qualifiedName.LastIndexOf('.');
+        return lastDot < 0 ? qualifiedName : qualifiedName[(lastDot + 1)..];
     }
 
     // Embeds a whole file's chunks in one batched generator call, then attaches each
