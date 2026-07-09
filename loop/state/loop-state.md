@@ -65,3 +65,4 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-25 | COMPLETED | validator PASS, committed on fix/SYNTH-25 |
 - | SYNTH-26 | FAILED | validator exit=1 |
 - | SYNTH-26 | COMPLETED | validator PASS, committed on fix/SYNTH-26 |
+- | SYNTH-27 | COMPLETED | validator PASS, committed on fix/SYNTH-27 |

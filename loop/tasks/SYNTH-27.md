@@ -1,7 +1,7 @@
 ---
 id: SYNTH-27
 summary: "MCP tools find_callers/find_callees + REST equivalents over ICodeGraphStore"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'find_callers' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add query tools (MCP + REST) over SYNTH-25/26's call-graph. Do not add type-hierarchy queries. Do not touch the Vue client (optional/stretch for this phase per issue #33 — skip it, don't build it speculatively). Map REST routes bare (no /api prefix) — the exact mistake made once for the Settings endpoints must not be repeated (see the fix commit for VcsSettingsEndpoints/EmbeddingSettingsEndpoints)."
