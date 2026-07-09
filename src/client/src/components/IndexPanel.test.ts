@@ -76,4 +76,43 @@ describe('IndexPanel', () => {
 
     expect(mockedIndexSource).not.toHaveBeenCalled()
   })
+
+  it('shows an empty state when nothing has been indexed', async () => {
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+
+    expect(mockedListRepositories).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Nothing indexed yet.')
+  })
+
+  it('lists indexed repositories with their collection and source', async () => {
+    mockedListRepositories.mockResolvedValue([
+      {
+        collection: 'default',
+        sourceType: 'local',
+        source: '/Users/vladimir/RiderProjects/synth',
+        branch: null,
+        lastIndexedAt: '2026-07-10T00:00:00Z',
+        chunkCount: 561,
+      },
+      {
+        collection: 'github-com-owner-repo',
+        sourceType: 'github',
+        source: 'https://github.com/owner/repo',
+        branch: 'main',
+        lastIndexedAt: '2026-07-10T01:00:00Z',
+        chunkCount: 42,
+      },
+    ])
+
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('default')
+    expect(wrapper.text()).toContain('/Users/vladimir/RiderProjects/synth')
+    expect(wrapper.text()).toContain('561 chunks')
+    expect(wrapper.text()).toContain('github-com-owner-repo')
+    expect(wrapper.text()).toContain('main')
+    expect(wrapper.text()).toContain('42 chunks')
+  })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { indexSource, type IndexSummary } from '../api'
 import { useRepositories } from '../composables/useRepositories'
 import Icon from './Icon.vue'
@@ -7,7 +7,9 @@ import Icon from './Icon.vue'
 type Status = 'idle' | 'indexing' | 'done' | 'error'
 type Mode = 'local' | 'remote'
 
-const { refresh: refreshRepositories } = useRepositories()
+const { repositories, refresh: refreshRepositories } = useRepositories()
+
+onMounted(refreshRepositories)
 
 const mode = ref<Mode>('local')
 const path = ref('')
@@ -124,6 +126,19 @@ async function onSubmit() {
       >, {{ summary.filesSkipped }} skipped</span
       >).
     </p>
+
+    <h3 class="repos-heading">Indexed repositories</h3>
+    <p v-if="repositories.length === 0" class="empty">Nothing indexed yet.</p>
+    <ul v-else class="repo-list">
+      <li v-for="repo in repositories" :key="repo.collection" class="repo-row">
+        <span class="repo-collection">{{ repo.collection }}</span>
+        <span class="repo-type" :class="`type-${repo.sourceType}`">{{ repo.sourceType }}</span>
+        <span class="repo-source" :title="repo.source">{{ repo.source }}</span>
+        <span v-if="repo.branch" class="repo-branch">{{ repo.branch }}</span>
+        <span class="repo-chunks">{{ repo.chunkCount }} chunks</span>
+        <span class="repo-time">{{ new Date(repo.lastIndexedAt).toLocaleString() }}</span>
+      </li>
+    </ul>
   </section>
 </template>
 
@@ -243,5 +258,83 @@ button:disabled {
 .summary {
   color: var(--text);
   margin: 12px 0 0;
+}
+
+.repos-heading {
+  margin: 24px 0 12px;
+  font-size: 14px;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.empty {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repo-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.repo-collection {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.repo-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--text);
+}
+
+.type-github {
+  color: var(--accent);
+}
+
+.type-gitlab {
+  color: var(--status-yellow);
+}
+
+.repo-source {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.repo-branch {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.repo-chunks,
+.repo-time {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
 }
 </style>

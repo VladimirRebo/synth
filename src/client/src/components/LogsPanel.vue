@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getLogs, type LogEntry } from '../api'
 import Icon from './Icon.vue'
 
@@ -45,6 +45,10 @@ watch([levelFilter, searchFilter], fetchLogs)
 
 onUnmounted(stopPolling)
 
+// GET /logs returns oldest-first (the API's own contract, unchanged); reverse only for
+// display so the newest entries are always at the top, no scrolling needed to see them.
+const displayEntries = computed(() => [...entries.value].reverse())
+
 const levelClass = (level: string) => `level-${level.toLowerCase()}`
 </script>
 
@@ -75,7 +79,7 @@ const levelClass = (level: string) => `level-${level.toLowerCase()}`
       <p v-else-if="entries.length === 0" class="empty">No log entries yet.</p>
 
       <ul v-else class="log-list">
-        <li v-for="(entry, index) in entries" :key="`${entry.timestamp}-${index}`" class="log-row" :class="levelClass(entry.level)">
+        <li v-for="(entry, index) in displayEntries" :key="`${entry.timestamp}-${index}`" class="log-row" :class="levelClass(entry.level)">
           <span class="timestamp">{{ new Date(entry.timestamp).toLocaleTimeString() }}</span>
           <span class="level">{{ entry.level }}</span>
           <span class="message">{{ entry.message }}</span>
