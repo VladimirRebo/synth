@@ -28,14 +28,8 @@ afterEach(() => {
 })
 
 describe('LogsPanel', () => {
-  it('does not load logs until expanded', () => {
-    mount(LogsPanel)
-    expect(mockedGetLogs).not.toHaveBeenCalled()
-  })
-
-  it('loads and renders logs on first expand', async () => {
+  it('loads and renders logs on mount', async () => {
     const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     expect(mockedGetLogs).toHaveBeenCalledWith({ level: undefined, search: undefined })
@@ -44,8 +38,7 @@ describe('LogsPanel', () => {
   })
 
   it('polls again after the interval elapses while auto-refresh is on', async () => {
-    const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
+    mount(LogsPanel)
     await flushPromises()
     expect(mockedGetLogs).toHaveBeenCalledTimes(1)
 
@@ -55,7 +48,6 @@ describe('LogsPanel', () => {
 
   it('stops polling when auto-refresh is unchecked', async () => {
     const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     await wrapper.get('.auto-refresh input').setValue(false)
@@ -67,7 +59,6 @@ describe('LogsPanel', () => {
 
   it('refetches with the level filter applied', async () => {
     const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
     mockedGetLogs.mockClear()
 
@@ -80,7 +71,6 @@ describe('LogsPanel', () => {
   it('shows an empty state when there are no entries', async () => {
     mockedGetLogs.mockResolvedValue([])
     const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('No log entries yet.')
@@ -89,7 +79,6 @@ describe('LogsPanel', () => {
   it('renders an exception block when present', async () => {
     mockedGetLogs.mockResolvedValue([entry({ level: 'Error', exception: 'System.Exception: boom' })])
     const wrapper = mount(LogsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('System.Exception: boom')

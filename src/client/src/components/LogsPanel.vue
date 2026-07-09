@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { getLogs, type LogEntry } from '../api'
 import Icon from './Icon.vue'
 
 const POLL_INTERVAL_MS = 3000
 
-const expanded = ref(false)
 const entries = ref<LogEntry[]>([])
 const error = ref('')
 const levelFilter = ref('')
@@ -37,19 +36,12 @@ function stopPolling() {
   }
 }
 
-async function toggle() {
-  expanded.value = !expanded.value
-  if (expanded.value) {
-    await fetchLogs()
-    startPolling()
-  } else {
-    stopPolling()
-  }
-}
-
-watch([levelFilter, searchFilter], () => {
-  if (expanded.value) fetchLogs()
+onMounted(async () => {
+  await fetchLogs()
+  startPolling()
 })
+
+watch([levelFilter, searchFilter], fetchLogs)
 
 onUnmounted(stopPolling)
 
@@ -58,13 +50,9 @@ const levelClass = (level: string) => `level-${level.toLowerCase()}`
 
 <template>
   <section class="panel">
-    <button type="button" class="panel-toggle" :aria-expanded="expanded" @click="toggle">
-      <Icon name="list" :size="16" />
-      <h2>Logs</h2>
-      <Icon name="chevron-down" :size="16" class="chevron" :class="{ open: expanded }" />
-    </button>
+    <h2 class="panel-heading"><Icon name="list" :size="18" /> Logs</h2>
 
-    <div v-if="expanded" class="body">
+    <div class="body">
       <div class="toolbar">
         <select v-model="levelFilter" aria-label="Minimum log level">
           <option value="">All levels</option>
@@ -102,33 +90,12 @@ const levelClass = (level: string) => `level-${level.toLowerCase()}`
 .panel {
   text-align: left;
   padding: 24px 0;
-  border-bottom: 1px solid var(--border);
 }
 
-.panel-toggle {
+.panel-heading {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  color: var(--text-h);
-}
-
-.panel-toggle h2 {
-  margin: 0;
-}
-
-.chevron {
-  margin-left: auto;
-  transition: transform 0.15s;
-  color: var(--text);
-}
-
-.chevron.open {
-  transform: rotate(180deg);
 }
 
 .body {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { search, type SearchResult } from '../api'
 import { useSearchFocus } from '../composables/useSearchFocus'
 import { useRepositories } from '../composables/useRepositories'
@@ -8,6 +9,8 @@ import Icon from './Icon.vue'
 
 const { inputRef } = useSearchFocus()
 const { repositories, refresh: refreshRepositories } = useRepositories()
+const route = useRoute()
+const router = useRouter()
 
 const query = ref('')
 const limit = ref(10)
@@ -74,20 +77,21 @@ function onDocumentClick(e: MouseEvent) {
 }
 
 // --- URL deep-link sync ------------------------------------------------------------------
+// Routed through vue-router's own query API (not raw window.location/history.replaceState):
+// with hash-based routing (see router.ts) the app's query string lives inside the hash
+// (#/search?q=...), which manual History API calls against window.location can't see.
 function syncUrl(q: string, lim: number, col: string) {
-  const params = new URLSearchParams()
-  if (q) params.set('q', q)
-  if (lim !== 10) params.set('limit', String(lim))
-  if (col) params.set('collection', col)
-  const search = params.toString()
-  window.history.replaceState({}, '', search ? `?${search}` : window.location.pathname)
+  const nextQuery: Record<string, string> = {}
+  if (q) nextQuery.q = q
+  if (lim !== 10) nextQuery.limit = String(lim)
+  if (col) nextQuery.collection = col
+  router.replace({ query: nextQuery })
 }
 
 function loadFromUrl(): boolean {
-  const params = new URLSearchParams(window.location.search)
-  const q = params.get('q')
-  const lim = params.get('limit')
-  const col = params.get('collection')
+  const q = typeof route.query.q === 'string' ? route.query.q : ''
+  const lim = typeof route.query.limit === 'string' ? route.query.limit : ''
+  const col = typeof route.query.collection === 'string' ? route.query.collection : ''
   if (lim) limit.value = parseInt(lim, 10) || 10
   if (col) collection.value = col
   if (q) {

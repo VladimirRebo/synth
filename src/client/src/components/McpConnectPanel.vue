@@ -96,7 +96,6 @@ async function copy(text: string) {
 .panel {
   text-align: left;
   padding: 24px 0;
-  border-bottom: 1px solid var(--border);
 }
 
 h2 {

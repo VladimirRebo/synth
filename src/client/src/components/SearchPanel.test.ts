@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import SearchPanel from './SearchPanel.vue'
 import * as api from '../api'
 
@@ -25,19 +26,30 @@ function result(overrides: Partial<api.SearchResult> = {}): api.SearchResult {
 
 const sampleResult = result()
 
+// SearchPanel reads/writes deep-link state through vue-router (useRoute/useRouter), not raw
+// window.location — so every mount needs a router in context, starting at /search.
+async function mountSearchPanel(initialPath = '/search') {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/search', name: 'search', component: SearchPanel }],
+  })
+  router.push(initialPath)
+  await router.isReady()
+  return mount(SearchPanel, { global: { plugins: [router] } })
+}
+
 beforeEach(() => {
   mockedSearch.mockReset()
   mockedListRepositories.mockReset()
   mockedListRepositories.mockResolvedValue([])
   localStorage.clear()
-  window.history.replaceState({}, '', '/')
 })
 
 describe('SearchPanel', () => {
   it('calls search with the query, default limit and an abort signal, and renders results', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('input[type="text"]').setValue('greet')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -50,7 +62,7 @@ describe('SearchPanel', () => {
   it('shows an empty-state message when a search returns nothing', async () => {
     mockedSearch.mockResolvedValue([])
 
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('input[type="text"]').setValue('nothing here')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -61,7 +73,7 @@ describe('SearchPanel', () => {
   it('shows an error message when the search fails', async () => {
     mockedSearch.mockRejectedValue(new Error('Search failed (500)'))
 
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('input[type="text"]').setValue('greet')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -70,7 +82,7 @@ describe('SearchPanel', () => {
   })
 
   it('does not search for a blank query', async () => {
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -80,7 +92,7 @@ describe('SearchPanel', () => {
   it('saves a search to localStorage history and reapplies it on click', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('input[type="text"]').setValue('greet')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -103,7 +115,7 @@ describe('SearchPanel', () => {
       result({ chunkType: 'Class', relativePath: 'B.cs' }),
     ])
 
-    const wrapper = mount(SearchPanel)
+    const wrapper = await mountSearchPanel()
     await wrapper.get('input[type="text"]').setValue('anything')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -117,11 +129,10 @@ describe('SearchPanel', () => {
     expect(wrapper.text()).toContain('B.cs')
   })
 
-  it('auto-searches on mount when the URL has a q param', async () => {
-    window.history.replaceState({}, '', '/?q=preloaded&limit=5')
+  it('auto-searches on mount when the route has a q param', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
-    mount(SearchPanel)
+    await mountSearchPanel('/search?q=preloaded&limit=5')
     await flushPromises()
 
     expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, undefined, expect.any(AbortSignal))

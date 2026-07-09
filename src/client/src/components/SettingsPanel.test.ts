@@ -43,15 +43,8 @@ beforeEach(() => {
 })
 
 describe('SettingsPanel', () => {
-  it('does not load settings until expanded', () => {
-    mount(SettingsPanel)
-    expect(mockedGetVcs).not.toHaveBeenCalled()
-    expect(mockedGetEmbedding).not.toHaveBeenCalled()
-  })
-
-  it('loads both settings sections on first expand', async () => {
+  it('loads both settings sections on mount', async () => {
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     expect(mockedGetVcs).toHaveBeenCalledTimes(1)
@@ -64,7 +57,6 @@ describe('SettingsPanel', () => {
     mockedUpdateVcs.mockResolvedValue(vcs({ workspaceRoot: '/tmp/work' }))
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     await wrapper.get('input[placeholder*="workspaces"]').setValue('/tmp/work')
@@ -80,7 +72,6 @@ describe('SettingsPanel', () => {
     mockedUpdateVcs.mockResolvedValue(vcs())
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     const clearCheckboxes = wrapper.findAll('.clear-toggle input[type="checkbox"]')
@@ -98,7 +89,6 @@ describe('SettingsPanel', () => {
     )
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     await wrapper.get('select[aria-label="Embedding provider"]').setValue('OpenAI')
@@ -121,7 +111,6 @@ describe('SettingsPanel', () => {
     mockedUpdateEmbedding.mockRejectedValue(new Error('the embedding probe failed: connection refused'))
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
 
     await wrapper.get('select[aria-label="Embedding provider"]').setValue('Ollama')
@@ -136,7 +125,6 @@ describe('SettingsPanel', () => {
     mockedGetRaw.mockResolvedValue('{"Vcs":{"WorkspaceRoot":"/tmp"}}')
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
     await wrapper.get('.subsection-toggle').trigger('click')
 
@@ -146,7 +134,6 @@ describe('SettingsPanel', () => {
 
   it('rejects invalid JSON in the raw editor without calling the API', async () => {
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
     await wrapper.get('.subsection-toggle').trigger('click')
 
@@ -163,7 +150,6 @@ describe('SettingsPanel', () => {
     mockedGetVcs.mockResolvedValueOnce(vcs()).mockResolvedValueOnce(vcs({ workspaceRoot: '/tmp/new' }))
 
     const wrapper = mount(SettingsPanel)
-    await wrapper.get('.panel-toggle').trigger('click')
     await flushPromises()
     await wrapper.get('.subsection-toggle').trigger('click')
 
