@@ -1,7 +1,7 @@
 ---
 id: SYNTH-29
 summary: "GET/PUT /settings/raw — whole config document as unmasked JSON"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq '\"/settings/raw\"' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add the raw whole-document GET/PUT endpoint. Do not touch the section-specific endpoints (GET/PUT /settings/vcs, /settings/embedding) or their masking behavior — those stay exactly as they are, this is an additional, separate escape hatch. Do not add probe-before-persist to the raw endpoint (unlike /settings/embedding) — a raw JSON editor is a deliberate power-user path that trusts the caller, validating only that the body is well-formed JSON. Do not touch the Vue client (done directly after, not via loop)."
