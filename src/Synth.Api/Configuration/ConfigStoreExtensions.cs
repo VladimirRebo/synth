@@ -9,8 +9,8 @@ namespace Synth.Api.Configuration;
 // variables last so they always take precedence.
 public static class ConfigStoreExtensions
 {
-    // The Aspire connection-string name for Synth's config database (see AppHost).
-    private const string ConnectionName = "synthconfig";
+    // The Aspire connection-string name for Synth's Mongo database (see AppHost).
+    private const string ConnectionName = "synthdata";
 
     public static WebApplicationBuilder AddSynthConfigStore(this WebApplicationBuilder builder)
     {

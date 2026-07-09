@@ -1,7 +1,8 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// MongoDB is Synth's config store. Run it as an Aspire-managed container with a
-// persistent data volume so config survives restarts.
+// MongoDB backs Synth's general-purpose data (config, repository registry, call-graph
+// edges, logs) — one database, several collections. Run it as an Aspire-managed
+// container with a persistent data volume so data survives restarts.
 //
 // Pin the admin credentials instead of letting Aspire generate a new random
 // password per run: AddMongoDB otherwise regenerates the password on every
@@ -17,7 +18,7 @@ var mongoPassword = builder.AddParameter("mongo-password", "synth-local-dev-only
 var mongo = builder.AddMongoDB("mongo", userName: mongoUser, password: mongoPassword)
     .WithDataVolume();
 
-var configDb = mongo.AddDatabase("synthconfig");
+var dataDb = mongo.AddDatabase("synthdata");
 
 // Ollama is Synth's embedding provider. Run it as an Aspire-managed container with
 // a persistent data volume so pulled models survive restarts, and pull a default
@@ -44,8 +45,8 @@ var qdrant = builder.AddQdrant("qdrant")
 // have to re-discover the port each time. Same discipline Sonar's AppHost uses.
 var api = builder.AddProject<Projects.Synth_Api>("api")
     .WithEndpoint("http", e => e.IsProxied = false)
-    .WithReference(configDb)
-    .WaitFor(configDb)
+    .WithReference(dataDb)
+    .WaitFor(dataDb)
     .WithReference(embeddings)
     .WaitFor(embeddings)
     .WithReference(qdrant)

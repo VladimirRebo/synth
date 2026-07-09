@@ -12,8 +12,8 @@ namespace Synth.Api.Vcs;
 /// </summary>
 public static class VcsServiceExtensions
 {
-    // The Aspire connection-string name for Synth's config database (see AppHost / ConfigStoreExtensions).
-    private const string ConnectionName = "synthconfig";
+    // The Aspire connection-string name for Synth's Mongo database (see AppHost / ConfigStoreExtensions).
+    private const string ConnectionName = "synthdata";
 
     public static WebApplicationBuilder AddSynthVcs(this WebApplicationBuilder builder)
     {

@@ -5,14 +5,14 @@ namespace Synth.Api.Graph;
 
 /// <summary>
 /// DI wiring for the call-graph storage layer: picks the <see cref="ICodeGraphStore"/> implementation
-/// — Mongo when the <c>synthconfig</c> connection string is present, an in-memory fallback otherwise
+/// — Mongo when the <c>synthdata</c> connection string is present, an in-memory fallback otherwise
 /// (mirroring <c>VcsServiceExtensions.CreateRegistry</c>). Registration only — nothing consumes the
 /// store yet (extraction is SYNTH-26, query tools are SYNTH-27).
 /// </summary>
 public static class CodeGraphServiceExtensions
 {
-    // The Aspire connection-string name for Synth's config database (see AppHost / ConfigStoreExtensions).
-    private const string ConnectionName = "synthconfig";
+    // The Aspire connection-string name for Synth's Mongo database (see AppHost / ConfigStoreExtensions).
+    private const string ConnectionName = "synthdata";
 
     public static WebApplicationBuilder AddSynthCodeGraph(this WebApplicationBuilder builder)
     {

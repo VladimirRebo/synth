@@ -10,14 +10,14 @@ namespace Synth.Api.Tests;
 // not open a socket, so this runs without a live Mongo/Docker.
 public class MongoRegistrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
-    private const string TestConnectionString = "mongodb://localhost:27017/synthconfig";
+    private const string TestConnectionString = "mongodb://localhost:27017/synthdata";
 
     private readonly WebApplicationFactory<Program> _factory;
 
     public MongoRegistrationTests(WebApplicationFactory<Program> factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             // Stand in for the connection string Aspire injects via service discovery.
-            builder.UseSetting("ConnectionStrings:synthconfig", TestConnectionString));
+            builder.UseSetting("ConnectionStrings:synthdata", TestConnectionString));
 
     [Fact]
     public void IMongoClient_is_registered()
@@ -37,6 +37,6 @@ public class MongoRegistrationTests : IClassFixture<WebApplicationFactory<Progra
         var database = scope.ServiceProvider.GetService<IMongoDatabase>();
 
         Assert.NotNull(database);
-        Assert.Equal("synthconfig", database.DatabaseNamespace.DatabaseName);
+        Assert.Equal("synthdata", database.DatabaseNamespace.DatabaseName);
     }
 }

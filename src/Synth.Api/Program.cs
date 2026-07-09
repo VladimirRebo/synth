@@ -37,11 +37,12 @@ builder.AddServiceDefaults();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// MongoDB config store. The connection string is supplied by Aspire service
-// discovery via the "synthconfig" reference from the AppHost (no hardcoded value).
-// This registers IMongoClient/IMongoDatabase in DI plus a Mongo health check that
-// feeds the app's health-check pipeline.
-builder.AddMongoDBClient("synthconfig");
+// MongoDB — general-purpose data store (config, repository registry, call-graph, logs).
+// The connection string is supplied by Aspire service discovery via the "synthdata"
+// reference from the AppHost (no hardcoded value). This registers
+// IMongoClient/IMongoDatabase in DI plus a Mongo health check that feeds the app's
+// health-check pipeline.
+builder.AddMongoDBClient("synthdata");
 
 // Config layering: appsettings.json (bootstrap) -> IConfigStore document
 // (File/Mongo, live-reloaded) -> environment variables (always win).

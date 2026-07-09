@@ -4,7 +4,8 @@ using MongoDB.Driver;
 namespace Synth.Api.Configuration;
 
 // Mongo-backed IConfigStore, used when a Mongo connection is configured (the
-// "synthconfig" resource wired in SYNTH-3). The whole document is stored as a
+// "synthdata" resource wired in SYNTH-3, renamed from "synthconfig" once it started
+// holding more than config). The whole document is stored as a
 // single raw JSON string field in one collection document — same reasoning as
 // Sonar: Mongo forbids dots in field names, so we never expand the JSON into
 // nested Bson. If Mongo is unreachable, LoadAsync degrades to null instead of
