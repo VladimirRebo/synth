@@ -1,7 +1,7 @@
 ---
 id: SYNTH-26
 summary: "Extract call edges from C# source and wire them into IndexingPipeline"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'ICallSiteExtractor' src/Synth.Core/"
 acceptance_criterion: ""
 boundaries: "Only add call-site extraction (syntax-heuristic, no semantic/compilation model) and wire it into IndexingPipeline so ICodeGraphStore (SYNTH-25) gets populated on every index run. Do not add the MCP/REST query tools (SYNTH-27). Do not add type-hierarchy edges (inheritance/interface implementation) — call-graph only, per issue #33. Do not touch the Vue client."
