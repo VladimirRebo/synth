@@ -1,7 +1,7 @@
 ---
 id: SYNTH-28
 summary: "Persist logs to a capped Mongo collection, with in-memory fallback"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'class MongoLogEntryStore' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add Mongo-backed log persistence and the abstraction it sits behind. Do not change GET /logs's query parameters/filter semantics (level/since/search stay exactly as SYNTH-24 defined them) or its route. Do not touch the Vue LogsPanel — it already calls GET /logs and needs no changes regardless of what's behind that endpoint."
