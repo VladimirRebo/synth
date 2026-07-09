@@ -1,7 +1,7 @@
 ---
 id: SYNTH-30
 summary: "IIndexJobTracker (in-memory) + progress-reporting hook in IndexingPipeline"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'interface IIndexJobTracker' src/Synth.Core/ src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only add the job-tracker abstraction and the progress-reporting hook on IndexingPipeline. Do not change POST /index or add GET /index/status (SYNTH-31). Do not touch the Vue client. Do not add per-collection job history or a job queue — one global current-or-last job only, per issue #39."
