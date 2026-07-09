@@ -5,6 +5,8 @@ import {
   updateVcsSettings,
   getEmbeddingSettings,
   updateEmbeddingSettings,
+  getRawSettings,
+  updateRawSettings,
   type VcsSettings,
   type EmbeddingSettings,
   type VcsSettingsPatch,
@@ -37,15 +39,33 @@ const openaiModel = ref('')
 const embeddingStatus = ref<SaveStatus>('idle')
 const embeddingError = ref('')
 
+const rawExpanded = ref(false)
+const rawJson = ref('')
+const rawStatus = ref<SaveStatus>('idle')
+const rawError = ref('')
+
 async function loadAll() {
   loadError.value = ''
   try {
-    const [vcsSettings, embeddingSettings] = await Promise.all([getVcsSettings(), getEmbeddingSettings()])
+    const [vcsSettings, embeddingSettings, raw] = await Promise.all([
+      getVcsSettings(),
+      getEmbeddingSettings(),
+      getRawSettings(),
+    ])
     applyVcs(vcsSettings)
     applyEmbedding(embeddingSettings)
+    applyRaw(raw)
     loaded.value = true
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+function applyRaw(json: string) {
+  try {
+    rawJson.value = JSON.stringify(JSON.parse(json), null, 2)
+  } catch {
+    rawJson.value = json
   }
 }
 
@@ -125,6 +145,42 @@ async function saveEmbedding() {
   } catch (err) {
     embeddingError.value = err instanceof Error ? err.message : String(err)
     embeddingStatus.value = 'error'
+  }
+}
+
+function toggleRaw() {
+  rawExpanded.value = !rawExpanded.value
+}
+
+async function saveRaw() {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawJson.value)
+  } catch (err) {
+    rawStatus.value = 'error'
+    rawError.value = `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`
+    return
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    rawStatus.value = 'error'
+    rawError.value = 'The document must be a JSON object.'
+    return
+  }
+
+  rawStatus.value = 'saving'
+  rawError.value = ''
+  try {
+    const persisted = await updateRawSettings(rawJson.value)
+    applyRaw(persisted)
+    // The raw document may have changed the Vcs/Embedding sections too — refresh their
+    // structured views so they don't go stale relative to what was just saved.
+    const [vcsSettings, embeddingSettings] = await Promise.all([getVcsSettings(), getEmbeddingSettings()])
+    applyVcs(vcsSettings)
+    applyEmbedding(embeddingSettings)
+    rawStatus.value = 'saved'
+  } catch (err) {
+    rawError.value = err instanceof Error ? err.message : String(err)
+    rawStatus.value = 'error'
   }
 }
 
@@ -241,6 +297,35 @@ const providerLabel = computed(() =>
             </span>
           </div>
         </section>
+
+        <section class="section">
+          <button type="button" class="subsection-toggle" :aria-expanded="rawExpanded" @click="toggleRaw">
+            <Icon name="chevron-down" :size="14" class="chevron" :class="{ open: rawExpanded }" />
+            <h3>Advanced: Raw JSON</h3>
+          </button>
+          <p class="hint">
+            The whole stored config document, secrets included <strong>unmasked</strong> — Synth has no
+            auth, so this is a convenience, not a new exposure.
+          </p>
+
+          <template v-if="rawExpanded">
+            <textarea
+              v-model="rawJson"
+              class="raw-json"
+              spellcheck="false"
+              aria-label="Raw config JSON"
+            ></textarea>
+            <div class="save-row">
+              <button type="button" :disabled="rawStatus === 'saving'" @click="saveRaw">
+                {{ rawStatus === 'saving' ? 'Saving…' : 'Save' }}
+              </button>
+              <span class="status" :class="rawStatus">
+                <template v-if="rawStatus === 'saved'">Saved</template>
+                <template v-else-if="rawStatus === 'error'">{{ rawError }}</template>
+              </span>
+            </div>
+          </template>
+        </section>
       </template>
     </div>
   </section>
@@ -333,6 +418,45 @@ const providerLabel = computed(() =>
   color: var(--text);
   font-size: 13px;
   margin: 0 0 10px;
+}
+
+.subsection-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-h);
+  margin-bottom: 8px;
+}
+
+.subsection-toggle h3 {
+  margin: 0;
+}
+
+.subsection-toggle .chevron {
+  transition: transform 0.15s;
+  color: var(--text);
+}
+
+.subsection-toggle .chevron.open {
+  transform: rotate(180deg);
+}
+
+.raw-json {
+  width: 100%;
+  min-height: 220px;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  resize: vertical;
+  margin-bottom: 10px;
 }
 
 .save-row {

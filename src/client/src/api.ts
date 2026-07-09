@@ -182,6 +182,30 @@ export async function updateEmbeddingSettings(patch: EmbeddingSettingsPatch): Pr
   return (await response.json()) as EmbeddingSettings
 }
 
+export async function getRawSettings(): Promise<string> {
+  const response = await fetch('/api/settings/raw')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading raw config failed (${response.status})`))
+  }
+
+  return await response.text()
+}
+
+export async function updateRawSettings(json: string): Promise<string> {
+  const response = await fetch('/api/settings/raw', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: json,
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Saving raw config failed (${response.status})`))
+  }
+
+  return await response.text()
+}
+
 export async function getLogs(query: LogsQuery = {}): Promise<LogEntry[]> {
   const params = new URLSearchParams()
   if (query.level) params.set('level', query.level)

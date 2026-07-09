@@ -9,6 +9,8 @@ const mockedGetVcs = vi.mocked(api.getVcsSettings)
 const mockedUpdateVcs = vi.mocked(api.updateVcsSettings)
 const mockedGetEmbedding = vi.mocked(api.getEmbeddingSettings)
 const mockedUpdateEmbedding = vi.mocked(api.updateEmbeddingSettings)
+const mockedGetRaw = vi.mocked(api.getRawSettings)
+const mockedUpdateRaw = vi.mocked(api.updateRawSettings)
 
 function vcs(overrides: Partial<api.VcsSettings> = {}): api.VcsSettings {
   return {
@@ -33,8 +35,11 @@ beforeEach(() => {
   mockedUpdateVcs.mockReset()
   mockedGetEmbedding.mockReset()
   mockedUpdateEmbedding.mockReset()
+  mockedGetRaw.mockReset()
+  mockedUpdateRaw.mockReset()
   mockedGetVcs.mockResolvedValue(vcs())
   mockedGetEmbedding.mockResolvedValue(embedding())
+  mockedGetRaw.mockResolvedValue('{}')
 })
 
 describe('SettingsPanel', () => {
@@ -125,5 +130,49 @@ describe('SettingsPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('the embedding probe failed: connection refused')
+  })
+
+  it('loads and pretty-prints the raw config on first expand', async () => {
+    mockedGetRaw.mockResolvedValue('{"Vcs":{"WorkspaceRoot":"/tmp"}}')
+
+    const wrapper = mount(SettingsPanel)
+    await wrapper.get('.panel-toggle').trigger('click')
+    await flushPromises()
+    await wrapper.get('.subsection-toggle').trigger('click')
+
+    expect(mockedGetRaw).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('.raw-json').element.value).toContain('"WorkspaceRoot": "/tmp"')
+  })
+
+  it('rejects invalid JSON in the raw editor without calling the API', async () => {
+    const wrapper = mount(SettingsPanel)
+    await wrapper.get('.panel-toggle').trigger('click')
+    await flushPromises()
+    await wrapper.get('.subsection-toggle').trigger('click')
+
+    await wrapper.get('.raw-json').setValue('{ not valid json')
+    await wrapper.get('.section:last-of-type .save-row button').trigger('click')
+    await flushPromises()
+
+    expect(mockedUpdateRaw).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Invalid JSON')
+  })
+
+  it('saves valid raw JSON and refreshes the structured sections', async () => {
+    mockedUpdateRaw.mockResolvedValue('{"Vcs":{"WorkspaceRoot":"/tmp/new"}}')
+    mockedGetVcs.mockResolvedValueOnce(vcs()).mockResolvedValueOnce(vcs({ workspaceRoot: '/tmp/new' }))
+
+    const wrapper = mount(SettingsPanel)
+    await wrapper.get('.panel-toggle').trigger('click')
+    await flushPromises()
+    await wrapper.get('.subsection-toggle').trigger('click')
+
+    await wrapper.get('.raw-json').setValue('{"Vcs":{"WorkspaceRoot":"/tmp/new"}}')
+    await wrapper.get('.section:last-of-type .save-row button').trigger('click')
+    await flushPromises()
+
+    expect(mockedUpdateRaw).toHaveBeenCalledWith('{"Vcs":{"WorkspaceRoot":"/tmp/new"}}')
+    expect(wrapper.text()).toContain('Saved')
+    expect(wrapper.get('input[placeholder*="workspaces"]').element.value).toBe('/tmp/new')
   })
 })
