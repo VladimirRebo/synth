@@ -3,6 +3,7 @@ using Serilog;
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
+using Synth.Api.Graph;
 using Synth.Api.Indexing;
 using Synth.Api.Logging;
 using Synth.Api.Mcp;
@@ -63,6 +64,11 @@ builder.AddSynthIndexing();
 // VCS layer: GitRepoService (clone/fetch remote repos) + the repository registry that
 // records what has been indexed. Uses Mongo when configured, an in-memory fallback otherwise.
 builder.AddSynthVcs();
+
+// Call-graph storage: registers ICodeGraphStore for structural "who calls X / what does X call"
+// edges (issue #33). Mongo when configured, an in-memory fallback otherwise. Registration only —
+// extraction (SYNTH-26) and query tools (SYNTH-27) build on top of it later.
+builder.AddSynthCodeGraph();
 
 // Search layer: registers QueryExpander + CodeSearchService (over-fetch, rerank, dedup)
 // on top of the embedding generator and vector store registered above.
