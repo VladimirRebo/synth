@@ -42,11 +42,17 @@ public sealed class IndexingPipeline
     /// Files that no chunker handles, are empty, or cannot be read are skipped rather than
     /// aborting the run.
     /// </summary>
+    /// <param name="progress">
+    /// Optional, additive progress sink (issue #39): reported once at the start with the upfront
+    /// total-file count, then after each indexed file, and once more with the final counts. Callers
+    /// that omit it (tests, existing callers) are unaffected — behavior is otherwise identical.
+    /// </param>
     /// <returns>A summary of how many files were indexed vs. skipped and the chunk total.</returns>
     public async Task<IndexingSummary> IndexDirectoryAsync(
         string collection,
         string rootPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<IndexingProgress>? progress = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
@@ -56,6 +62,11 @@ public sealed class IndexingPipeline
         var filesIndexed = 0;
         var filesSkipped = 0;
         var chunksIndexed = 0;
+
+        // Count matching files upfront so progress carries a denominator. EnumerateSourceFiles is a
+        // lazy directory walk, so this .Count() is a plain filesystem pass — cheap next to embedding.
+        var totalFiles = EnumerateSourceFiles(rootPath).Count();
+        progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
 
         // Call-graph accumulators (stage 1). Only lightweight strings are held across files — never the
         // full CodeChunk content — so this stays within the existing per-file streaming design.
@@ -115,6 +126,8 @@ public sealed class IndexingPipeline
 
             filesIndexed++;
             chunksIndexed += embedded.Count;
+
+            progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
         }
 
         // Stage 2: resolve every raw call site against the whole collection's known method names and
@@ -122,6 +135,10 @@ public sealed class IndexingPipeline
         // replaces — clearing any stale edges from a previous index run.
         var edges = ResolveEdges(collection, rawCallSites, knownSymbols);
         await _graphStore.ReplaceEdgesAsync(collection, edges, cancellationToken);
+
+        // Final report guarantees the last-seen counts match the summary even when the run ended on a
+        // string of skipped files (which don't emit a per-file report of their own).
+        progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
 
         return new IndexingSummary(filesIndexed, filesSkipped, chunksIndexed);
     }
@@ -212,3 +229,11 @@ public sealed class IndexingPipeline
 /// and the total number of chunks upserted.
 /// </summary>
 public readonly record struct IndexingSummary(int FilesIndexed, int FilesSkipped, int ChunksIndexed);
+
+/// <summary>
+/// A single progress report emitted by <see cref="IndexingPipeline.IndexDirectoryAsync"/> when a
+/// caller supplies an <see cref="IProgress{T}"/> sink (issue #39). <paramref name="TotalFiles"/> is
+/// the upfront count of matching files (the denominator); <paramref name="FilesIndexed"/> and
+/// <paramref name="FilesSkipped"/> are the running tallies.
+/// </summary>
+public readonly record struct IndexingProgress(int FilesIndexed, int FilesSkipped, int TotalFiles);
