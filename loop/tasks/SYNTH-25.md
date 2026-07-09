@@ -1,7 +1,7 @@
 ---
 id: SYNTH-25
 summary: "ICodeGraphStore: Mongo-backed call-graph edge storage + in-memory fallback"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq 'interface ICodeGraphStore' src/Synth.Core/"
 acceptance_criterion: ""
 boundaries: "Only add the storage abstraction and its two implementations (Mongo + in-memory). Do not add call-edge extraction (SYNTH-26) or the MCP/REST tools (SYNTH-27). Do not touch the Vue client. Do not add type-hierarchy edges — call-graph only, per issue #33."
