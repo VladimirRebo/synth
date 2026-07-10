@@ -32,7 +32,7 @@ describe('LogsPanel', () => {
     const wrapper = mount(LogsPanel)
     await flushPromises()
 
-    expect(mockedGetLogs).toHaveBeenCalledWith({ level: undefined, search: undefined })
+    expect(mockedGetLogs).toHaveBeenCalledWith({ level: undefined, search: undefined }, expect.any(AbortSignal))
     expect(wrapper.text()).toContain('hello world')
     expect(wrapper.text()).toContain('Information')
   })
@@ -65,7 +65,7 @@ describe('LogsPanel', () => {
     await wrapper.get('select[aria-label="Minimum log level"]').setValue('Warning')
     await flushPromises()
 
-    expect(mockedGetLogs).toHaveBeenCalledWith({ level: 'Warning', search: undefined })
+    expect(mockedGetLogs).toHaveBeenCalledWith({ level: 'Warning', search: undefined }, expect.any(AbortSignal))
   })
 
   it('shows an empty state when there are no entries', async () => {
@@ -82,5 +82,30 @@ describe('LogsPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('System.Exception: boom')
+  })
+
+  it('does not let a slow, superseded request overwrite a faster newer one', async () => {
+    // Regression test: fetchLogs used to have no request-sequencing guard, so an older in-flight
+    // request resolving after a newer one would clobber the display with stale-filter results.
+    let resolveFirst!: (entries: api.LogEntry[]) => void
+    const firstCall = new Promise<api.LogEntry[]>((resolve) => {
+      resolveFirst = resolve
+    })
+    mockedGetLogs.mockReset()
+    mockedGetLogs
+      .mockReturnValueOnce(firstCall) // mount's own fetch (level: '') — resolves last
+      .mockResolvedValueOnce([entry({ message: 'warning entry' })]) // filter-change fetch — resolves first
+
+    const wrapper = mount(LogsPanel)
+    await wrapper.get('select[aria-label="Minimum log level"]').setValue('Warning')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('warning entry')
+
+    resolveFirst([entry({ message: 'stale unfiltered entry' })])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('warning entry')
+    expect(wrapper.text()).not.toContain('stale unfiltered entry')
   })
 })

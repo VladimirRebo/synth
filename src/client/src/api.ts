@@ -232,14 +232,14 @@ export async function updateRawSettings(json: string): Promise<string> {
   return await response.text()
 }
 
-export async function getLogs(query: LogsQuery = {}): Promise<LogEntry[]> {
+export async function getLogs(query: LogsQuery = {}, signal?: AbortSignal): Promise<LogEntry[]> {
   const params = new URLSearchParams()
   if (query.level) params.set('level', query.level)
   if (query.since) params.set('since', query.since)
   if (query.search) params.set('search', query.search)
   const qs = params.toString()
 
-  const response = await fetch(`/api/logs${qs ? `?${qs}` : ''}`)
+  const response = await fetch(`/api/logs${qs ? `?${qs}` : ''}`, { signal })
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, `Loading logs failed (${response.status})`))

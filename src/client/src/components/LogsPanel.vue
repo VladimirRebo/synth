@@ -12,12 +12,22 @@ const searchFilter = ref('')
 const autoRefresh = ref(true)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let fetchAbort: AbortController | null = null
 
 async function fetchLogs() {
+  fetchAbort?.abort()
+  const abort = (fetchAbort = new AbortController())
+
   try {
-    entries.value = await getLogs({ level: levelFilter.value || undefined, search: searchFilter.value || undefined })
+    const found = await getLogs(
+      { level: levelFilter.value || undefined, search: searchFilter.value || undefined },
+      abort.signal,
+    )
+    if (abort.signal.aborted) return
+    entries.value = found
     error.value = ''
   } catch (err) {
+    if (abort.signal.aborted) return
     error.value = err instanceof Error ? err.message : String(err)
   }
 }
