@@ -48,4 +48,20 @@ describe('McpConnectPanel', () => {
 
     expect(wrapper.get('.copy-button').text()).toContain('Copy failed')
   })
+
+  it('clears the pending "Copied!" reset timer on unmount', async () => {
+    // Regression test: the reset timer used to have no handle/cleanup, so an unmount within the
+    // 2s window left a dangling setTimeout — the same leaked-timer pattern this codebase guards
+    // against elsewhere (IndexPanel.vue, LogsPanel.vue both clear their interval timers).
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+    const wrapper = mount(McpConnectPanel)
+
+    await wrapper.get('.copy-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.copy-button').text()).toContain('Copied!')
+
+    wrapper.unmount()
+
+    expect(clearTimeoutSpy).toHaveBeenCalled()
+  })
 })

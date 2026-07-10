@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
 
 // Ready-to-copy MCP setup snippets, adapted from Sonar's McpSetup.vue pattern but much
@@ -42,22 +42,36 @@ const transport = ref<'http' | 'stdio'>('http')
 const copied = ref(false)
 const copyFailed = ref(false)
 
+let resetTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearResetTimer() {
+  if (resetTimer !== null) {
+    clearTimeout(resetTimer)
+    resetTimer = null
+  }
+}
+
 async function copy(text: string) {
+  clearResetTimer()
   try {
     await navigator.clipboard.writeText(text)
     copied.value = true
-    setTimeout(() => {
+    resetTimer = setTimeout(() => {
       copied.value = false
+      resetTimer = null
     }, 2000)
   } catch {
     // Clipboard write can be denied (permissions policy, non-secure context, automated
     // browser contexts) — fail visibly instead of an unhandled rejection.
     copyFailed.value = true
-    setTimeout(() => {
+    resetTimer = setTimeout(() => {
       copyFailed.value = false
+      resetTimer = null
     }, 2000)
   }
 }
+
+onUnmounted(clearResetTimer)
 </script>
 
 <template>
