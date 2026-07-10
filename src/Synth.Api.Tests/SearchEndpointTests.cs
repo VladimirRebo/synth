@@ -41,6 +41,24 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));
 
+    // Polls GET /index/status until the background job reports Done (state serializes as its string
+    // name), so a search only runs once the index is actually populated.
+    private static async Task WaitForIndexDoneAsync(HttpClient client)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (true)
+        {
+            var status = await client.GetStringAsync("/index/status");
+            if (status.Contains("\"Done\"") || status.Contains("\"Failed\""))
+                return;
+
+            if (DateTime.UtcNow > deadline)
+                Assert.Fail($"Index job did not finish in time; last status was {status}.");
+
+            await Task.Delay(25);
+        }
+    }
+
     [Fact]
     public async Task Search_finds_a_chunk_from_a_previously_indexed_directory()
     {
@@ -57,8 +75,11 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
                 """);
 
             var client = _factory.CreateClient();
+            // POST /index is fire-and-forget since SYNTH-31: it returns 202 and indexes in the
+            // background, so wait for the job to finish (via GET /index/status) before searching.
             var indexResponse = await client.PostAsJsonAsync("/index", new { path = tempDir.FullName });
-            Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, indexResponse.StatusCode);
+            await WaitForIndexDoneAsync(client);
 
             var searchResponse = await client.GetAsync("/search?q=greet");
 

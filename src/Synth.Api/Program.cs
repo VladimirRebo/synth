@@ -96,8 +96,9 @@ app.MapDefaultEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-// Manual indexing trigger (POST /index { "path": "..." }) — the only way to actually
-// run IndexingPipeline against a real directory; previously it was only exercised by tests.
+// Manual indexing trigger (POST /index { "path": "..." }) plus its progress poll
+// (GET /index/status). SYNTH-31: POST /index is fire-and-forget — it validates, returns 202
+// immediately and runs the clone+indexing in the background; clients poll /index/status.
 app.MapIndexingEndpoints();
 
 // Lists the known collections and their metadata (GET /repositories) from the repository registry.
