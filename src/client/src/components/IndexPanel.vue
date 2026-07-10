@@ -19,15 +19,21 @@ const submitting = ref(false) // true only for the brief window between POST and
 const job = ref<IndexJobStatus | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollSeq = 0 // guards against an overlapping older poll resolving after a newer one
 
 // Server-side job state (SYNTH-31/#39), not client-held — polling it on mount is what makes
 // progress survive a page reload: the job keeps running on the server regardless of the tab.
 async function pollJob() {
+  const seq = ++pollSeq
+  let result: IndexJobStatus
   try {
-    job.value = await getIndexStatus()
+    result = await getIndexStatus()
   } catch {
     return // transient poll failure — keep the last known state, try again next tick
   }
+  if (seq !== pollSeq) return // a newer poll already landed while this one was in flight — discard
+
+  job.value = result
   if (job.value.state === 'Running') {
     if (pollTimer === null) startPolling()
   } else {

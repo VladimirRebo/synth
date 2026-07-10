@@ -189,6 +189,34 @@ describe('IndexPanel', () => {
     expect(mockedGetIndexStatus).not.toHaveBeenCalled()
   })
 
+  it('does not let a slow, superseded poll overwrite a faster newer one', async () => {
+    // Regression test: pollJob() used to have no request-sequencing guard, so an older in-flight
+    // poll resolving after a newer one could flip the status back to "Indexing…" right after "Done".
+    vi.useFakeTimers()
+    let resolveSecondPoll!: (value: api.IndexJobStatus) => void
+    const secondPoll = new Promise<api.IndexJobStatus>((resolve) => {
+      resolveSecondPoll = resolve
+    })
+
+    mockedGetIndexStatus
+      .mockResolvedValueOnce(job({ state: 'Running', filesIndexed: 1, totalFiles: 3 })) // mount poll
+      .mockReturnValueOnce(secondPoll) // tick 1: slow, resolves last
+      .mockResolvedValueOnce(job({ state: 'Done', filesIndexed: 3, totalFiles: 3 })) // tick 2: fast, resolves first
+
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+    expect(wrapper.get('.status').text()).toBe('Indexing… 1/3 files')
+
+    await vi.advanceTimersByTimeAsync(1000) // fires tick 1 (slow, still pending)
+    await vi.advanceTimersByTimeAsync(1000) // fires tick 2 (fast, resolves immediately) -> Done
+    expect(wrapper.get('.status').text()).toBe('Done')
+
+    resolveSecondPoll(job({ state: 'Running', filesIndexed: 2, totalFiles: 3 })) // stale tick 1 lands late
+    await flushPromises()
+
+    expect(wrapper.get('.status').text()).toBe('Done')
+  })
+
   it('disables the submit button while a job is running', async () => {
     mockedGetIndexStatus.mockResolvedValue(job({ state: 'Running' }))
 
