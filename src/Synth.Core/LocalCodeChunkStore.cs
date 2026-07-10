@@ -64,6 +64,42 @@ public sealed class LocalCodeChunkStore : ICodeChunkStore
         return Task.FromResult<IReadOnlyList<CodeChunk>>(matches);
     }
 
+    public Task<IReadOnlyList<string>> ListRelativePathsAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        if (!_collections.TryGetValue(collection, out var bucket))
+            return Task.FromResult<IReadOnlyList<string>>([]);
+
+        var paths = bucket.Values
+            .Select(chunk => chunk.RelativePath)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<string>>(paths);
+    }
+
+    public Task DeleteByFileAsync(
+        string collection,
+        string relativePath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        if (!_collections.TryGetValue(collection, out var bucket))
+            return Task.CompletedTask;
+
+        foreach (var entry in bucket)
+        {
+            if (string.Equals(entry.Value.RelativePath, relativePath, StringComparison.Ordinal))
+                bucket.TryRemove(entry.Key, out _);
+        }
+
+        return Task.CompletedTask;
+    }
+
     // Cosine similarity in [-1, 1]; 0 when either vector has zero magnitude. Assumes the
     // spans have equal length (guaranteed by the caller's length filter).
     private static float CosineSimilarity(ReadOnlyMemory<float> aMemory, ReadOnlyMemory<float> bMemory)

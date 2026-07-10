@@ -405,6 +405,115 @@ public class IndexingPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IndexDirectoryAsync_re_index_of_unchanged_files_skips_the_embedding_generator()
+    {
+        WriteFile("Foo.cs", "namespace S; public class Foo { public void A() { } }");
+        WriteFile("Bar.cs", "namespace S; public class Bar { public void B() { } }");
+
+        var store = new LocalCodeChunkStore();
+        var generator = new FakeEmbeddingGenerator();
+        var pipeline = PipelineFor(store, generator);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        var callsAfterFirstRun = generator.CallCount; // one embed call per indexed file.
+        Assert.Equal(2, callsAfterFirstRun);
+
+        // Nothing changed on disk: the second run must not embed either file again.
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(callsAfterFirstRun, generator.CallCount);
+        Assert.Equal(0, summary.FilesIndexed);
+        Assert.Equal(2, summary.FilesSkipped); // both unchanged files folded into the skipped counter.
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_re_embeds_only_the_changed_file()
+    {
+        WriteFile("Changing.cs", "namespace S; public class Changing { public void A() { } }");
+        WriteFile("Stable.cs", "namespace S; public class Stable { public void B() { } }");
+
+        var store = new LocalCodeChunkStore();
+        var generator = new FakeEmbeddingGenerator();
+        var pipeline = PipelineFor(store, generator);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        Assert.Equal(2, generator.CallCount);
+
+        // Edit only Changing.cs; Stable.cs keeps identical content (same hash).
+        WriteFile("Changing.cs", "namespace S; public class Changing { public void A() { return; } }");
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        // Exactly one more embed call — the changed file. The untouched sibling was skipped.
+        Assert.Equal(3, generator.CallCount);
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_deletes_chunks_of_files_removed_from_disk()
+    {
+        WriteFile("Keep.cs", "namespace S; public class Keep { public void A() { } }");
+        WriteFile("Gone.cs", "namespace S; public class Gone { public void B() { } }");
+
+        var store = new LocalCodeChunkStore();
+        var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        Assert.NotEmpty(await store.GetByFileAsync(CollectionNames.Default, "Gone.cs"));
+
+        // Remove Gone.cs from disk, then re-index: its stale chunks must be pruned from the store.
+        File.Delete(Path.Combine(_root, "Gone.cs"));
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, "Gone.cs"));
+        Assert.NotEmpty(await store.GetByFileAsync(CollectionNames.Default, "Keep.cs"));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_keeps_call_graph_correct_across_a_no_op_re_index()
+    {
+        // Same cross-file fixture as IndexDirectoryAsync_populates_call_graph_across_files, but indexed
+        // twice with no file changes. Because unchanged files are still chunked (only embedding is
+        // skipped), their call sites are re-extracted and the graph is rebuilt correctly every run —
+        // this test would fail if the skip incorrectly dropped chunking for unchanged files.
+        WriteFile("Service.cs", """
+            namespace Sample;
+
+            public class Service
+            {
+                private readonly Repository _repo = new();
+
+                public void Handle()
+                {
+                    _repo.Load();
+                }
+            }
+            """);
+        WriteFile("Repository.cs", """
+            namespace Sample;
+
+            public class Repository
+            {
+                public void Load() { }
+            }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        // The edge survives the second, embedding-skipped run.
+        var callees = await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Service.Handle");
+        var edge = Assert.Single(callees);
+        Assert.Equal("Sample.Repository.Load", edge.Callee);
+
+        var callers = await graphStore.FindCallersAsync(CollectionNames.Default, "Sample.Repository.Load");
+        Assert.Equal("Sample.Service.Handle", Assert.Single(callers).Caller);
+    }
+
+    [Fact]
     public async Task IndexDirectoryAsync_re_index_replaces_stale_edges()
     {
         WriteFile("Pair.cs", """

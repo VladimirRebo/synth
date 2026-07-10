@@ -38,4 +38,23 @@ public interface ICodeChunkStore
         string collection,
         string relativePath,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns every distinct <see cref="CodeChunk.RelativePath"/> currently stored in
+    /// <paramref name="collection"/>. Used by incremental indexing to detect files that were
+    /// indexed on a previous run but no longer exist on disk. An unknown collection yields an
+    /// empty set rather than throwing.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListRelativePathsAsync(
+        string collection,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes every chunk in <paramref name="collection"/> whose <see cref="CodeChunk.RelativePath"/>
+    /// matches <paramref name="relativePath"/>. A no-op when the collection or file is absent.
+    /// </summary>
+    Task DeleteByFileAsync(
+        string collection,
+        string relativePath,
+        CancellationToken cancellationToken = default);
 }
