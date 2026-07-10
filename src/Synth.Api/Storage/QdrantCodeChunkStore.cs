@@ -130,7 +130,16 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
     private async Task EnsureCollectionAsync(string collectionName, ulong vectorSize, CancellationToken cancellationToken)
     {
         if (await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+        {
+            // Collection already exists at a fixed dimension. Qdrant would otherwise reject the
+            // upsert with a raw "expected dim: N, got M" gRPC error; surface a clear one up front.
+            var info = await _client.GetCollectionInfoAsync(collectionName, cancellationToken).ConfigureAwait(false);
+            var existingSize = info.Config.Params.VectorsConfig.Params.Size;
+            if (existingSize != vectorSize)
+                throw new DimensionMismatchException(collectionName, (int)existingSize, (int)vectorSize);
+
             return;
+        }
 
         await _client.CreateCollectionAsync(
             collectionName,
