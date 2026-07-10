@@ -1,7 +1,7 @@
 ---
 id: SYNTH-32
 summary: "Dimension-mismatch guard on Qdrant collection upsert"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'DimensionMismatchException' src/Synth.Core/"
 acceptance_criterion: ""
 boundaries: "Only touch src/Synth.Core/ (new exception type) and src/Synth.Api/Storage/QdrantCodeChunkStore.cs. Do not touch LocalCodeChunkStore.cs — it's an in-memory dev/test double with no fixed per-collection dimension, unlike Qdrant which enforces one at the gRPC level; forcing the same check onto it would be artificial. Do not touch IndexingEndpoints.cs or IIndexJobTracker — an exception thrown out of IndexingPipeline.IndexDirectoryAsync already propagates up and is caught there, setting IndexJobStatus.Error to the exception's Message (already tested behavior from SYNTH-31) — no endpoint change needed, just throw a clear exception."
