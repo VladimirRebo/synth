@@ -3,11 +3,40 @@ import { ref } from 'vue'
 import Icon from './Icon.vue'
 
 // Ready-to-copy MCP setup snippets, adapted from Sonar's McpSetup.vue pattern but much
-// smaller — one tool, two transports. Synth's MCP server exposes a single tool today
-// (search_code); the description text mirrors Synth.Api/Mcp/CodeSearchTool.cs's
-// [Description] attribute verbatim.
+// smaller — three tools, two transports. Descriptions mirror each tool's own [Description]
+// attribute verbatim: Synth.Api/Mcp/CodeSearchTool.cs (search_code) and
+// Synth.Api/Graph/CallGraphTool.cs (find_callers/find_callees, added by issue #33 — this list
+// went stale once before when that tool shipped without a client-side update, keep it in sync).
 const HTTP_SNIPPET = 'claude mcp add --transport http synth http://localhost:5042/mcp'
 const STDIO_SNIPPET = 'claude mcp add synth -- dotnet run --project src/Synth.Mcp.Stdio'
+
+interface ToolDoc {
+  name: string
+  description: string
+}
+
+const TOOLS: ToolDoc[] = [
+  {
+    name: 'search_code',
+    description:
+      "Search the indexed codebase for the code most relevant to a natural-language or keyword " +
+      "query. Returns each hit's file path, class/method name and a source snippet.",
+  },
+  {
+    name: 'find_callers',
+    description:
+      'Find the call sites that call a given symbol (its callers) using Synth’s structural ' +
+      'call graph — exact, unlike vector search. Returns one edge per call site (caller, callee, ' +
+      'source file and line).',
+  },
+  {
+    name: 'find_callees',
+    description:
+      'Find the symbols a given symbol calls (its callees) using Synth’s structural call ' +
+      'graph — exact, unlike vector search. Returns one edge per call site (caller, callee, ' +
+      'source file and line).',
+  },
+]
 
 const transport = ref<'http' | 'stdio'>('http')
 const copied = ref(false)
@@ -35,8 +64,9 @@ async function copy(text: string) {
   <section class="panel">
     <h2><Icon name="plug" :size="18" class="plug-icon" /> Connect via MCP</h2>
     <p class="intro">
-      Synth exposes a <code>search_code</code> tool so an AI agent can search this codebase
-      directly. Point Claude Code (or any MCP client) at it:
+      Synth exposes {{ TOOLS.length }} tools so an AI agent can search and navigate this codebase
+      directly — semantic search plus an exact structural call graph. Point Claude Code (or any
+      MCP client) at it:
     </p>
 
     <div class="transport-toggle" role="tablist">
@@ -83,11 +113,10 @@ async function copy(text: string) {
     </p>
 
     <dl class="tools">
-      <dt><code>search_code</code></dt>
-      <dd>
-        Search the indexed codebase for the code most relevant to a natural-language or
-        keyword query. Returns each hit's file path, class/method name and a source snippet.
-      </dd>
+      <template v-for="tool in TOOLS" :key="tool.name">
+        <dt><code>{{ tool.name }}</code></dt>
+        <dd>{{ tool.description }}</dd>
+      </template>
     </dl>
   </section>
 </template>

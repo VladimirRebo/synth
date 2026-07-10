@@ -7,11 +7,13 @@ beforeEach(() => {
 })
 
 describe('McpConnectPanel', () => {
-  it('shows the HTTP snippet by default and the search_code tool description', () => {
+  it('shows the HTTP snippet by default and every registered tool', () => {
     const wrapper = mount(McpConnectPanel)
 
     expect(wrapper.text()).toContain('claude mcp add --transport http synth')
     expect(wrapper.text()).toContain('search_code')
+    expect(wrapper.text()).toContain('find_callers')
+    expect(wrapper.text()).toContain('find_callees')
   })
 
   it('switches to the stdio snippet', async () => {
