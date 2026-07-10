@@ -20,6 +20,8 @@ public static class VcsServiceExtensions
         builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
         builder.Services.AddSingleton<GitRepoService>();
         builder.Services.AddSingleton(CreateRegistry(builder.Configuration));
+        // IHttpClientFactory for VcsSettingsEndpoints' probe-before-persist token check (SYNTH-37).
+        builder.Services.AddHttpClient();
 
         return builder;
     }

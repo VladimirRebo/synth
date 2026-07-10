@@ -19,9 +19,13 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
 
     public VcsSettingsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-    private (HttpClient Client, InMemoryConfigStore Store) CreateClient(string? initialJson = null)
+    private (HttpClient Client, InMemoryConfigStore Store) CreateClient(
+        string? initialJson = null, FakeHttpClientFactory? probeFactory = null)
     {
         var store = new InMemoryConfigStore(initialJson);
+        // Default: the token probe succeeds (200), so a PUT persists exactly as before SYNTH-37. Tests
+        // that care about the probe pass a factory returning 401 / throwing to exercise the failure path.
+        probeFactory ??= FakeHttpClientFactory.Responding(HttpStatusCode.OK);
         var client = _factory
             .WithWebHostBuilder(builder =>
             {
@@ -33,6 +37,9 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
                 {
                     services.RemoveAll<IConfigStore>();
                     services.AddSingleton<IConfigStore>(store);
+                    // Swap the real IHttpClientFactory so the token probe never hits real GitHub/GitLab.
+                    services.RemoveAll<IHttpClientFactory>();
+                    services.AddSingleton<IHttpClientFactory>(probeFactory);
                 });
             })
             .CreateClient();
@@ -122,5 +129,158 @@ public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         // new token propagated into VcsOptions live — not just that the stored JSON changed.
         var body = await put.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("gitlab").GetProperty("tokenSet").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Valid_github_token_is_probed_and_persisted()
+    {
+        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
+        var (client, store) = CreateClient(probeFactory: probe);
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { github = new { token = "ghp_valid" } });
+        put.EnsureSuccessStatusCode();
+
+        // The token was actually probed against GitHub's public API before being saved...
+        Assert.Equal(1, probe.SendCount);
+        Assert.Equal("https://api.github.com/user", probe.LastRequestUri);
+        Assert.Equal("Bearer ghp_valid", probe.LastAuthorization);
+        Assert.NotNull(probe.LastUserAgent); // GitHub rejects requests without a User-Agent
+
+        // ...and, the probe having succeeded, it is genuinely persisted.
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
+        Assert.True(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
+        using var stored = JsonDocument.Parse(store.Current!);
+        Assert.Equal("ghp_valid",
+            stored.RootElement.GetProperty("Vcs").GetProperty("GitHub").GetProperty("Token").GetString());
+    }
+
+    [Fact]
+    public async Task Valid_gitlab_token_is_probed_with_private_token_header()
+    {
+        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
+        var (client, _) = CreateClient(probeFactory: probe);
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { gitlab = new { token = "glpat_valid" } });
+        put.EnsureSuccessStatusCode();
+
+        Assert.Equal(1, probe.SendCount);
+        Assert.Equal("https://gitlab.com/api/v4/user", probe.LastRequestUri);
+        Assert.Equal("glpat_valid", probe.LastPrivateToken);
+    }
+
+    [Fact]
+    public async Task Invalid_token_probe_returns_400_and_leaves_config_unchanged()
+    {
+        var (client, store) = CreateClient(
+            """{ "Vcs": { "GitHub": { "Token": "ghp_old" } } }""",
+            FakeHttpClientFactory.Responding(HttpStatusCode.Unauthorized));
+        var before = store.Current;
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { github = new { token = "ghp_bad" } });
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
+
+        // Nothing was persisted: the stored document is byte-for-byte what it was before the failed PUT.
+        Assert.Equal(before, store.Current);
+        Assert.DoesNotContain("ghp_bad", store.Current!);
+
+        // ...and a subsequent GET still shows the original token-set state, untouched.
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
+        Assert.True(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
+        using var stored = JsonDocument.Parse(store.Current!);
+        Assert.Equal("ghp_old",
+            stored.RootElement.GetProperty("Vcs").GetProperty("GitHub").GetProperty("Token").GetString());
+    }
+
+    [Fact]
+    public async Task Network_failure_during_probe_is_rejected_without_persisting()
+    {
+        var (client, store) = CreateClient(probeFactory: FakeHttpClientFactory.Throwing());
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { gitlab = new { token = "glpat_unreachable" } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
+        Assert.Null(store.Current); // never saved
+    }
+
+    [Fact]
+    public async Task Clearing_a_token_is_not_probed()
+    {
+        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
+        var (client, _) = CreateClient(
+            """{ "Vcs": { "GitHub": { "Token": "ghp_old" } } }""", probe);
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { github = new { token = "" } });
+        put.EnsureSuccessStatusCode();
+
+        // Clearing a token needs no auth check — no probe was attempted.
+        Assert.Equal(0, probe.SendCount);
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
+        Assert.False(get.GetProperty("github").GetProperty("tokenSet").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Workspace_root_only_change_is_not_probed()
+    {
+        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
+        var (client, _) = CreateClient(probeFactory: probe);
+
+        var put = await client.PutAsJsonAsync("/settings/vcs", new { workspaceRoot = "/new/root" });
+        put.EnsureSuccessStatusCode();
+
+        Assert.Equal(0, probe.SendCount); // a local path needs no probe
+        var get = await client.GetFromJsonAsync<JsonElement>("/settings/vcs");
+        Assert.Equal("/new/root", get.GetProperty("workspaceRoot").GetString());
+    }
+
+    // A deterministic stand-in for IHttpClientFactory: every CreateClient() returns an HttpClient over
+    // a stub handler that either returns a fixed status code or throws (network failure), and records
+    // what the endpoint sent so the probe request shape can be asserted. No real GitHub/GitLab call.
+    private sealed class FakeHttpClientFactory : IHttpClientFactory
+    {
+        private readonly RecordingHandler _handler;
+
+        private FakeHttpClientFactory(RecordingHandler handler) => _handler = handler;
+
+        public static FakeHttpClientFactory Responding(HttpStatusCode status) =>
+            new(new RecordingHandler(status, throws: false));
+
+        public static FakeHttpClientFactory Throwing() =>
+            new(new RecordingHandler(HttpStatusCode.OK, throws: true));
+
+        public int SendCount => _handler.SendCount;
+        public string? LastRequestUri => _handler.LastRequestUri;
+        public string? LastAuthorization => _handler.LastAuthorization;
+        public string? LastUserAgent => _handler.LastUserAgent;
+        public string? LastPrivateToken => _handler.LastPrivateToken;
+
+        // The handler is intentionally shared and not disposed with the client, so recorded state
+        // survives for post-request assertions.
+        public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
+
+        private sealed class RecordingHandler(HttpStatusCode status, bool throws) : HttpMessageHandler
+        {
+            public int SendCount { get; private set; }
+            public string? LastRequestUri { get; private set; }
+            public string? LastAuthorization { get; private set; }
+            public string? LastUserAgent { get; private set; }
+            public string? LastPrivateToken { get; private set; }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                SendCount++;
+                LastRequestUri = request.RequestUri?.ToString();
+                LastAuthorization = request.Headers.Authorization?.ToString();
+                LastUserAgent = request.Headers.UserAgent.Count == 0 ? null : request.Headers.UserAgent.ToString();
+                LastPrivateToken = request.Headers.TryGetValues("PRIVATE-TOKEN", out var values)
+                    ? string.Join(",", values)
+                    : null;
+
+                if (throws)
+                    throw new HttpRequestException("simulated network failure");
+
+                return Task.FromResult(new HttpResponseMessage(status));
+            }
+        }
     }
 }
