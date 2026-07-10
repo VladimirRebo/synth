@@ -18,10 +18,24 @@ export interface SearchResult {
   score: number
 }
 
-export interface IndexSummary {
+// Mirrors Synth.Core.Indexing.IndexJobStatus. SYNTH-31 made POST /index fire-and-forget — this is
+// what GET /index/status returns, polled by the client instead of the old synchronous summary.
+export interface IndexJobStatus {
+  state: 'Idle' | 'Running' | 'Done' | 'Failed'
+  collection: string
+  source: string
   filesIndexed: number
   filesSkipped: number
+  totalFiles: number | null
   chunksIndexed: number
+  startedAt: string | null
+  finishedAt: string | null
+  error: string | null
+}
+
+export interface IndexStartResponse {
+  collection: string
+  status: string
 }
 
 // Mirrors Synth.Api.Vcs.RepositoryEntry — one entry per indexed collection (local directory or
@@ -110,7 +124,9 @@ export async function search(
   return (await response.json()) as SearchResult[]
 }
 
-export async function indexSource(source: IndexSource): Promise<IndexSummary> {
+// Starts an index run (202 Accepted, fire-and-forget) or throws — 400 for bad input, 409 when a
+// job is already running (both carry `{ error }`, handled uniformly by parseErrorMessage).
+export async function indexSource(source: IndexSource): Promise<IndexStartResponse> {
   const response = await fetch('/api/index', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -121,7 +137,17 @@ export async function indexSource(source: IndexSource): Promise<IndexSummary> {
     throw new Error(await parseErrorMessage(response, `Indexing failed (${response.status})`))
   }
 
-  return (await response.json()) as IndexSummary
+  return (await response.json()) as IndexStartResponse
+}
+
+export async function getIndexStatus(): Promise<IndexJobStatus> {
+  const response = await fetch('/api/index/status')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading index status failed (${response.status})`))
+  }
+
+  return (await response.json()) as IndexJobStatus
 }
 
 export async function listRepositories(): Promise<RepositoryEntry[]> {

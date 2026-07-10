@@ -1,61 +1,104 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { indexSource, type IndexSummary } from '../api'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { getIndexStatus, indexSource, type IndexJobStatus } from '../api'
 import { useRepositories } from '../composables/useRepositories'
 import Icon from './Icon.vue'
 
-type Status = 'idle' | 'indexing' | 'done' | 'error'
 type Mode = 'local' | 'remote'
 
-const { repositories, refresh: refreshRepositories } = useRepositories()
+const POLL_INTERVAL_MS = 1000
 
-onMounted(refreshRepositories)
+const { repositories, refresh: refreshRepositories } = useRepositories()
 
 const mode = ref<Mode>('local')
 const path = ref('')
 const repoUrl = ref('')
 const branch = ref('')
-const loading = ref(false)
-const error = ref('')
-const summary = ref<IndexSummary | null>(null)
+const submitError = ref('') // from the POST itself (400/409) — distinct from a Failed job's own error
+const submitting = ref(false) // true only for the brief window between POST and the first poll
+const job = ref<IndexJobStatus | null>(null)
 
-const status = computed<Status>(() => {
-  if (loading.value) return 'indexing'
-  if (error.value) return 'error'
-  if (summary.value) return 'done'
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+// Server-side job state (SYNTH-31/#39), not client-held — polling it on mount is what makes
+// progress survive a page reload: the job keeps running on the server regardless of the tab.
+async function pollJob() {
+  try {
+    job.value = await getIndexStatus()
+  } catch {
+    return // transient poll failure — keep the last known state, try again next tick
+  }
+  if (job.value.state === 'Running') {
+    if (pollTimer === null) startPolling()
+  } else {
+    stopPolling()
+    if (job.value.state === 'Done') refreshRepositories()
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(pollJob, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+onMounted(() => {
+  refreshRepositories()
+  pollJob() // resumes an in-flight or just-finished job even after a reload
+})
+
+onUnmounted(stopPolling)
+
+const statusLabel = computed(() => {
+  if (submitError.value) return 'Error'
+  if (submitting.value) return 'Starting…'
+  const state = job.value?.state
+  if (state === 'Running') {
+    const indexed = job.value?.filesIndexed ?? 0
+    const total = job.value?.totalFiles
+    return total != null ? `Indexing… ${indexed}/${total} files` : `Indexing… ${indexed} files`
+  }
+  if (state === 'Done') return 'Done'
+  if (state === 'Failed') return 'Error'
+  return 'Idle'
+})
+
+const statusClass = computed(() => {
+  if (submitError.value || job.value?.state === 'Failed') return 'error'
+  if (submitting.value || job.value?.state === 'Running') return 'indexing'
+  if (job.value?.state === 'Done') return 'done'
   return 'idle'
 })
 
-const statusLabel: Record<Status, string> = {
-  idle: 'Idle',
-  indexing: 'Indexing…',
-  done: 'Done',
-  error: 'Error',
-}
+const displayError = computed(() => submitError.value || (job.value?.state === 'Failed' ? job.value.error : ''))
 
-const canSubmit = computed(() =>
-  mode.value === 'local' ? path.value.trim().length > 0 : repoUrl.value.trim().length > 0,
-)
+const canSubmit = computed(() => {
+  const hasInput = mode.value === 'local' ? path.value.trim().length > 0 : repoUrl.value.trim().length > 0
+  return hasInput && !submitting.value && job.value?.state !== 'Running'
+})
 
 async function onSubmit() {
   if (!canSubmit.value) return
 
-  loading.value = true
-  error.value = ''
-  summary.value = null
+  submitError.value = ''
+  submitting.value = true
   try {
-    summary.value =
+    await indexSource(
       mode.value === 'local'
-        ? await indexSource({ path: path.value.trim() })
-        : await indexSource({
-            repoUrl: repoUrl.value.trim(),
-            branch: branch.value.trim() || undefined,
-          })
-    await refreshRepositories()
+        ? { path: path.value.trim() }
+        : { repoUrl: repoUrl.value.trim(), branch: branch.value.trim() || undefined },
+    )
+    await pollJob()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
+    submitError.value = err instanceof Error ? err.message : String(err)
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 </script>
@@ -114,16 +157,16 @@ async function onSubmit() {
           class="branch"
         />
       </template>
-      <span class="status" :class="status">{{ statusLabel[status] }}</span>
-      <button type="submit" :disabled="loading || !canSubmit">Index</button>
+      <span class="status" :class="statusClass">{{ statusLabel }}</span>
+      <button type="submit" :disabled="!canSubmit">Index</button>
     </form>
 
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <p v-else-if="summary" class="summary">
-      Indexed {{ summary.filesIndexed }} file{{ summary.filesIndexed === 1 ? '' : 's' }}
-      ({{ summary.chunksIndexed }} chunk{{ summary.chunksIndexed === 1 ? '' : 's' }}<span
-        v-if="summary.filesSkipped > 0"
-      >, {{ summary.filesSkipped }} skipped</span
+    <p v-if="displayError" class="error" role="alert">{{ displayError }}</p>
+    <p v-else-if="job?.state === 'Done'" class="summary">
+      Indexed {{ job.filesIndexed }} file{{ job.filesIndexed === 1 ? '' : 's' }}
+      ({{ job.chunksIndexed }} chunk{{ job.chunksIndexed === 1 ? '' : 's' }}<span
+        v-if="job.filesSkipped > 0"
+      >, {{ job.filesSkipped }} skipped</span
       >).
     </p>
 
