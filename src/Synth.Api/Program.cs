@@ -4,6 +4,7 @@ using Synth.Api.Agents;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
 using Synth.Api.Graph;
+using Synth.Api.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Logging;
 using Synth.Api.Mcp;
@@ -76,6 +77,11 @@ builder.AddSynthVcs();
 // extraction (SYNTH-26) and query tools (SYNTH-27) build on top of it later.
 builder.AddSynthCodeGraph();
 
+// Health checks: registers IHealthCheckService (real Qdrant + embedding reachability probes) and
+// its Qdrant probe seam, backing the GET /health endpoint below. Depends on the QdrantClient and
+// IEmbeddingGeneratorFactory registered above, so it comes after the vector store + embeddings.
+builder.Services.AddSynthHealthChecks();
+
 // Search layer: registers QueryExpander + CodeSearchService (over-fetch, rerank, dedup)
 // on top of the embedding generator and vector store registered above.
 builder.AddSynthSearch();
@@ -94,7 +100,17 @@ var app = builder.Build();
 // ownership of the readiness endpoint at /health below.
 app.MapDefaultEndpoints();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+// Readiness check: unlike the old always-"ok" stub, this actually probes Qdrant and the configured
+// embedding provider (cached briefly by the service so polling doesn't hammer either). A fully healthy
+// system still returns 200 so nothing checking only status-code-200 regresses; if a component is down
+// the body reports which and the status code is 503.
+app.MapGet("/health", async (IHealthCheckService health, CancellationToken cancellationToken) =>
+{
+    var report = await health.CheckAsync(cancellationToken);
+    return report.Healthy
+        ? Results.Ok(report)
+        : Results.Json(report, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
 
 // Manual indexing trigger (POST /index { "path": "..." }) plus its progress poll
 // (GET /index/status). SYNTH-31: POST /index is fire-and-forget — it validates, returns 202
