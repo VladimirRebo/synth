@@ -36,7 +36,7 @@ var dataDb = mongo.AddDatabase("synthdata");
 var ollama = builder.AddOllama("ollama")
     .WithDataVolume();
 
-var embeddings = ollama.AddModel("embeddings", "nomic-embed-text");
+var embeddings = ollama.AddModel("embeddings", "qwen3-embedding:4b");
 
 // Qdrant is Synth's vector store. Run it as an Aspire-managed container with a
 // persistent data volume so the index survives restarts. The referenced resource
