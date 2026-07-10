@@ -1,7 +1,7 @@
 ---
 id: SYNTH-38
 summary: "Warn on unknown top-level keys in raw settings PUT"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'warnings' src/Synth.Api/Configuration/RawSettingsEndpoints.cs"
 acceptance_criterion: ""
 boundaries: "Touch only src/Synth.Api/Configuration/RawSettingsEndpoints.cs and its tests. Do not turn this into a hard validation failure (400) for unknown keys — see the Context section for why this must stay a warning, not a rejection. Do not build a JSON Schema or any generic schema-validation library dependency — a flat top-level-key check against VcsOptions.SectionName/EmbeddingOptions.SectionName is enough."
