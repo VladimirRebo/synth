@@ -1,7 +1,7 @@
 ---
 id: SYNTH-35
 summary: "Real health checks (Qdrant + embedding reachability)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'HealthCheck' src/Synth.Api/ src/Synth.Core/"
 acceptance_criterion: ""
 boundaries: "Route stays /health (bare, unchanged path), but its handler must actually check dependencies instead of returning a static object. Touch: Program.cs (the /health mapping), a new health-check service/class, and tests. Do NOT add disk-space checks or GitLab/VCS-provider reachability checks (out of scope, see below). Do NOT change the route path or break existing callers of GET /health that only check for a 200 status — the response body can grow richer, but a healthy system must still return 200."
