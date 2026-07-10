@@ -270,6 +270,36 @@ public class IndexingPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IndexDirectoryAsync_skips_unreadable_subdirectory_without_aborting()
+    {
+        // Regression test: EnumerateSourceFiles used to be a single lazy Directory.EnumerateFiles
+        // walk with no exception guard, so one permission-denied subdirectory threw out of the
+        // pipeline and failed the whole run instead of being skipped like any other unreadable path.
+        if (OperatingSystem.IsWindows())
+            return; // chmod-based restriction below doesn't apply; the fix is platform-agnostic.
+
+        WriteFile("Readable.cs", "namespace S; public class Readable { public void M() { } }");
+        var lockedDir = Path.Combine(_root, "locked");
+        Directory.CreateDirectory(lockedDir);
+        File.WriteAllText(Path.Combine(lockedDir, "Hidden.cs"), "namespace S; public class Hidden { public void M() { } }");
+        File.SetUnixFileMode(lockedDir, UnixFileMode.None);
+
+        try
+        {
+            var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator());
+
+            var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+            Assert.Equal(1, summary.FilesIndexed); // only Readable.cs; locked/Hidden.cs is unreachable.
+        }
+        finally
+        {
+            // Restore permissions so Dispose()'s recursive delete of _root can actually remove it.
+            File.SetUnixFileMode(lockedDir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    [Fact]
     public async Task IndexDirectoryAsync_throws_when_root_missing()
     {
         var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator());

@@ -196,26 +196,42 @@ public sealed class IndexingPipeline
         return embedded;
     }
 
-    private IEnumerable<string> EnumerateSourceFiles(string rootPath) =>
-        // Start with C# only — matching the one chunker that exists (CSharpRoslynChunker).
-        Directory.EnumerateFiles(rootPath, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !IsInSkippedDirectory(rootPath, path));
-
-    private static bool IsInSkippedDirectory(string rootPath, string filePath)
+    // Start with C# only — matching the one chunker that exists (CSharpRoslynChunker). Walks
+    // manually (rather than Directory.EnumerateFiles(..., AllDirectories)) so a single unreadable
+    // subdirectory is skipped like any other unreadable file, instead of throwing out of the lazy
+    // iterator and aborting the whole run.
+    private IEnumerable<string> EnumerateSourceFiles(string rootPath)
     {
-        var relative = Path.GetRelativePath(rootPath, filePath);
-        var segments = relative.Split(
-            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-            StringSplitOptions.RemoveEmptyEntries);
+        foreach (var file in EnumerateFilesRecursive(rootPath))
+            yield return file;
+    }
 
-        // Inspect directory segments only (drop the trailing file name).
-        for (var i = 0; i < segments.Length - 1; i++)
+    private static IEnumerable<string> EnumerateFilesRecursive(string directory)
+    {
+        string[] files;
+        string[] subdirectories;
+        try
         {
-            if (SkippedDirectorySegments.Contains(segments[i], StringComparer.OrdinalIgnoreCase))
-                return true;
+            files = Directory.GetFiles(directory, "*.cs");
+            subdirectories = Directory.GetDirectories(directory)
+                .Where(d => !SkippedDirectorySegments.Contains(Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            // Can't read this directory (permissions, broken symlink, etc.) — skip it rather than
+            // aborting the whole run, same policy as an individual unreadable file.
+            yield break;
         }
 
-        return false;
+        foreach (var file in files)
+            yield return file;
+
+        foreach (var subdirectory in subdirectories)
+        {
+            foreach (var file in EnumerateFilesRecursive(subdirectory))
+                yield return file;
+        }
     }
 
     // Use forward slashes so RelativePath / ChunkId are stable across operating systems.

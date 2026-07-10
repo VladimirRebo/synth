@@ -15,6 +15,12 @@ public sealed class GitRepoService
 {
     private readonly IOptionsMonitor<VcsOptions> _options;
 
+    // One lock per checkout path (keyed by slug, stable across calls since it's a pure function of
+    // the repo URL) so two concurrent EnsureRepoAsync calls for the same repo can't interleave
+    // clone/fetch/reset/delete against the same directory. Entries are intentionally never removed —
+    // the set of distinct repos indexed in a process lifetime is small and bounded by user action.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> CheckoutLocks = new();
+
     public GitRepoService(IOptionsMonitor<VcsOptions> options) => _options = options;
 
     /// <summary>
@@ -34,35 +40,44 @@ public sealed class GitRepoService
         var checkout = Path.Combine(root, info.Slug);
         var auth = AuthArgs(info.Provider, TokenFor(info.Provider, options));
 
-        if (IsGitCheckout(checkout))
+        var checkoutLock = CheckoutLocks.GetOrAdd(info.Slug, _ => new SemaphoreSlim(1, 1));
+        await checkoutLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            // Existing checkout: fetch the latest refs and move the working tree to the target,
-            // discarding any local drift. Mirrors Sonar's re-clone/refresh, minus the special-casing.
-            await RunGitAsync(checkout, [.. auth, "fetch", "--prune", "origin"], cancellationToken).ConfigureAwait(false);
-            var target = string.IsNullOrWhiteSpace(branch) ? "origin/HEAD" : $"origin/{branch}";
-            await RunGitAsync(checkout, [.. auth, "reset", "--hard", target], cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            Directory.CreateDirectory(root);
-            // A leftover non-git directory (interrupted clone) would make `git clone` fail into a
-            // non-empty target, so clear it and start clean.
-            if (Directory.Exists(checkout))
-                Directory.Delete(checkout, recursive: true);
-
-            var clone = new List<string>(auth) { "clone" };
-            if (!string.IsNullOrWhiteSpace(branch))
+            if (IsGitCheckout(checkout))
             {
-                clone.Add("--branch");
-                clone.Add(branch);
+                // Existing checkout: fetch the latest refs and move the working tree to the target,
+                // discarding any local drift. Mirrors Sonar's re-clone/refresh, minus the special-casing.
+                await RunGitAsync(checkout, [.. auth, "fetch", "--prune", "origin"], cancellationToken).ConfigureAwait(false);
+                var target = string.IsNullOrWhiteSpace(branch) ? "origin/HEAD" : $"origin/{branch}";
+                await RunGitAsync(checkout, [.. auth, "reset", "--hard", target], cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                Directory.CreateDirectory(root);
+                // A leftover non-git directory (interrupted clone) would make `git clone` fail into a
+                // non-empty target, so clear it and start clean.
+                if (Directory.Exists(checkout))
+                    Directory.Delete(checkout, recursive: true);
+
+                var clone = new List<string>(auth) { "clone" };
+                if (!string.IsNullOrWhiteSpace(branch))
+                {
+                    clone.Add("--branch");
+                    clone.Add(branch);
+                }
+
+                clone.Add(repoUrl);
+                clone.Add(checkout);
+                await RunGitAsync(root, clone, cancellationToken).ConfigureAwait(false);
             }
 
-            clone.Add(repoUrl);
-            clone.Add(checkout);
-            await RunGitAsync(root, clone, cancellationToken).ConfigureAwait(false);
+            return checkout;
         }
-
-        return checkout;
+        finally
+        {
+            checkoutLock.Release();
+        }
     }
 
     // A directory counts as a usable checkout only if it carries a .git entry (dir for a normal
@@ -131,6 +146,24 @@ public sealed class GitRepoService
         {
             throw new GitCommandException("git", -1, string.Empty, $"failed to start git: {ex.Message}");
         }
+
+        // Disposing the Process wrapper on cancellation does not kill the OS process it wraps — without
+        // this registration a cancelled git invocation would keep running detached, still writing into
+        // the checkout directory. entireProcessTree covers git's own child processes (e.g. transport
+        // helpers) too.
+        await using var killOnCancel = cancellationToken.Register(static state =>
+        {
+            var p = (Process)state!;
+            try
+            {
+                if (!p.HasExited)
+                    p.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Process already exited between the HasExited check and Kill — nothing to do.
+            }
+        }, process);
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);

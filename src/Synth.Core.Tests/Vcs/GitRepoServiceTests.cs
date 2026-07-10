@@ -108,6 +108,23 @@ public sealed class GitRepoServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(checkout, "README.md")));
     }
 
+    [Fact]
+    public async Task EnsureRepoAsync_serializes_concurrent_calls_for_the_same_repo()
+    {
+        // Regression test: EnsureRepoAsync used to have no per-checkout locking, so concurrent calls
+        // for the same repo URL could interleave the delete-leftover-directory / clone / fetch+reset
+        // steps against the same checkout path. Fire several at once and require every one to
+        // succeed and agree on the same, valid checkout — rather than racing into a corrupt state.
+        var service = NewService();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 5)
+            .Select(_ => service.EnsureRepoAsync(_originUrl, branch: null)));
+
+        Assert.All(results, checkout => Assert.Equal(results[0], checkout));
+        Assert.True(Directory.Exists(Path.Combine(results[0], ".git")));
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(results[0], "README.md")));
+    }
+
     private void CommitFile(string relativePath, string content)
     {
         File.WriteAllText(Path.Combine(_authoring, relativePath), content);
