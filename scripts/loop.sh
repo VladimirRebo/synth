@@ -109,7 +109,11 @@ else
   warn "FAIL — not committing"
   record_state "FAILED" "validator exit=${VALIDATOR_EXIT}"
   if [ "$KEEP_WORKTREE" != "true" ] && [ "$DEMO_MODE" != "true" ]; then
-    git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null && log "worktree cleaned up"
+    if git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null; then
+      log "worktree cleaned up"
+    else
+      warn "failed to remove worktree: $WT"
+    fi
   else
     warn "worktree kept for inspection: $WT"
   fi
