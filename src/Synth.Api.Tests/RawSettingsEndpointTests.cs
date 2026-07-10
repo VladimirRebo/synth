@@ -103,6 +103,57 @@ public class RawSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
+    public async Task Put_with_only_known_sections_persists_without_a_warning_header()
+    {
+        var (client, store) = CreateClient();
+
+        const string document =
+            """{"Vcs":{"GitHub":{"Token":"ghp_ok"}},"Embedding":{"Provider":"OpenAI"}}""";
+
+        var put = await client.PutAsync("/settings/raw", Raw(document));
+        put.EnsureSuccessStatusCode();
+
+        Assert.False(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
+        Assert.Equal(document, store.Current); // still persisted verbatim
+    }
+
+    [Fact]
+    public async Task Put_with_unknown_top_level_key_still_persists_but_warns_identifying_the_key()
+    {
+        var (client, store) = CreateClient();
+
+        // "Typo" matches no section this app reads; "Vcs" is known.
+        const string document =
+            """{"Vcs":{"GitHub":{"Token":"ghp_ok"}},"Typo":{"Foo":"bar"}}""";
+
+        var put = await client.PutAsync("/settings/raw", Raw(document));
+        put.EnsureSuccessStatusCode();
+
+        // The write is NOT blocked — the unknown key is stored exactly as sent.
+        Assert.Equal(document, store.Current);
+
+        // ...but a non-blocking warning surfaces, naming the offending key.
+        Assert.True(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
+        var warnings = put.Headers.GetValues(RawSettingsEndpoints.WarningsHeader).Single();
+        Assert.Contains("Typo", warnings);
+        Assert.DoesNotContain("Vcs", warnings); // the known section is not flagged
+    }
+
+    [Fact]
+    public async Task Put_matches_known_section_names_case_insensitively()
+    {
+        var (client, _) = CreateClient();
+
+        // Lowercase "vcs"/"embedding" bind case-insensitively, so they are not a typo — no warning.
+        const string document = """{"vcs":{"GitHub":{"Token":"ghp_ok"}},"embedding":{"Provider":"OpenAI"}}""";
+
+        var put = await client.PutAsync("/settings/raw", Raw(document));
+        put.EnsureSuccessStatusCode();
+
+        Assert.False(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
+    }
+
+    [Fact]
     public async Task Put_is_observable_through_the_options_monitors_like_the_section_endpoints()
     {
         var (client, _) = CreateClient();

@@ -1,3 +1,7 @@
+using System.Text.Json;
+using Synth.Core.Embeddings;
+using Synth.Core.Vcs;
+
 namespace Synth.Api.Configuration;
 
 /// <summary>
@@ -17,6 +21,16 @@ namespace Synth.Api.Configuration;
 /// </summary>
 public static class RawSettingsEndpoints
 {
+    // Response header carrying non-fatal warnings about a persisted document (currently: top-level
+    // keys that match no config section this app reads). A header keeps the PUT body the bare
+    // document text — the raw editor client consumes the response via response.text() — so surfacing
+    // warnings this way is purely additive and doesn't break that integration.
+    public const string WarningsHeader = "X-Settings-Warnings";
+
+    // Config sections this build actually binds. A top-level key outside this set is stored fine
+    // (the raw editor is deliberately forward-compatible) but is worth flagging as a likely typo.
+    private static readonly string[] KnownSectionNames = [VcsOptions.SectionName, EmbeddingOptions.SectionName];
+
     public static IEndpointRouteBuilder MapRawSettingsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         // GET /settings/raw — the whole stored document as-is (unmasked), "{}" when nothing is stored.
@@ -47,9 +61,57 @@ public static class RawSettingsEndpoints
             // Echo the persisted document (unmasked). Built from the store after the save, so a correct
             // body here also proves the write landed on the same document the reload path reads.
             var persisted = await updater.LoadDocumentAsync(cancellationToken);
+
+            // Non-blocking warning pass: the write already happened above, so a typo like a top-level
+            // "Vsc" section that binds to nothing is at least visible instead of silently swallowed.
+            var warnings = CollectUnknownKeyWarnings(persisted);
+            if (warnings.Count > 0)
+            {
+                // Serialized as a JSON array; default escaping keeps it header-safe (ASCII) even for
+                // non-ASCII key names. Kept out of the body so the response stays the bare document text.
+                request.HttpContext.Response.Headers[WarningsHeader] = JsonSerializer.Serialize(warnings);
+            }
+
             return Results.Content(persisted, "application/json");
         });
 
         return endpoints;
+    }
+
+    // Reports a warning for every top-level key of <paramref name="document"/> that doesn't match a
+    // known section name (case-insensitively). Never throws: a document that isn't a JSON object
+    // (shouldn't happen post-persist) simply yields no warnings.
+    private static List<string> CollectUnknownKeyWarnings(string document)
+    {
+        var warnings = new List<string>();
+
+        JsonElement root;
+        try
+        {
+            using var parsed = JsonDocument.Parse(document);
+            if (parsed.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return warnings;
+            }
+
+            root = parsed.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return warnings;
+        }
+
+        foreach (var property in root.EnumerateObject())
+        {
+            var isKnown = KnownSectionNames.Any(name =>
+                string.Equals(name, property.Name, StringComparison.OrdinalIgnoreCase));
+            if (!isKnown)
+            {
+                warnings.Add(
+                    $"Unknown top-level key \"{property.Name}\": no config section by that name is read by this app.");
+            }
+        }
+
+        return warnings;
     }
 }
