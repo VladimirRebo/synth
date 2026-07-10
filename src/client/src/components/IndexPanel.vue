@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { getIndexStatus, indexSource, type IndexJobStatus } from '../api'
+import { deleteRepository, getIndexStatus, indexSource, type IndexJobStatus } from '../api'
 import { useRepositories } from '../composables/useRepositories'
 import Icon from './Icon.vue'
 
@@ -107,6 +107,20 @@ async function onSubmit() {
     submitting.value = false
   }
 }
+
+const deleteError = ref('')
+
+async function onDelete(collection: string) {
+  if (!confirm(`Delete indexed repository "${collection}"? This removes its vectors, call graph, and registry entry.`)) return
+
+  deleteError.value = ''
+  try {
+    await deleteRepository(collection)
+    await refreshRepositories()
+  } catch (err) {
+    deleteError.value = err instanceof Error ? err.message : String(err)
+  }
+}
 </script>
 
 <template>
@@ -177,6 +191,7 @@ async function onSubmit() {
     </p>
 
     <h3 class="repos-heading">Indexed repositories</h3>
+    <p v-if="deleteError" class="error" role="alert">{{ deleteError }}</p>
     <p v-if="repositories.length === 0" class="empty">Nothing indexed yet.</p>
     <ul v-else class="repo-list">
       <li v-for="repo in repositories" :key="repo.collection" class="repo-row">
@@ -186,6 +201,14 @@ async function onSubmit() {
         <span v-if="repo.branch" class="repo-branch">{{ repo.branch }}</span>
         <span class="repo-chunks">{{ repo.chunkCount }} chunks</span>
         <span class="repo-time">{{ new Date(repo.lastIndexedAt).toLocaleString() }}</span>
+        <button
+          type="button"
+          class="repo-delete"
+          :aria-label="`Delete ${repo.collection}`"
+          @click="onDelete(repo.collection)"
+        >
+          <Icon name="x" :size="14" />
+        </button>
       </li>
     </ul>
   </section>
@@ -385,5 +408,22 @@ button:disabled {
   font-size: 12px;
   color: var(--text);
   white-space: nowrap;
+}
+
+.repo-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.repo-delete:hover {
+  color: var(--status-red);
+  background: var(--code-bg);
 }
 </style>

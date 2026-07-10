@@ -160,6 +160,14 @@ export async function listRepositories(): Promise<RepositoryEntry[]> {
   return (await response.json()) as RepositoryEntry[]
 }
 
+export async function deleteRepository(collection: string): Promise<void> {
+  const response = await fetch(`/api/repositories/${encodeURIComponent(collection)}`, { method: 'DELETE' })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Deleting repository failed (${response.status})`))
+  }
+}
+
 export async function getVcsSettings(): Promise<VcsSettings> {
   const response = await fetch('/api/settings/vcs')
 

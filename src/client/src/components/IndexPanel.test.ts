@@ -8,6 +8,7 @@ vi.mock('../api')
 const mockedIndexSource = vi.mocked(api.indexSource)
 const mockedGetIndexStatus = vi.mocked(api.getIndexStatus)
 const mockedListRepositories = vi.mocked(api.listRepositories)
+const mockedDeleteRepository = vi.mocked(api.deleteRepository)
 
 function job(overrides: Partial<api.IndexJobStatus> = {}): api.IndexJobStatus {
   return {
@@ -29,6 +30,7 @@ beforeEach(() => {
   mockedIndexSource.mockReset()
   mockedGetIndexStatus.mockReset()
   mockedListRepositories.mockReset()
+  mockedDeleteRepository.mockReset()
   mockedListRepositories.mockResolvedValue([])
   mockedGetIndexStatus.mockResolvedValue(job()) // idle by default (mount's own poll)
 })
@@ -147,6 +149,75 @@ describe('IndexPanel', () => {
     expect(wrapper.text()).toContain('github-com-owner-repo')
     expect(wrapper.text()).toContain('main')
     expect(wrapper.text()).toContain('42 chunks')
+  })
+
+  it('deletes a repository after confirmation and refreshes the list', async () => {
+    mockedListRepositories.mockResolvedValue([
+      {
+        collection: 'default',
+        sourceType: 'local',
+        source: '/repo',
+        branch: null,
+        lastIndexedAt: '2026-07-10T00:00:00Z',
+        chunkCount: 10,
+      },
+    ])
+    mockedDeleteRepository.mockResolvedValue(undefined)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+
+    await wrapper.get('button[aria-label="Delete default"]').trigger('click')
+    await flushPromises()
+
+    expect(mockedDeleteRepository).toHaveBeenCalledWith('default')
+    expect(mockedListRepositories).toHaveBeenCalledTimes(2) // initial load + post-delete refresh
+  })
+
+  it('does not delete when the confirmation is declined', async () => {
+    mockedListRepositories.mockResolvedValue([
+      {
+        collection: 'default',
+        sourceType: 'local',
+        source: '/repo',
+        branch: null,
+        lastIndexedAt: '2026-07-10T00:00:00Z',
+        chunkCount: 10,
+      },
+    ])
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+
+    await wrapper.get('button[aria-label="Delete default"]').trigger('click')
+    await flushPromises()
+
+    expect(mockedDeleteRepository).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when deleting a repository fails', async () => {
+    mockedListRepositories.mockResolvedValue([
+      {
+        collection: 'default',
+        sourceType: 'local',
+        source: '/repo',
+        branch: null,
+        lastIndexedAt: '2026-07-10T00:00:00Z',
+        chunkCount: 10,
+      },
+    ])
+    mockedDeleteRepository.mockRejectedValue(new Error('Deleting repository failed (404)'))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    const wrapper = mount(IndexPanel)
+    await flushPromises()
+
+    await wrapper.get('button[aria-label="Delete default"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toBe('Deleting repository failed (404)')
   })
 
   it('resumes an in-flight job on mount, even without submitting — this is what survives a reload', async () => {
