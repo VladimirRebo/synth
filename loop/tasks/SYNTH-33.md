@@ -1,7 +1,7 @@
 ---
 id: SYNTH-33
 summary: "Incremental indexing: skip unchanged files, delete stale ones"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'ListRelativePathsAsync' src/Synth.Core/ICodeChunkStore.cs && grep -rq 'DeleteByFileAsync' src/Synth.Core/ICodeChunkStore.cs"
 acceptance_criterion: ""
 boundaries: "Touch: src/Synth.Core/ICodeChunkStore.cs (two new interface methods), src/Synth.Core/LocalCodeChunkStore.cs, src/Synth.Api/Storage/QdrantCodeChunkStore.cs, src/Synth.Core/IndexingPipeline.cs, and their tests. Do NOT skip the chunking/call-site-extraction step for unchanged files — only skip the embedding-generator call and the store upsert (see the correctness note in Context below about why this distinction matters for the call graph). Do NOT touch IndexingEndpoints.cs, IIndexJobTracker, or any client code — this is purely an internal pipeline optimization; the public IndexingSummary/IndexJobStatus shape and its FilesIndexed/FilesSkipped counters are unchanged in meaning, just cheaper to produce."
