@@ -57,4 +57,13 @@ public interface ICodeChunkStore
         string collection,
         string relativePath,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the entire <paramref name="collection"/> and all chunks it holds. A no-op when the
+    /// collection does not exist, so deleting an unknown collection is clean rather than an error.
+    /// Used when a repository is removed from Synth (<c>DELETE /repositories/{collection}</c>).
+    /// </summary>
+    Task DeleteCollectionAsync(
+        string collection,
+        CancellationToken cancellationToken = default);
 }

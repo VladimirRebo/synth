@@ -20,4 +20,10 @@ public sealed class InMemoryRepositoryRegistry : IRepositoryRegistry
 
     public Task<IReadOnlyList<RepositoryEntry>> ListAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<RepositoryEntry>>(_entries.Values.ToList());
+
+    public Task<bool> DeleteAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+        return Task.FromResult(_entries.TryRemove(collection, out _));
+    }
 }
