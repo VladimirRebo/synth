@@ -1,7 +1,7 @@
 ---
 id: SYNTH-37
 summary: "Probe VCS tokens before persisting (GitHub/GitLab)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'IHttpClientFactory' src/Synth.Api/Vcs/VcsSettingsEndpoints.cs"
 acceptance_criterion: ""
 boundaries: "Touch only src/Synth.Api/Vcs/VcsSettingsEndpoints.cs, DI registration for IHttpClientFactory if not already present (Program.cs / a service-extensions file), and tests. Do not touch GitRepoService.cs or the git-clone auth path (http.extraHeader) — that already works and is unrelated to this validate-before-save check. Self-hosted GitLab instances are explicitly out of scope (see below) — only probe against the well-known public API hosts."
