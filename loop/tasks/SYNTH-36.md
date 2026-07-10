@@ -1,7 +1,7 @@
 ---
 id: SYNTH-36
 summary: "MCP tool index_code — trigger indexing from an agent (HTTP + stdio)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'index_code' src/Synth.Api/Mcp/"
 acceptance_criterion: ""
 boundaries: "Touch: src/Synth.Api/Indexing/IndexingEndpoints.cs (extract shared logic, don't duplicate it), a new src/Synth.Api/Mcp/IndexCodeTool.cs (or similar name), Program.cs (register the new tool type in the HTTP MCP host's WithTools<T>() chain), src/Synth.Mcp.Stdio/StdioMcpHost.cs (same registration for stdio), and tests. Do NOT make the MCP tool block until indexing completes — mirror POST /index's existing fire-and-forget contract exactly (this project's established convention: mutating operations return immediately, callers poll for status)."
