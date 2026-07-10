@@ -20,7 +20,8 @@ public static class McpServiceExtensions
             .AddMcpServer()
             .WithHttpTransport()
             .WithTools<CodeSearchTool>()
-            .WithTools<CallGraphTool>();
+            .WithTools<CallGraphTool>()
+            .WithTools<IndexCodeTool>();
 
         return builder;
     }

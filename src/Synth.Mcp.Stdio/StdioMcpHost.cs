@@ -3,9 +3,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Api.Embeddings;
 using Synth.Api.Graph;
+using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
+using Synth.Api.Vcs;
+using Synth.Core.Vcs;
 
 namespace Synth.Mcp.Stdio;
 
@@ -45,13 +48,24 @@ public static class StdioMcpHost
         // tools resolve ICodeGraphStore over stdio just as they do over HTTP.
         builder.AddSynthCodeGraph();
 
-        // MCP server over stdio (not HTTP): the same `search_code` + call-graph tools, spawned by
-        // the client on stdin/stdout. No HTTP endpoints are mapped in this process.
+        // Indexing stack so the `index_code` tool (SYNTH-36) can resolve its dependencies over stdio
+        // the same way it does over HTTP: the pipeline + the single job tracker come from
+        // AddSynthIndexing; GitRepoService and the repository registry are wired inline here because
+        // AddSynthVcs targets WebApplicationBuilder (this host is a plain generic host). No Mongo is
+        // configured for the stdio process, so the in-memory registry is the right fallback.
+        builder.AddSynthIndexing();
+        builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
+        builder.Services.AddSingleton<GitRepoService>();
+        builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
+
+        // MCP server over stdio (not HTTP): the same `search_code` + call-graph + `index_code` tools,
+        // spawned by the client on stdin/stdout. No HTTP endpoints are mapped in this process.
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithTools<CodeSearchTool>()
-            .WithTools<CallGraphTool>();
+            .WithTools<CallGraphTool>()
+            .WithTools<IndexCodeTool>();
 
         return builder;
     }

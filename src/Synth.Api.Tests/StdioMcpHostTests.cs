@@ -24,6 +24,29 @@ public class StdioMcpHostTests
     }
 
     [Fact]
+    public void Index_code_tool_is_registered_on_the_stdio_mcp_server()
+    {
+        using var host = StdioMcpHost.CreateBuilder([]).Build();
+
+        var tools = host.Services.GetServices<McpServerTool>();
+
+        Assert.Contains(tools, tool => tool.ProtocolTool.Name == "index_code");
+    }
+
+    [Fact]
+    public void Host_wires_the_indexing_layer_the_index_code_tool_depends_on()
+    {
+        // The index_code tool (SYNTH-36) resolves the indexing pipeline, git service, repository
+        // registry and job tracker per invocation, so all must be registered over stdio too.
+        var services = StdioMcpHost.CreateBuilder([]).Services;
+
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.IndexingPipeline));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.Vcs.GitRepoService));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Vcs.IRepositoryRegistry));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Indexing.IIndexJobTracker));
+    }
+
+    [Fact]
     public void Host_wires_the_search_layer_the_tool_depends_on()
     {
         // The tool resolves CodeSearchService (over the vector store) per invocation, so the
