@@ -66,4 +66,31 @@ public class RepositoryRegistryTests
 
         Assert.Empty(await registry.ListAsync());
     }
+
+    [Fact]
+    public async Task Delete_removes_the_entry_and_reports_true()
+    {
+        var registry = new InMemoryRepositoryRegistry();
+        await registry.UpsertAsync(new RepositoryEntry
+        {
+            Collection = "default",
+            SourceType = "local",
+            Source = "/tmp/repo",
+            LastIndexedAt = DateTime.UtcNow,
+            ChunkCount = 3,
+        });
+
+        var removed = await registry.DeleteAsync("default");
+
+        Assert.True(removed);
+        Assert.Empty(await registry.ListAsync());
+    }
+
+    [Fact]
+    public async Task Delete_of_an_unknown_collection_is_a_noop_and_reports_false()
+    {
+        var registry = new InMemoryRepositoryRegistry();
+
+        Assert.False(await registry.DeleteAsync("never-indexed"));
+    }
 }

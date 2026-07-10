@@ -127,4 +127,28 @@ public class LocalCodeChunkStoreTests
         Assert.Empty(await store.SearchAsync("repo-c", new[] { 1f, 0f }, limit: 10));
         Assert.Empty(await store.GetByFileAsync("repo-c", "shared.cs"));
     }
+
+    [Fact]
+    public async Task DeleteCollectionAsync_drops_the_collection_leaving_others_intact()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync("repo-a", [Chunk("a.cs", 1, [1f, 0f], "FromRepoA")]);
+        await store.UpsertAsync("repo-b", [Chunk("b.cs", 1, [1f, 0f], "FromRepoB")]);
+
+        await store.DeleteCollectionAsync("repo-a");
+
+        // The deleted collection reads as empty; the other collection is untouched.
+        Assert.Empty(await store.GetByFileAsync("repo-a", "a.cs"));
+        Assert.Empty(await store.SearchAsync("repo-a", new[] { 1f, 0f }, limit: 10));
+        Assert.Equal("FromRepoB", Assert.Single(await store.GetByFileAsync("repo-b", "b.cs")).MethodName);
+    }
+
+    [Fact]
+    public async Task DeleteCollectionAsync_is_a_noop_for_an_unknown_collection()
+    {
+        var store = new LocalCodeChunkStore();
+
+        // Should not throw for a collection that was never created.
+        await store.DeleteCollectionAsync("never-created");
+    }
 }

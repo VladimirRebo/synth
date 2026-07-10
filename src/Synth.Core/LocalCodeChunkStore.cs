@@ -100,6 +100,16 @@ public sealed class LocalCodeChunkStore : ICodeChunkStore
         return Task.CompletedTask;
     }
 
+    public Task DeleteCollectionAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        // Drop the whole bucket; TryRemove is a no-op when the collection was never created.
+        _collections.TryRemove(collection, out _);
+
+        return Task.CompletedTask;
+    }
+
     // Cosine similarity in [-1, 1]; 0 when either vector has zero magnitude. Assumes the
     // spans have equal length (guaranteed by the caller's length filter).
     private static float CosineSimilarity(ReadOnlyMemory<float> aMemory, ReadOnlyMemory<float> bMemory)

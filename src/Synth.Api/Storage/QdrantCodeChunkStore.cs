@@ -166,6 +166,19 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task DeleteCollectionAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        var collectionName = SanitizeCollectionName(collection);
+
+        // Guard on existence so deleting a collection that isn't there is a clean no-op rather than
+        // a gRPC error, matching the store's "unknown collection yields nothing" stance elsewhere.
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+            return;
+
+        await _client.DeleteCollectionAsync(collectionName, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private Task<bool> CollectionExistsAsync(string collectionName, CancellationToken cancellationToken) =>
         _client.CollectionExistsAsync(collectionName, cancellationToken);
 

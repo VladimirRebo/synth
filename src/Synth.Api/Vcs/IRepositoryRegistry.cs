@@ -13,6 +13,13 @@ public interface IRepositoryRegistry
 
     /// <summary>Lists every known collection and its metadata.</summary>
     Task<IReadOnlyList<RepositoryEntry>> ListAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the entry for <paramref name="collection"/>. Returns <c>true</c> if an entry existed
+    /// and was removed, <c>false</c> if there was no entry for that collection (a no-op) — the caller
+    /// uses this to answer <c>DELETE /repositories/{collection}</c> with 404 for an unknown collection.
+    /// </summary>
+    Task<bool> DeleteAsync(string collection, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

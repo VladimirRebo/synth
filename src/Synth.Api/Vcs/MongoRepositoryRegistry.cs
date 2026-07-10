@@ -42,6 +42,23 @@ public sealed class MongoRepositoryRegistry : IRepositoryRegistry
         }
     }
 
+    public async Task<bool> DeleteAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+        try
+        {
+            var filter = Builders<BsonDocument>.Filter.Eq("_id", collection);
+            var result = await _collection.DeleteOneAsync(filter, cancellationToken);
+            return result.DeletedCount > 0;
+        }
+        catch (Exception)
+        {
+            // Mongo unreachable: mirror the other members' graceful degrade. We can't confirm a
+            // deletion happened, so report "nothing removed" — the endpoint reads that as a 404.
+            return false;
+        }
+    }
+
     public async Task<IReadOnlyList<RepositoryEntry>> ListAsync(CancellationToken cancellationToken = default)
     {
         try
