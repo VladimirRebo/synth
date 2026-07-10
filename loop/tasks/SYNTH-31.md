@@ -1,7 +1,7 @@
 ---
 id: SYNTH-31
 summary: "POST /index becomes fire-and-forget (202) + GET /index/status"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -riq '\"/index/status\"' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Only change POST /index's response semantics (fire-and-forget) and add GET /index/status on top of SYNTH-30's IIndexJobTracker. Do not touch the Vue client. Map the new route bare (no /api prefix, matching every other endpoint — the Settings-endpoint mistake from earlier in this project must not be repeated). Keep the existing request validation (path exists / repoUrl parses) synchronous — only the actual clone+indexing work moves to the background."

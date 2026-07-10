@@ -72,3 +72,4 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | RUN-CHECK | 2026-07-10 | Hourly autopilot check: no stray worktrees, no open PRs, no open task files (all loop/tasks/*.md status:done through SYNTH-29). Roadmap issues #1-#4, #6, #26, #27, #33 closed; #22 (VCS automations backlog, split from old #5) confirmed still has zero comments — no new instruction from Vladimir to lift the hold. Full suite green: 162/162 (71 Synth.Core.Tests + 91 Synth.Api.Tests). Stale merged remote branches fix/SYNTH-12..29 still present (harmless leftovers, cleanup not in this run's mandate). Nothing independently actionable; not inventing scope, waiting on Vladimir's next instruction.
 - | SYNTH-30 | COMPLETED | validator PASS, committed on fix/SYNTH-30 |
 - | SYNTH-31 | FAILED | validator exit=1 |
+- | SYNTH-31 | COMPLETED | validator PASS, committed on fix/SYNTH-31 |
