@@ -73,6 +73,10 @@ public sealed class IndexingPipeline
         var rawCallSites = new List<RawCallSite>();
         var knownSymbols = new HashSet<string>(StringComparer.Ordinal);
 
+        // Relative paths of every on-disk file seen this run. Diffed against the store at the end to
+        // delete chunks of files that were indexed before but no longer exist on disk (SYNTH-33).
+        var seenPaths = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var filePath in EnumerateSourceFiles(rootPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -103,6 +107,7 @@ public sealed class IndexingPipeline
             }
 
             var relativePath = NormalizeRelativePath(Path.GetRelativePath(rootPath, filePath));
+            seenPaths.Add(relativePath);
             var chunks = chunker.Chunk(filePath, relativePath, content);
             if (chunks.Count == 0)
             {
@@ -110,11 +115,11 @@ public sealed class IndexingPipeline
                 continue;
             }
 
-            var embedded = await EmbedAsync(chunks, cancellationToken);
-            await _store.UpsertAsync(collection, embedded, cancellationToken);
-
             // Stage 1: remember this file's declared method/constructor names (candidate callees) and,
             // if the chunker supports it, its raw call sites — for collection-wide resolution below.
+            // This runs for EVERY on-disk file, even ones whose embedding is skipped below: chunking is
+            // cheap and CPU-only, and skipping it would silently drop the file's call-graph edges on a
+            // no-op re-index (see SYNTH-33). Only the embedding + upsert is skipped for unchanged files.
             foreach (var chunk in chunks)
             {
                 if (IsCallableMember(chunk.ChunkType) && chunk.QualifiedName.Length > 0)
@@ -124,10 +129,34 @@ public sealed class IndexingPipeline
             if (chunker is ICallSiteExtractor extractor)
                 rawCallSites.AddRange(extractor.ExtractCallSites(filePath, relativePath, content));
 
+            // Incremental skip: if the file's content hash already stored matches this run's freshly
+            // computed hash (every chunk of a file carries the same FileHash), the file is unchanged —
+            // skip the expensive embedding-generator call and the upsert entirely, counting it the same
+            // way as any other skipped file. The call graph above was already updated, so it stays correct.
+            var freshHash = chunks[0].FileHash;
+            var stored = await _store.GetByFileAsync(collection, relativePath, cancellationToken);
+            if (stored.Count > 0 && string.Equals(stored[0].FileHash, freshHash, StringComparison.Ordinal))
+            {
+                filesSkipped++;
+                continue;
+            }
+
+            var embedded = await EmbedAsync(chunks, cancellationToken);
+            await _store.UpsertAsync(collection, embedded, cancellationToken);
+
             filesIndexed++;
             chunksIndexed += embedded.Count;
 
             progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
+        }
+
+        // Delete chunks of files that were indexed on a previous run but are no longer on disk. Diff the
+        // store's known relative paths against the ones seen during this walk, and drop the stragglers.
+        var storedPaths = await _store.ListRelativePathsAsync(collection, cancellationToken);
+        foreach (var stalePath in storedPaths)
+        {
+            if (!seenPaths.Contains(stalePath))
+                await _store.DeleteByFileAsync(collection, stalePath, cancellationToken);
         }
 
         // Stage 2: resolve every raw call site against the whole collection's known method names and

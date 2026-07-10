@@ -124,6 +124,48 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
             .ToList();
     }
 
+    public async Task<IReadOnlyList<string>> ListRelativePathsAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+            return [];
+
+        // Scroll the whole collection pulling only the relativePath payload key (not the full
+        // chunk payload) — this is a cheap projection used just to diff against on-disk files.
+        var response = await _client.ScrollAsync(
+            collectionName,
+            filter: null,
+            limit: uint.MaxValue,
+            payloadSelector: new[] { RelativePathKey },
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return response.Result
+            .Select(point => GetString(point.Payload, RelativePathKey))
+            .Where(path => path.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    public async Task DeleteByFileAsync(
+        string collection,
+        string relativePath,
+        CancellationToken cancellationToken = default)
+    {
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+            return;
+
+        // Delete every point for this file by the same relativePath filter GetByFileAsync reads with.
+        await _client.DeleteAsync(
+            collectionName,
+            Conditions.MatchKeyword(RelativePathKey, relativePath),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
     private Task<bool> CollectionExistsAsync(string collectionName, CancellationToken cancellationToken) =>
         _client.CollectionExistsAsync(collectionName, cancellationToken);
 
