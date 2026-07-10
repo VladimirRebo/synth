@@ -1,7 +1,7 @@
 ---
 id: SYNTH-34
 summary: "DELETE /repositories/{collection} — remove indexed collection + registry entry + graph edges"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'MapDelete(\"/repositories' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "Route must be bare (/repositories/{collection}, no /api prefix — the client's Vite dev proxy already strips /api; this exact mistake has bitten this project before on the Settings endpoints). Touch: src/Synth.Api/Vcs/RepositoryEndpoints.cs, IRepositoryRegistry.cs + its Mongo/InMemory implementations, ICodeChunkStore.cs (one new delete-collection method) + its Qdrant/Local implementations, and tests. Do NOT touch the git checkout under ~/.synth/workspaces — cleaning that up is a separate issue (#46) that depends on this one existing; leave the on-disk clone alone for now. Do NOT touch IndexingEndpoints.cs or the client."
