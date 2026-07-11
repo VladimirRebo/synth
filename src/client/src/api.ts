@@ -21,6 +21,22 @@ export interface SearchResult {
   sourceUrl: string | null
 }
 
+// Mirrors Synth.Api.Search.FileChunkResult — one entry per chunk the store holds for a file,
+// in ascending line order. Unlike SearchResult this carries the assembled `embeddingText` (the
+// exact text fed to the embedding model) alongside the raw `content`, which is the whole point of
+// browsing: seeing what was actually embedded, not just re-reading the source.
+export interface FileChunk {
+  chunkType: string
+  className: string | null
+  methodName: string | null
+  qualifiedName: string
+  startLine: number
+  endLine: number
+  content: string
+  summary: string | null
+  embeddingText: string
+}
+
 // Mirrors Synth.Core.Indexing.IndexJobStatus. SYNTH-31 made POST /index fire-and-forget — this is
 // what GET /index/status returns, polled by the client instead of the old synchronous summary.
 export interface IndexJobStatus {
@@ -151,6 +167,29 @@ export async function getIndexStatus(): Promise<IndexJobStatus> {
   }
 
   return (await response.json()) as IndexJobStatus
+}
+
+// Fetches every chunk stored for `relativePath` in `collection`, in ascending line order. The
+// backend returns 404 when the file has no chunks (unindexed / unknown collection / genuinely
+// empty file); this surfaces that as an empty array so callers render a plain "no chunks" state
+// instead of treating a not-indexed file as an error. The path is encoded segment-by-segment so
+// nested paths keep their `/` separators (the endpoint's {*relativePath} catch-all).
+export async function getFileChunks(collection: string, relativePath: string): Promise<FileChunk[]> {
+  const encodedPath = relativePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')
+  const response = await fetch(
+    `/api/repositories/${encodeURIComponent(collection)}/files/${encodedPath}`,
+  )
+
+  if (response.status === 404) return []
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading file chunks failed (${response.status})`))
+  }
+
+  return (await response.json()) as FileChunk[]
 }
 
 export async function listRepositories(): Promise<RepositoryEntry[]> {

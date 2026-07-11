@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import SearchPanel from './components/SearchPanel.vue'
+import BrowsePanel from './components/BrowsePanel.vue'
 import IndexPanel from './components/IndexPanel.vue'
 import McpConnectPanel from './components/McpConnectPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
@@ -10,6 +11,7 @@ import LogsPanel from './components/LogsPanel.vue'
 export const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/search' },
   { path: '/search', name: 'search', component: SearchPanel },
+  { path: '/browse', name: 'browse', component: BrowsePanel },
   { path: '/index', name: 'index', component: IndexPanel },
   { path: '/mcp', name: 'mcp', component: McpConnectPanel },
   { path: '/settings', name: 'settings', component: SettingsPanel },

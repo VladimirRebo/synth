@@ -6,6 +6,7 @@ const { theme, toggle } = useTheme()
 
 const items = [
   { to: '/search', label: 'Search', icon: 'search' },
+  { to: '/browse', label: 'Browse', icon: 'file-text' },
   { to: '/index', label: 'Index', icon: 'folder' },
   { to: '/mcp', label: 'MCP', icon: 'plug' },
   { to: '/settings', label: 'Settings', icon: 'sliders' },

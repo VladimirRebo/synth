@@ -66,6 +66,15 @@ const icons: Record<string, IconDef> = {
       'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
     ],
   },
+  'file-text': {
+    // feather-icons' file-text glyph — used for the Browse panel (inspect a file's chunks).
+    paths: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'],
+    polylines: ['14 2 14 8 20 8', '10 9 9 9 8 9'],
+    lines: [
+      { x1: 16, y1: 13, x2: 8, y2: 13 },
+      { x1: 16, y1: 17, x2: 8, y2: 17 },
+    ],
+  },
   list: {
     // feather-icons' list glyph — used for the Logs panel.
     lines: [
