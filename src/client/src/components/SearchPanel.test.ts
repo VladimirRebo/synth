@@ -21,6 +21,7 @@ function result(overrides: Partial<api.SearchResult> = {}): api.SearchResult {
     snippet: 'public string Greet(string name) => $"Hello, {name}!";',
     score: 1.2,
     sourceUrl: null,
+    collection: null,
     ...overrides,
   }
 }
@@ -47,7 +48,9 @@ beforeEach(() => {
 })
 
 describe('SearchPanel', () => {
-  it('calls search with the query, default limit and an abort signal, and renders results', async () => {
+  // The collection picker defaults to "All collections" (the '*' sentinel), the common case for a
+  // personal multi-repo tool, so a plain search fans out over every collection by default.
+  it('calls search with the query, default limit, all-collections and an abort signal, and renders results', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
     const wrapper = await mountSearchPanel()
@@ -55,9 +58,21 @@ describe('SearchPanel', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, undefined, expect.any(AbortSignal))
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, '*', expect.any(AbortSignal))
     expect(wrapper.text()).toContain('Greeter.cs')
     expect(wrapper.text()).toContain('Sample.Greeter.Greet')
+  })
+
+  it('scopes to the default collection (undefined) when "Default" is picked', async () => {
+    mockedSearch.mockResolvedValue([sampleResult])
+
+    const wrapper = await mountSearchPanel()
+    await wrapper.get('select[aria-label="Collection to search"]').setValue('')
+    await wrapper.get('input[type="text"]').setValue('greet')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, undefined, expect.any(AbortSignal))
   })
 
   it('shows an empty-state message when a search returns nothing', async () => {
@@ -107,7 +122,7 @@ describe('SearchPanel', () => {
     await wrapper.get('.history-entry').trigger('click')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, undefined, expect.any(AbortSignal))
+    expect(mockedSearch).toHaveBeenCalledWith('greet', 10, '*', expect.any(AbortSignal))
   })
 
   it('filters results by chunk type client-side', async () => {
@@ -136,6 +151,14 @@ describe('SearchPanel', () => {
     await mountSearchPanel('/search?q=preloaded&limit=5')
     await flushPromises()
 
-    expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, undefined, expect.any(AbortSignal))
+    // No collection in the URL, so it keeps the all-collections default ('*').
+    expect(mockedSearch).toHaveBeenCalledWith('preloaded', 5, '*', expect.any(AbortSignal))
+  })
+
+  it('offers an "All collections" option in the picker', async () => {
+    const wrapper = await mountSearchPanel()
+
+    const options = wrapper.findAll('select[aria-label="Collection to search"] option')
+    expect(options.some((o) => o.text() === 'All collections' && o.attributes('value') === '*')).toBe(true)
   })
 })

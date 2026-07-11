@@ -9,6 +9,11 @@ namespace Synth.Api.Mcp;
 /// class/method name, a source snippet and its rerank score — instead of the full internal
 /// chunk (embedding vectors, file hashes, etc.).
 /// </summary>
+/// <param name="Collection">
+/// Which collection this hit was found in. Populated only for all-collections search (SYNTH-48), so
+/// the client can label "found in collection X"; <c>null</c> for a single-collection search, whose
+/// caller already knows the collection and doesn't want the extra visual noise.
+/// </param>
 public sealed record CodeSearchResult(
     string RelativePath,
     string? ClassName,
@@ -19,7 +24,8 @@ public sealed record CodeSearchResult(
     int EndLine,
     string Snippet,
     double Score,
-    string? SourceUrl)
+    string? SourceUrl,
+    string? Collection)
 {
     /// <summary>Projects a matched <see cref="ScoredCodeChunk"/> into a tool result.</summary>
     public static CodeSearchResult From(ScoredCodeChunk scored)
@@ -35,6 +41,7 @@ public sealed record CodeSearchResult(
             chunk.EndLine,
             chunk.Content,
             scored.Score,
-            chunk.SourceUrl);
+            chunk.SourceUrl,
+            string.IsNullOrEmpty(scored.Collection) ? null : scored.Collection);
     }
 }

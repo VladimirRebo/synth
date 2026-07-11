@@ -19,6 +19,9 @@ export interface SearchResult {
   // Provider blob URL (GitHub/GitLab) pointing at this chunk's line range, when the collection was
   // indexed by remote repoUrl. null for local-path-indexed results — render the plain path then.
   sourceUrl: string | null
+  // Which collection this hit came from. Populated only in all-collections mode (?collection=*),
+  // where the whole point is showing "found in collection X"; null for a single-collection search.
+  collection: string | null
 }
 
 // Mirrors Synth.Api.Search.FileChunkResult — one entry per chunk the store holds for a file,
