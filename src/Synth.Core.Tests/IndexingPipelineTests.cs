@@ -56,6 +56,43 @@ public class IndexingPipelineTests : IDisposable
         public void Dispose() { }
     }
 
+    // A generator that throws a caller-supplied exception on its first N GenerateAsync calls, then
+    // (if N is finite) succeeds — used to exercise the per-file embed+upsert retry (SYNTH-46). N < 0
+    // means "always fail". CallCount is Interlocked-tracked so a single file's sequential retries can
+    // be asserted exactly.
+    private sealed class FlakyEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
+    {
+        private readonly Func<Exception> _exceptionFactory;
+        private readonly int _failuresBeforeSuccess;
+        private int _callCount;
+
+        public FlakyEmbeddingGenerator(Func<Exception> exceptionFactory, int failuresBeforeSuccess)
+        {
+            _exceptionFactory = exceptionFactory;
+            _failuresBeforeSuccess = failuresBeforeSuccess;
+        }
+
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
+            IEnumerable<string> values,
+            EmbeddingGenerationOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _callCount);
+            if (_failuresBeforeSuccess < 0 || call <= _failuresBeforeSuccess)
+                throw _exceptionFactory();
+
+            var embeddings = new GeneratedEmbeddings<Embedding<float>>(
+                values.Select(_ => new Embedding<float>(new float[FakeEmbeddingGenerator.Dimensions])));
+            return Task.FromResult(embeddings);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
+    }
+
     // Minimal in-memory ICodeGraphStore for the pipeline's stage-2 output. The real fallback store
     // (InMemoryCodeGraphStore) lives in Synth.Api, which Synth.Core.Tests does not reference, so this
     // stands in — same delete-then-insert / by-collection lookup contract the pipeline relies on.
@@ -727,5 +764,68 @@ public class IndexingPipelineTests : IDisposable
             Assert.Equal($"Sample.Target{i}.Do{i}", edge.Callee);
             Assert.Equal($"Caller{i}.cs", edge.SourceFile);
         }
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_retries_a_transient_embed_failure_and_still_indexes_the_file()
+    {
+        WriteFile("Flaky.cs", "namespace S; public class Flaky { public void M() { } }");
+
+        var store = new LocalCodeChunkStore();
+        // Two transient network failures, then success on the third attempt: the retry must recover
+        // and the file must end up indexed, not skipped (SYNTH-46).
+        var generator = new FlakyEmbeddingGenerator(
+            () => new HttpRequestException("ollama momentarily unreachable"), failuresBeforeSuccess: 2);
+        var pipeline = new IndexingPipeline(
+            [new CSharpRoslynChunker()], generator, store, new FakeCodeGraphStore());
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(1, summary.FilesIndexed);
+        Assert.Equal(0, summary.FilesSkipped);
+        Assert.Equal(3, generator.CallCount); // two failed attempts + the successful third.
+        Assert.NotEmpty(await store.GetByFileAsync(CollectionNames.Default, "Flaky.cs"));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_counts_a_permanently_transient_file_as_skipped_without_aborting()
+    {
+        WriteFile("Doomed.cs", "namespace S; public class Doomed { public void M() { } }");
+
+        var store = new LocalCodeChunkStore();
+        // Every attempt times out (a TaskCanceledException NOT caused by the caller's own token, i.e. a
+        // genuine transient timeout). After exhausting the retries the file is skipped and the run still
+        // completes with a summary — it must not throw or abort the whole job.
+        var generator = new FlakyEmbeddingGenerator(
+            () => new TaskCanceledException("embed timed out"), failuresBeforeSuccess: -1);
+        var pipeline = new IndexingPipeline(
+            [new CSharpRoslynChunker()], generator, store, new FakeCodeGraphStore());
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(0, summary.FilesIndexed);
+        Assert.Equal(1, summary.FilesSkipped);
+        Assert.Equal(3, generator.CallCount); // MaxRetries attempts, all failing, then give up.
+        Assert.Empty(await store.GetByFileAsync(CollectionNames.Default, "Doomed.cs"));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_does_not_retry_a_non_transient_failure_and_fails_fast()
+    {
+        WriteFile("Bug.cs", "namespace S; public class Bug { public void M() { } }");
+
+        var store = new LocalCodeChunkStore();
+        // A dimension mismatch is a real, permanent error — not a flaky hiccup. It must NOT be retried
+        // (retrying would only fail identically) and must still propagate out to fail the job, exactly
+        // as it did before per-file retry existed. Swallowing it into a silent skip would hide real bugs.
+        var generator = new FlakyEmbeddingGenerator(
+            () => new DimensionMismatchException(CollectionNames.Default, 8, 16), failuresBeforeSuccess: -1);
+        var pipeline = new IndexingPipeline(
+            [new CSharpRoslynChunker()], generator, store, new FakeCodeGraphStore());
+
+        await Assert.ThrowsAsync<DimensionMismatchException>(
+            () => pipeline.IndexDirectoryAsync(CollectionNames.Default, _root));
+
+        Assert.Equal(1, generator.CallCount); // tried exactly once — no retry for a non-transient error.
     }
 }

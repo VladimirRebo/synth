@@ -28,6 +28,25 @@ public sealed class IndexingPipeline
     /// </summary>
     private const int MaxIndexingConcurrency = 6;
 
+    /// <summary>
+    /// Per-file resilience for the embed+upsert step (SYNTH-46). A single transient hiccup — the
+    /// embedding generator (Ollama) momentarily unreachable, a Qdrant upsert timeout — shouldn't take
+    /// down a whole indexing run. Each file's embed+upsert is attempted up to <see cref="MaxRetries"/>
+    /// times total with a short exponential backoff between attempts; only genuinely transient failures
+    /// qualify (see <see cref="IsTransient"/>). Hardcoded by design — making these configurable via
+    /// Settings is explicitly out of scope for this task.
+    /// </summary>
+    private const int MaxRetries = 3;
+
+    /// <summary>
+    /// Backoff waited before each retry: after attempt 1 fails, then after attempt 2. Its length is
+    /// <see cref="MaxRetries"/> - 1 (the final attempt is never followed by a wait). Deliberately tiny
+    /// so the common all-succeeds case pays nothing and a flaky moment costs about a second, not
+    /// minutes — a slow retry storm would defeat the point of overlapping files at all.
+    /// </summary>
+    private static readonly TimeSpan[] RetryBackoffs =
+        [TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(800)];
+
     private readonly IReadOnlyList<IFileChunker> _chunkers;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
     private readonly ICodeChunkStore _store;
@@ -190,8 +209,18 @@ public sealed class IndexingPipeline
                 return;
             }
 
-            var embedded = await EmbedAsync(chunks, ct);
-            await _store.UpsertAsync(collection, embedded, ct);
+            var embedded = await TryEmbedAndUpsertAsync(collection, chunks, ct);
+            if (embedded is null)
+            {
+                // The embed+upsert step failed transiently (generator/store momentarily unreachable, a
+                // timeout) and stayed failed after exhausting its retries. Count this one file as skipped
+                // — the same policy the unreadable-file branch above uses — and move on, rather than
+                // letting one flaky moment abort the whole run. Non-transient failures (e.g. a
+                // DimensionMismatchException) are never retried and have already propagated out to fail
+                // the job, exactly as they did before this change.
+                Interlocked.Increment(ref filesSkipped);
+                return;
+            }
 
             Interlocked.Increment(ref filesIndexed);
             Interlocked.Add(ref chunksIndexed, embedded.Count);
@@ -261,6 +290,67 @@ public sealed class IndexingPipeline
     {
         var lastDot = qualifiedName.LastIndexOf('.');
         return lastDot < 0 ? qualifiedName : qualifiedName[(lastDot + 1)..];
+    }
+
+    // Embeds a file's chunks and upserts them, retrying the whole step a few times with backoff when
+    // it fails transiently (SYNTH-46). Returns the embedded chunks on success, or null when every
+    // attempt hit a transient failure — the caller then counts the file as skipped, exactly as it does
+    // for an unreadable file, instead of letting one flaky moment abort the entire run. A NON-transient
+    // exception (e.g. DimensionMismatchException from SYNTH-32) is never caught here: it propagates out
+    // to fail the job as it always has, since retrying it would only fail identically and burn the
+    // budget for nothing. Only the embed+upsert is wrapped — chunking (a parse failure isn't transient)
+    // ran earlier and is deliberately outside this retry.
+    private async Task<IReadOnlyList<CodeChunk>?> TryEmbedAndUpsertAsync(
+        string collection,
+        IReadOnlyList<CodeChunk> chunks,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                var embedded = await EmbedAsync(chunks, cancellationToken);
+                await _store.UpsertAsync(collection, embedded, cancellationToken);
+                return embedded;
+            }
+            catch (Exception ex) when (IsTransient(ex, cancellationToken))
+            {
+                if (attempt == MaxRetries)
+                    return null; // Exhausted the retry budget on transient failures — skip this file.
+
+                await Task.Delay(RetryBackoffs[attempt - 1], cancellationToken);
+            }
+        }
+
+        return null; // Unreachable: the loop above always returns a result or null.
+    }
+
+    // A transient failure is one worth retrying because it may clear on its own: a network error, a
+    // timeout that isn't the caller's own cancellation, or a gRPC Unavailable/DeadlineExceeded from the
+    // Qdrant client. Everything else (a real bug, a dimension mismatch, a genuine external cancellation)
+    // is NOT transient and must not be retried. The timeout-vs-cancellation check mirrors
+    // EmbeddingSettingsEndpoints.ProbeAsync: an OperationCanceledException (TaskCanceledException is one)
+    // is a genuine cancellation only when the caller's own token actually asked to stop; otherwise it's
+    // an internal timeout and is retryable.
+    private static bool IsTransient(Exception ex, CancellationToken cancellationToken) => ex switch
+    {
+        HttpRequestException => true,
+        OperationCanceledException => !cancellationToken.IsCancellationRequested,
+        _ => IsTransientRpcException(ex),
+    };
+
+    // The Qdrant store lives in another assembly and pulls in Grpc.Core; Synth.Core doesn't reference
+    // it, so recognize its RpcException by type name and read the StatusCode enum reflectively rather
+    // than taking a whole gRPC dependency just to name the type. Only Unavailable and DeadlineExceeded
+    // are transient — a schema/dimension error surfaces as a different status (or a different exception
+    // type entirely) and must not be blanket-retried.
+    private static bool IsTransientRpcException(Exception ex)
+    {
+        if (ex.GetType().FullName != "Grpc.Core.RpcException")
+            return false;
+
+        return ex.GetType().GetProperty("StatusCode")?.GetValue(ex) is Enum statusCode
+            && statusCode.ToString() is "Unavailable" or "DeadlineExceeded";
     }
 
     // Embeds a whole file's chunks in one batched generator call, then attaches each
