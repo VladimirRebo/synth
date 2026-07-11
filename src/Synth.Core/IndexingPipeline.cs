@@ -16,8 +16,8 @@ namespace Synth.Core;
 /// </summary>
 public sealed class IndexingPipeline
 {
-    /// <summary>Directory names never descended into (build output and VCS metadata).</summary>
-    private static readonly string[] SkippedDirectorySegments = ["bin", "obj", ".git"];
+    /// <summary>Directory names never descended into (build output, VCS metadata, JS deps).</summary>
+    private static readonly string[] SkippedDirectorySegments = ["bin", "obj", ".git", "node_modules"];
 
     private readonly IReadOnlyList<IFileChunker> _chunkers;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
@@ -249,15 +249,13 @@ public sealed class IndexingPipeline
         return embedded;
     }
 
-    // Start with C# only — matching the one chunker that exists (CSharpRoslynChunker). Walks
-    // manually (rather than Directory.EnumerateFiles(..., AllDirectories)) so a single unreadable
-    // subdirectory is skipped like any other unreadable file, instead of throwing out of the lazy
-    // iterator and aborting the whole run.
-    private IEnumerable<string> EnumerateSourceFiles(string rootPath)
-    {
-        foreach (var file in EnumerateFilesRecursive(rootPath))
-            yield return file;
-    }
+    // Enumerate every file any registered chunker claims (CanHandle), not a hard-coded extension —
+    // so newly registered chunkers (e.g. TsVueChunker for .ts/.tsx/.vue) are picked up here without
+    // touching the dispatch logic below. Walks manually (rather than
+    // Directory.EnumerateFiles(..., AllDirectories)) so a single unreadable subdirectory is skipped
+    // like any other unreadable file, instead of throwing out of the lazy iterator and aborting the run.
+    private IEnumerable<string> EnumerateSourceFiles(string rootPath) =>
+        EnumerateFilesRecursive(rootPath).Where(file => _chunkers.Any(chunker => chunker.CanHandle(file)));
 
     private static IEnumerable<string> EnumerateFilesRecursive(string directory)
     {
@@ -265,7 +263,7 @@ public sealed class IndexingPipeline
         string[] subdirectories;
         try
         {
-            files = Directory.GetFiles(directory, "*.cs");
+            files = Directory.GetFiles(directory);
             subdirectories = Directory.GetDirectories(directory)
                 .Where(d => !SkippedDirectorySegments.Contains(Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
                 .ToArray();

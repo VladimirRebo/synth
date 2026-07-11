@@ -16,9 +16,10 @@ public static class IndexingServiceExtensions
 {
     public static IHostApplicationBuilder AddSynthIndexing(this IHostApplicationBuilder builder)
     {
-        // Only the C# Roslyn chunker exists today; the pipeline picks the first whose
-        // CanHandle matches, so more languages can be registered here later.
+        // The pipeline picks the first chunker whose CanHandle matches; each owns disjoint
+        // extensions (.cs vs .ts/.tsx/.vue), so registration order doesn't matter here.
         builder.Services.AddSingleton<IFileChunker, CSharpRoslynChunker>();
+        builder.Services.AddSingleton<IFileChunker, TsVueChunker>();
         builder.Services.AddSingleton<IndexingPipeline>();
 
         // Single, process-lifetime job tracker so a client can poll indexing progress (issue #39).

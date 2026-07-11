@@ -147,6 +147,55 @@ public class IndexingPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IndexDirectoryAsync_chunks_cs_and_ts_vue_files_with_their_respective_chunkers()
+    {
+        // One .cs file (Roslyn chunker) and one .ts + one .vue file (TsVueChunker) in the same run.
+        WriteFile("Backend.cs", """
+            namespace Sample;
+
+            public class Backend
+            {
+                public void Serve() { }
+            }
+            """);
+        WriteFile("client/widget.ts", """
+            export function render(): string {
+                return "hi";
+            }
+            """);
+        WriteFile("client/App.vue", """
+            <template><div /></template>
+
+            <script setup lang="ts">
+            const title = () => "Synth";
+            </script>
+            """);
+
+        var store = new LocalCodeChunkStore();
+        var pipeline = new IndexingPipeline(
+            [new CSharpRoslynChunker(), new TsVueChunker()],
+            new FakeEmbeddingGenerator(),
+            store,
+            new FakeCodeGraphStore());
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(3, summary.FilesIndexed);
+        Assert.Equal(0, summary.FilesSkipped);
+
+        // The C# file is chunked by the Roslyn chunker (class + method).
+        var csChunks = await store.GetByFileAsync(CollectionNames.Default, "Backend.cs");
+        Assert.Contains(csChunks, c => c.ChunkType == ChunkType.Class && c.ClassName == "Backend");
+
+        // The .ts and .vue files are chunked by the TsVueChunker.
+        var tsChunks = await store.GetByFileAsync(CollectionNames.Default, "client/widget.ts");
+        Assert.Contains(tsChunks, c => c.ChunkType == ChunkType.Method && c.MethodName == "render");
+
+        var vueChunks = await store.GetByFileAsync(CollectionNames.Default, "client/App.vue");
+        Assert.Contains(vueChunks, c => c.ChunkType == ChunkType.Method && c.MethodName == "title");
+    }
+
+    [Fact]
     public async Task IndexDirectoryAsync_with_repoInfo_stamps_source_url_on_every_chunk()
     {
         // Foo: class + method => 2 chunks, each getting a GitHub blob URL for its own line range.
