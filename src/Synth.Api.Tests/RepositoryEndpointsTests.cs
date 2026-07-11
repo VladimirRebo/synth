@@ -45,6 +45,59 @@ public class RepositoryEndpointsTests : IClassFixture<WebApplicationFactory<Prog
         return registry;
     }
 
+    // Seeds three repos with distinct LastIndexedAt so the endpoint's most-recently-indexed-first
+    // order is deterministic: newest -> repo-2, repo-1, repo-0.
+    private static async Task<InMemoryRepositoryRegistry> SeededRegistryOrdered()
+    {
+        var registry = new InMemoryRepositoryRegistry();
+        for (var i = 0; i < 3; i++)
+        {
+            await registry.UpsertAsync(new RepositoryEntry
+            {
+                Collection = $"repo-{i}",
+                SourceType = "local",
+                Source = $"/tmp/repo-{i}",
+                LastIndexedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(i),
+                ChunkCount = 1,
+            });
+        }
+
+        return registry;
+    }
+
+    [Fact]
+    public async Task List_without_pagination_returns_every_repository()
+    {
+        var client = CreateClient(await SeededRegistry("repo-a", "repo-b", "repo-c"));
+
+        var listed = await client.GetFromJsonAsync<List<RepositoryEntry>>("/repositories");
+
+        Assert.NotNull(listed);
+        Assert.Equal(3, listed!.Count);
+    }
+
+    [Fact]
+    public async Task List_with_limit_and_offset_returns_the_requested_slice()
+    {
+        var client = CreateClient(await SeededRegistryOrdered());
+
+        // Ordered newest-first (repo-2, repo-1, repo-0); skip 1, take 1 -> repo-1.
+        var listed = await client.GetFromJsonAsync<List<RepositoryEntry>>("/repositories?limit=1&offset=1");
+
+        Assert.NotNull(listed);
+        Assert.Equal(new[] { "repo-1" }, listed!.Select(e => e.Collection));
+    }
+
+    [Fact]
+    public async Task List_with_a_negative_limit_returns_400()
+    {
+        var client = CreateClient(await SeededRegistry("repo-a"));
+
+        var response = await client.GetAsync("/repositories?limit=-1");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Delete_removes_the_collection_from_a_subsequent_list()
     {
