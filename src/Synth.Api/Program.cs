@@ -134,6 +134,11 @@ app.MapVcsSettingsEndpoints();
 // persisted so a broken provider is never saved.
 app.MapEmbeddingSettingsEndpoints();
 
+// Ollama model picker for the Embedding settings (SYNTH-50): list locally-available models
+// (GET /settings/embedding/ollama/models) and pull a new one (POST .../pull) with polled progress
+// (GET .../pull/status). Fire-and-forget + polling, matching the indexing job pattern — no SSE.
+app.MapOllamaModelEndpoints();
+
 // Advanced Settings escape hatch (GET/PUT /settings/raw): read/replace the whole config document as
 // plain JSON, secrets unmasked, no probe — a deliberate power-user path that trusts the caller and
 // validates only that the body is a well-formed JSON object. Shares the section endpoints' reload path.

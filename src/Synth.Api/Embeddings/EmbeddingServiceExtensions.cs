@@ -53,6 +53,14 @@ public static class EmbeddingServiceExtensions
         // probe-before-persist check (tests swap this for a fake to control probe success/failure).
         builder.Services.AddSingleton<IEmbeddingGeneratorFactory, EmbeddingGeneratorFactory>();
 
+        // Single, process-lifetime tracker for the Ollama model pull (SYNTH-50), so the client can poll
+        // pull progress instead of streaming — same shape as the indexing job tracker.
+        builder.Services.AddSingleton<IOllamaPullTracker, InMemoryOllamaPullTracker>();
+
+        // IHttpClientFactory for the Ollama model-list proxy and pull stream (SYNTH-50). AddHttpClient is
+        // idempotent, so this is a no-op if AddSynthVcs already registered it for its token probe.
+        builder.Services.AddHttpClient();
+
         return builder;
     }
 }
