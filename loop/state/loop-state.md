@@ -100,3 +100,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-53 | MERGED | PR #84 merged to main (4141412); issue #80 slice 1/many (config -> file/env) |
 - | SYNTH-52 | COMPLETED | validator PASS, committed on fix/SYNTH-52 |
 - | SYNTH-52 | MERGED | PR #85 merged to main (b0af412), rebased onto post-SYNTH-53 main by hand (conflict in ConfigStoreExtensions.cs/MongoConfigStore.cs, resolved); issue #82 slice 1/many |
+- | SYNTH-54 | COMPLETED | validator PASS, committed on fix/SYNTH-54 |
+- | SYNTH-54 | MERGED | PR #86 merged to main (2a57a7b); issue #82 slice 2/many |
