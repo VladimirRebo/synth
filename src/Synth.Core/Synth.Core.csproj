@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <!-- IEmbeddingGenerator<string, Embedding<float>> abstraction used by the indexing pipeline. -->
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
     <!-- IOptionsMonitor<VcsOptions> so GitRepoService reads live-reloadable VCS config/tokens. -->

@@ -19,10 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Synth.Core\Synth.Core.csproj" />
-    <!-- IndexingPipelineTests instantiates both concrete chunkers directly to exercise the pipeline
-         end-to-end across .cs/.ts/.vue files. -->
-    <ProjectReference Include="..\..\src\Synth.Chunkers.CSharp\Synth.Chunkers.CSharp.csproj" />
     <ProjectReference Include="..\..\src\Synth.Chunkers.TsVue\Synth.Chunkers.TsVue.csproj" />
   </ItemGroup>
 

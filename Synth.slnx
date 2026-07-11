@@ -3,11 +3,15 @@
     <Project Path="src/Synth.Api/Synth.Api.csproj" />
   </Folder>
   <Project Path="src/Synth.AppHost/Synth.AppHost.csproj" />
+  <Project Path="src/Synth.Chunkers.CSharp/Synth.Chunkers.CSharp.csproj" />
+  <Project Path="src/Synth.Chunkers.TsVue/Synth.Chunkers.TsVue.csproj" />
   <Project Path="src/Synth.Core/Synth.Core.csproj" />
   <Project Path="src/Synth.Mcp.Stdio/Synth.Mcp.Stdio.csproj" />
   <Project Path="src/Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
   <Folder Name="/Tests/">
     <Project Path="tests/Synth.Api.Tests/Synth.Api.Tests.csproj" />
+    <Project Path="tests/Synth.Chunkers.CSharp.Tests/Synth.Chunkers.CSharp.Tests.csproj" />
+    <Project Path="tests/Synth.Chunkers.TsVue.Tests/Synth.Chunkers.TsVue.Tests.csproj" />
     <Project Path="tests/Synth.Core.Tests/Synth.Core.Tests.csproj" />
   </Folder>
 </Solution>
