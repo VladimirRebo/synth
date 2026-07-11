@@ -1,7 +1,7 @@
 ---
 id: SYNTH-50
 summary: "Settings: Ollama model picker with pull progress"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'OllamaModelEndpoints' src/Synth.Api/"
 acceptance_criterion: ""
 boundaries: "New backend endpoints live under /settings/embedding/ollama/... (bare, no /api prefix). Reuse this project's established fire-and-forget + polling pattern (IIndexJobTracker) for the pull job — do not build a streaming/SSE mechanism, this project's standing convention is REST polling. Do not touch the OpenAI settings path at all — this is Ollama-specific."
