@@ -96,3 +96,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-50 | COMPLETED | validator PASS after fixing malformed acceptance_command grep, merged via #79 |
 - | SYNTH-51 | COMPLETED | validator PASS, committed on fix/SYNTH-51 |
 - | SYNTH-51 | MERGED | PR #83 merged to main (eb30518); closes issue #81 |
+- | SYNTH-53 | COMPLETED | validator PASS, committed on fix/SYNTH-53 |
+- | SYNTH-53 | MERGED | PR #84 merged to main (4141412); issue #80 slice 1/many (config -> file/env) |
