@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Api.Embeddings;
 using Synth.Api.Graph;
+using Synth.Api.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
@@ -58,10 +59,18 @@ public static class StdioMcpHost
         builder.Services.AddSingleton<GitRepoService>();
         builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
 
+        // Health checks so the `health_check` tool (SYNTH-43) resolves IHealthCheckService over stdio
+        // just as it does over HTTP. Its Qdrant probe seam resolves QdrantClient lazily via GetService
+        // (from AddSynthVectorStore), so with no live Qdrant configured for the stdio process it falls
+        // back to the always-healthy NotConfiguredQdrantHealthProbe — SYNTH-35's own "not configured"
+        // pattern; the embedding factory it also needs comes from AddSynthEmbeddings above.
+        builder.Services.AddSynthHealthChecks();
+
         // MCP server over stdio (not HTTP): the same search_code + call-graph + index_code +
-        // get_symbol + get_file tools, spawned by the client on stdin/stdout. get_symbol resolves
-        // ICodeChunkStore (from AddSynthVectorStore); get_file resolves IRepositoryRegistry +
-        // GitRepoService wired just above. No HTTP endpoints are mapped in this process.
+        // get_symbol + get_file + list_collections + delete_collection + health_check tools, spawned by
+        // the client on stdin/stdout. list_collections/delete_collection resolve IRepositoryRegistry
+        // (wired just above) + the chunk/graph stores; health_check resolves IHealthCheckService (wired
+        // just above). No HTTP endpoints are mapped in this process.
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
@@ -69,7 +78,10 @@ public static class StdioMcpHost
             .WithTools<CallGraphTool>()
             .WithTools<IndexCodeTool>()
             .WithTools<GetSymbolTool>()
-            .WithTools<GetFileTool>();
+            .WithTools<GetFileTool>()
+            .WithTools<ListCollectionsTool>()
+            .WithTools<DeleteCollectionTool>()
+            .WithTools<HealthCheckTool>();
 
         return builder;
     }
