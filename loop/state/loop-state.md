@@ -90,3 +90,7 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-45 | COMPLETED | validator PASS, committed on fix/SYNTH-45 |
 - | SYNTH-46 | COMPLETED | validator PASS, committed on fix/SYNTH-46 |
 - | SYNTH-47 | COMPLETED | validator PASS, committed on fix/SYNTH-47 |
+- | SYNTH-48 | COMPLETED | validator PASS, committed on fix/SYNTH-48 |
+- | SYNTH-49 | COMPLETED | validator PASS, committed on fix/SYNTH-49 |
+- | SYNTH-50 | FAILED | validator exit=1 |
+- | SYNTH-50 | COMPLETED | validator PASS after fixing malformed acceptance_command grep, merged via #79 |
