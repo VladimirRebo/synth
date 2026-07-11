@@ -7,8 +7,12 @@ namespace Synth.Core;
 /// <see cref="CodeSearchService.SearchAsync"/>. Not bounded to [0, 1] — it is raw cosine
 /// similarity multiplied by chunk-type weight (up to 1.15) and keyword boost (1 + 0.5 per
 /// matching token), so it can exceed 1. Treat it as a relative ranking signal, not a percentage.
+/// <paramref name="Collection"/> records which collection the chunk was found in; it is only
+/// populated by <see cref="CodeSearchService.SearchAllCollectionsAsync"/> (the whole point of that
+/// mode is showing "found in collection X") and stays <c>null</c> for the single-collection
+/// <see cref="CodeSearchService.SearchAsync"/> path, which doesn't need the label.
 /// </summary>
-public readonly record struct ScoredCodeChunk(CodeChunk Chunk, double Score);
+public readonly record struct ScoredCodeChunk(CodeChunk Chunk, double Score, string? Collection = null);
 
 /// <summary>
 /// Search entry point over the indexed <see cref="CodeChunk"/>s: expands the query, embeds it,
@@ -56,18 +60,70 @@ public sealed class CodeSearchService
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
             return [];
 
-        var expanded = _queryExpander.Expand(query);
-        var embedding = await _embeddingGenerator.GenerateAsync([expanded], cancellationToken: cancellationToken);
-        var queryVector = embedding[0].Vector;
+        var queryVector = await EmbedQueryAsync(query, cancellationToken);
 
         // Over-fetch so reranking has room to reorder and dedup can drop near-duplicates
         // without starving the final result set.
         var candidates = await _store.SearchAsync(collection, queryVector, limit * OverFetchFactor, cancellationToken);
 
+        // Single-collection mode leaves Collection null — the caller already knows which one it is.
+        return RerankAndTrim(candidates.Select(c => (c.Chunk, c.Score, (string?)null)), query, limit);
+    }
+
+    /// <summary>
+    /// Returns up to <paramref name="limit"/> code chunks drawn from every collection in
+    /// <paramref name="collections"/> most relevant to <paramref name="query"/>, merged into a single
+    /// ranked list, each paired with its rerank score and tagged (via <see cref="ScoredCodeChunk.Collection"/>)
+    /// with the collection it came from. The query is expanded and embedded exactly once and the same
+    /// vector is reused for every collection's store search (for both cost and latency), then all
+    /// collections' candidates run through the same rerank/dedup/take pipeline as <see cref="SearchAsync"/>.
+    /// Returns an empty list for a non-positive limit, a blank query, or an empty collection list.
+    /// </summary>
+    public async Task<IReadOnlyList<ScoredCodeChunk>> SearchAllCollectionsAsync(
+        IReadOnlyList<string> collections,
+        string query,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0 || string.IsNullOrWhiteSpace(query) || collections.Count == 0)
+            return [];
+
+        // Embed once, reuse the vector across every collection's store search.
+        var queryVector = await EmbedQueryAsync(query, cancellationToken);
+
+        var candidates = new List<(CodeChunk Chunk, float Score, string? Collection)>();
+        foreach (var collection in collections)
+        {
+            var hits = await _store.SearchAsync(collection, queryVector, limit * OverFetchFactor, cancellationToken);
+            foreach (var hit in hits)
+                candidates.Add((hit.Chunk, hit.Score, collection));
+        }
+
+        return RerankAndTrim(candidates, query, limit);
+    }
+
+    // Expands the query, embeds it once, and returns the query vector. Shared by both search paths
+    // so the expand+embed step (the single embedding-generator call) is never duplicated.
+    private async Task<ReadOnlyMemory<float>> EmbedQueryAsync(string query, CancellationToken cancellationToken)
+    {
+        var expanded = _queryExpander.Expand(query);
+        var embedding = await _embeddingGenerator.GenerateAsync([expanded], cancellationToken: cancellationToken);
+        return embedding[0].Vector;
+    }
+
+    // Shared rerank/dedup/take tail: apply chunk-type weight × keyword boost to each candidate's raw
+    // vector score, carry through its collection tag, order by descending score, dedup, take(limit).
+    // Both SearchAsync (one collection) and SearchAllCollectionsAsync (merged candidates) end here.
+    private static IReadOnlyList<ScoredCodeChunk> RerankAndTrim(
+        IEnumerable<(CodeChunk Chunk, float Score, string? Collection)> candidates,
+        string query,
+        int limit)
+    {
         var ranked = candidates
             .Select(candidate => new ScoredCodeChunk(
                 candidate.Chunk,
-                candidate.Score * ChunkTypeWeight(candidate.Chunk.ChunkType) * KeywordBoost(query, candidate.Chunk)))
+                candidate.Score * ChunkTypeWeight(candidate.Chunk.ChunkType) * KeywordBoost(query, candidate.Chunk),
+                candidate.Collection))
             .OrderByDescending(scored => scored.Score);
 
         return Deduplicate(ranked).Take(limit).ToList();

@@ -108,6 +108,49 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         }
     }
 
+    // SYNTH-48: ?collection=* searches every known collection and tags each result with the
+    // collection it was found in. Indexing a directory populates the default collection and registers
+    // it, so an all-collections search fans out over it and each hit carries "collection":"default".
+    [Fact]
+    public async Task Search_all_collections_tags_each_result_with_its_collection()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("synth-search-all-collections-test-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "Greeter.cs"), """
+                namespace Sample;
+
+                public class Greeter
+                {
+                    public string Greet(string name) => $"Hello, {name}!";
+                }
+                """);
+
+            var client = _factory.CreateClient();
+            var indexResponse = await client.PostAsJsonAsync("/index", new { path = tempDir.FullName });
+            Assert.Equal(HttpStatusCode.Accepted, indexResponse.StatusCode);
+            await WaitForIndexDoneAsync(client);
+
+            var searchResponse = await client.GetAsync("/search?q=greet&collection=*");
+
+            Assert.Equal(HttpStatusCode.OK, searchResponse.StatusCode);
+            var raw = await searchResponse.Content.ReadAsStringAsync();
+
+            var deserializeOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            deserializeOptions.Converters.Add(new JsonStringEnumConverter());
+            var results = JsonSerializer.Deserialize<List<CodeSearchResult>>(raw, deserializeOptions);
+            Assert.NotNull(results);
+            Assert.NotEmpty(results);
+            // Every result reports which collection it came from — here the only indexed one, "default".
+            Assert.All(results, r => Assert.Equal("default", r.Collection));
+            Assert.Contains(results, r => r.ClassName == "Greeter");
+        }
+        finally
+        {
+            tempDir.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Search_returns_400_when_q_is_missing()
     {

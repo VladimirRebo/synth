@@ -38,6 +38,9 @@ function toggle() {
       >
       <span v-else class="path">{{ result.relativePath }}</span>
       <span class="spacer" />
+      <!-- Present only in all-collections search (result.collection populated), so single-collection
+           results stay uncluttered — shows which repo this hit was found in. -->
+      <span v-if="result.collection" class="badge collection-badge">{{ result.collection }}</span>
       <span class="score" :title="`Rerank score: ${result.score.toFixed(3)}`">{{
         result.score.toFixed(2)
       }}</span>
@@ -115,6 +118,11 @@ function toggle() {
   color: var(--accent);
   background: var(--accent-bg);
   white-space: nowrap;
+}
+
+.collection-badge {
+  color: var(--text);
+  background: var(--code-bg);
 }
 
 .chevron {

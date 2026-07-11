@@ -20,11 +20,16 @@ public class CodeSearchServiceTests
 
         public string? LastValue { get; private set; }
 
+        // How many times GenerateAsync was invoked — used to prove all-collections search embeds
+        // the query exactly once and reuses the vector across every collection's store search.
+        public int Calls { get; private set; }
+
         public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
             IEnumerable<string> values,
             EmbeddingGenerationOptions? options = null,
             CancellationToken cancellationToken = default)
         {
+            Calls++;
             var list = values.ToList();
             LastValue = list.LastOrDefault();
             var embeddings = new GeneratedEmbeddings<Embedding<float>>(
@@ -166,6 +171,50 @@ public class CodeSearchServiceTests
         await store.UpsertAsync(CollectionNames.Default, [Chunk("f.cs", "A", "M", ChunkType.Method)]);
 
         var results = await ServiceFor(store).SearchAsync(CollectionNames.Default, "m", limit);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAsync_leaves_collection_unset_on_the_single_collection_path()
+    {
+        // Single-collection search doesn't populate Collection — the caller already knows it, and the
+        // client hides the per-result collection label in that mode.
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("f.cs", "A", "M", ChunkType.Method)]);
+
+        var results = await ServiceFor(store).SearchAsync(CollectionNames.Default, "m", limit: 5);
+
+        Assert.All(results, scored => Assert.Null(scored.Collection));
+    }
+
+    [Fact]
+    public async Task SearchAllCollectionsAsync_merges_results_from_every_collection_with_one_embedding_call()
+    {
+        // Two populated collections, each with a chunk sharing the query token "handle": the search
+        // must fan out over both, merge into one ranked list, tag each result with its collection,
+        // and embed the query exactly once (reusing the vector across both store searches).
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync("repo-a", [Chunk("a.cs", "Alpha", "Handle", ChunkType.Method, startLine: 10)]);
+        await store.UpsertAsync("repo-b", [Chunk("b.cs", "Beta", "Handle", ChunkType.Method, startLine: 20)]);
+        var generator = new ConstantEmbeddingGenerator(SharedVector);
+        var service = new CodeSearchService(generator, store, new QueryExpander());
+
+        var results = await service.SearchAllCollectionsAsync(["repo-a", "repo-b"], "handle", limit: 10);
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, scored => scored.Collection == "repo-a" && scored.Chunk.ClassName == "Alpha");
+        Assert.Contains(results, scored => scored.Collection == "repo-b" && scored.Chunk.ClassName == "Beta");
+        Assert.Equal(1, generator.Calls); // embedded once, reused across every collection's store search
+    }
+
+    [Fact]
+    public async Task SearchAllCollectionsAsync_returns_empty_for_no_collections()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default, [Chunk("f.cs", "A", "M", ChunkType.Method)]);
+
+        var results = await ServiceFor(store).SearchAllCollectionsAsync([], "m", limit: 5);
 
         Assert.Empty(results);
     }

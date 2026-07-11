@@ -12,12 +12,18 @@ const { repositories, refresh: refreshRepositories } = useRepositories()
 const route = useRoute()
 const router = useRouter()
 
+// Sentinel the backend (GET /search) accepts in place of a real collection name to mean "search
+// every known collection at once" (CollectionNames.All) — merged into one ranked list, each result
+// tagged with the collection it came from. Default selection, since not remembering which repo has
+// what is the common case for a personal multi-repo tool.
+const ALL_COLLECTIONS = '*'
+
 const query = ref('')
 const limit = ref(10)
-// Empty selection lets GET /search fall back to its own default (CollectionNames.Default,
-// "default" — the same collection local-path indexing uses, so it shows up in the picker too
-// once something's been indexed).
-const collection = ref('')
+// Defaults to all-collections. The empty string selects GET /search's own fallback
+// (CollectionNames.Default, "default" — the same collection local-path indexing uses, so it shows
+// up in the picker too once something's been indexed); a real collection name scopes to that repo.
+const collection = ref(ALL_COLLECTIONS)
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -241,6 +247,7 @@ onUnmounted(() => {
         </div>
       </div>
       <select v-model="collection" aria-label="Collection to search" class="collection">
+        <option :value="ALL_COLLECTIONS">All collections</option>
         <option value="">Default</option>
         <option
           v-for="repo in repositories.filter((r) => r.collection !== 'default')"

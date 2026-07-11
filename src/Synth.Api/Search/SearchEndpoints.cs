@@ -1,4 +1,5 @@
 using Synth.Api.Mcp;
+using Synth.Api.Vcs;
 using Synth.Core;
 
 namespace Synth.Api.Search;
@@ -14,15 +15,29 @@ public static class SearchEndpoints
 {
     public static IEndpointRouteBuilder MapSearchEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/search", async (string? q, int? limit, string? collection, CodeSearchService searchService, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/search", async (string? q, int? limit, string? collection, CodeSearchService searchService, IRepositoryRegistry registry, CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(q))
                 return Results.BadRequest(new { error = "q is required" });
 
-            // Optional ?collection= scopes the search to one indexed repo; defaults to the main
-            // codebase so existing callers are unaffected (ready for SYNTH-20's collection picker).
-            var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
-            var chunks = await searchService.SearchAsync(target, q, limit ?? 10, cancellationToken);
+            IReadOnlyList<ScoredCodeChunk> chunks;
+            if (collection == CollectionNames.All)
+            {
+                // ?collection=* fans out over every known collection (SYNTH-48): merge into one ranked
+                // list, each result tagged with the collection it came from. The query is embedded once
+                // inside SearchAllCollectionsAsync and reused across every collection's store search.
+                var collections = (await registry.ListAsync(cancellationToken)).Select(r => r.Collection).ToList();
+                chunks = await searchService.SearchAllCollectionsAsync(collections, q, limit ?? 10, cancellationToken);
+            }
+            else
+            {
+                // Optional ?collection= scopes the search to one indexed repo; defaults to the main
+                // codebase so existing callers are unaffected. Omitting it still means "the default
+                // collection" — the all-collections mode is opt-in via the explicit '*' sentinel.
+                var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+                chunks = await searchService.SearchAsync(target, q, limit ?? 10, cancellationToken);
+            }
+
             return Results.Ok(chunks.Select(CodeSearchResult.From).ToList());
         });
 

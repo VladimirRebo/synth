@@ -17,6 +17,7 @@ function result(overrides: Partial<SearchResult> = {}): SearchResult {
     snippet: 'public string Greet(string name) => $"Hello, {name}!";',
     score: 1.2,
     sourceUrl: null,
+    collection: null,
     ...overrides,
   }
 }
@@ -38,5 +39,20 @@ describe('SearchResultItem', () => {
 
     expect(wrapper.find('a.path').exists()).toBe(false)
     expect(wrapper.get('span.path').text()).toBe('src/Greeter.cs')
+  })
+
+  // SYNTH-48: all-collections results carry a `collection`, shown as a badge so you can see which
+  // repo each hit came from; single-collection results (collection null) omit it to avoid noise.
+  it('shows the collection badge when the result carries a collection', () => {
+    const wrapper = mount(SearchResultItem, { props: { result: result({ collection: 'my-repo' }) } })
+
+    const badge = wrapper.get('.collection-badge')
+    expect(badge.text()).toBe('my-repo')
+  })
+
+  it('omits the collection badge when the result has no collection', () => {
+    const wrapper = mount(SearchResultItem, { props: { result: result({ collection: null }) } })
+
+    expect(wrapper.find('.collection-badge').exists()).toBe(false)
   })
 })
