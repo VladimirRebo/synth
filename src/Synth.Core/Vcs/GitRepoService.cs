@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Options;
+using Synth.Domain.Vcs;
 
 namespace Synth.Core.Vcs;
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Vcs;
 

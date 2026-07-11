@@ -1,4 +1,4 @@
-namespace Synth.Core.Graph;
+namespace Synth.Domain.Graph;
 
 /// <summary>
 /// Storage for the structural call graph: directed <see cref="CallEdge"/>s answering "who calls X"

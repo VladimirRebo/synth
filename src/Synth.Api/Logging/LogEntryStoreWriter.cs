@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Logging;
 

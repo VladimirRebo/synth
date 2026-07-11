@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Logging;
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Core.Tests.Vcs;
 

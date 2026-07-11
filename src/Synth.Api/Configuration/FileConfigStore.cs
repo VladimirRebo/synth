@@ -1,3 +1,4 @@
+using Synth.Domain.Configuration;
 namespace Synth.Api.Configuration;
 
 // File-backed IConfigStore: a single JSON document under a local path

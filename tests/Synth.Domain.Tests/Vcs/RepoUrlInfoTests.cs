@@ -1,6 +1,6 @@
-using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
-namespace Synth.Core.Tests.Vcs;
+namespace Synth.Domain.Tests.Vcs;
 
 // SYNTH-18: URL parsing + provider classification + stable, Qdrant-safe collection slug derivation.
 public class RepoUrlInfoTests

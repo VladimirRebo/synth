@@ -1,4 +1,4 @@
-namespace Synth.Api.Configuration;
+namespace Synth.Domain.Configuration;
 
 // The single source for Synth's mutable configuration document (layer 2 in the
 // config-layering scheme: appsettings -> IConfigStore -> environment variables).

@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using Synth.Api.Logging;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Tests;
 

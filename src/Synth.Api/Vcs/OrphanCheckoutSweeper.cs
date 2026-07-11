@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Vcs;
 

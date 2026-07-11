@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Synth.Domain.Configuration;
 
 namespace Synth.Api.Configuration;
 

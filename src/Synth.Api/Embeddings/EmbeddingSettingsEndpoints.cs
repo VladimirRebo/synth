@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Synth.Api.Configuration;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
+using Synth.Domain.Configuration;
 
 namespace Synth.Api.Embeddings;
 

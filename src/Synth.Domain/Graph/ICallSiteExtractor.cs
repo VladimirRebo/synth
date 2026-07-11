@@ -1,4 +1,4 @@
-namespace Synth.Core.Graph;
+namespace Synth.Domain.Graph;
 
 /// <summary>
 /// One unresolved invocation observed in source: method/constructor <see cref="CallerQualifiedName"/>

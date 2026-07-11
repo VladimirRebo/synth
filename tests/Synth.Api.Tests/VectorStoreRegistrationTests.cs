@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Synth.Api.Storage;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Api.Tests;
 

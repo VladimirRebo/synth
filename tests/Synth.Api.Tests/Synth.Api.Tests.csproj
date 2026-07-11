@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Synth.Domain\Synth.Domain.csproj" />
     <ProjectReference Include="..\..\src\Synth.Api\Synth.Api.csproj" />
     <ProjectReference Include="..\..\src\Synth.Mcp.Stdio\Synth.Mcp.Stdio.csproj" />
   </ItemGroup>

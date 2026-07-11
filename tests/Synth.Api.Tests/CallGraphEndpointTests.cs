@@ -6,7 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Synth.Api.Graph;
 using Synth.Core;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
+using Synth.Domain;
 
 namespace Synth.Api.Tests;
 

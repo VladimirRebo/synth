@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Pure domain layer: types and interfaces with no infrastructure dependency. The moved types
+       only need the BCL (CodeChunk's embedding vector is a plain ReadOnlyMemory<float>, option
+       records are plain POCOs), so no PackageReference belongs here. Database/vector-store client
+       packages stay out of this project — they belong to the Infrastructure layer. -->
+
+</Project>

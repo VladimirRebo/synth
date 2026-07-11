@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Vcs;
 

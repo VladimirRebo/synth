@@ -3,6 +3,8 @@ using ModelContextProtocol.Server;
 using Synth.Api.Vcs;
 using Synth.Core;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
+using Synth.Domain;
 
 namespace Synth.Api.Mcp;
 

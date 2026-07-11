@@ -1,4 +1,4 @@
-namespace Synth.Api.Vcs;
+namespace Synth.Domain.Vcs;
 
 /// <summary>
 /// Registry of indexed sources: one <see cref="RepositoryEntry"/> per collection, so callers

@@ -1,6 +1,8 @@
 using System.Text.Json;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 using Synth.Core.Vcs;
+using Synth.Domain.Configuration;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Configuration;
 

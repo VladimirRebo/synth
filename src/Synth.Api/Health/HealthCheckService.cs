@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 using Synth.Api.Embeddings;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 
 namespace Synth.Api.Health;
 

@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Synth.Domain\Synth.Domain.csproj" />
     <ProjectReference Include="..\..\src\Synth.Chunkers.TsVue\Synth.Chunkers.TsVue.csproj" />
   </ItemGroup>
 

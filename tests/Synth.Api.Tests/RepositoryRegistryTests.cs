@@ -1,4 +1,5 @@
 using Synth.Api.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 

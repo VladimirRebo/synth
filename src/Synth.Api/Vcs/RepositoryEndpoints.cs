@@ -1,6 +1,8 @@
 using Synth.Core;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
+using Synth.Domain;
 
 namespace Synth.Api.Vcs;
 

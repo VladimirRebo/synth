@@ -11,6 +11,9 @@ using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Storage;
 using Synth.Api.Vcs;
+using Synth.Domain.Configuration;
+using Synth.Domain.Logging;
+using Synth.Domain.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
 

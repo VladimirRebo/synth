@@ -1,4 +1,4 @@
-namespace Synth.Core.Vcs;
+namespace Synth.Domain.Vcs;
 
 /// <summary>
 /// Configuration for cloning/fetching remote repositories, bound from the <c>Vcs</c> config section

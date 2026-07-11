@@ -3,6 +3,7 @@ using System.Text;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Api.Storage;
 

@@ -1,4 +1,4 @@
-namespace Synth.Core.Graph;
+namespace Synth.Domain.Graph;
 
 /// <summary>
 /// One directed call-graph edge within a single indexed source: <see cref="Caller"/> calls

@@ -16,6 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Domain types wired directly here (VcsOptions, IRepositoryRegistry). -->
+    <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
     <!-- Reuse the search layer wiring (AddSynthEmbeddings/AddSynthVectorStore/AddSynthSearch)
          and the transport-agnostic CodeSearchTool from Synth.Api — no duplication. -->
     <ProjectReference Include="../Synth.Api/Synth.Api.csproj" />

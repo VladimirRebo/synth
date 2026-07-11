@@ -1,4 +1,4 @@
-namespace Synth.Api.Logging;
+namespace Synth.Domain.Logging;
 
 /// <summary>
 /// Storage behind the live log view (SYNTH-24's <c>GET /logs</c>). Two implementations follow the

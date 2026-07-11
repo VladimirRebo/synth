@@ -1,5 +1,5 @@
 using Microsoft.Extensions.AI;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 
 namespace Synth.Api.Embeddings;
 

@@ -3,6 +3,7 @@ using ModelContextProtocol.Server;
 using Synth.Api.Storage;
 using Synth.Core;
 using Synth.Mcp.Stdio;
+using Synth.Domain;
 
 namespace Synth.Api.Tests;
 
@@ -42,7 +43,7 @@ public class StdioMcpHostTests
 
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.IndexingPipeline));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.Vcs.GitRepoService));
-        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Vcs.IRepositoryRegistry));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Domain.Vcs.IRepositoryRegistry));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Indexing.IIndexJobTracker));
     }
 

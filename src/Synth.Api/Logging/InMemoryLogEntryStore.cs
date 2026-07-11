@@ -1,3 +1,4 @@
+using Synth.Domain.Logging;
 namespace Synth.Api.Logging;
 
 /// <summary>

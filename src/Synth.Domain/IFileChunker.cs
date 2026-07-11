@@ -1,4 +1,4 @@
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// Splits a single source file into <see cref="CodeChunk"/>s ready for embedding.

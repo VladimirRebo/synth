@@ -10,6 +10,7 @@ using Synth.Api.Search;
 using Synth.Api.Storage;
 using Synth.Api.Vcs;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Mcp.Stdio;
 

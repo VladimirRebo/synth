@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Synth.Api.Configuration;
+using Synth.Domain.Configuration;
 
 namespace Synth.Api.Tests;
 

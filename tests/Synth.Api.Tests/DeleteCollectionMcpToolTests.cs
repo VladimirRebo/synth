@@ -5,7 +5,9 @@ using Synth.Api.Graph;
 using Synth.Api.Mcp;
 using Synth.Api.Vcs;
 using Synth.Core;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
+using Synth.Domain.Vcs;
+using Synth.Domain;
 
 namespace Synth.Api.Tests;
 

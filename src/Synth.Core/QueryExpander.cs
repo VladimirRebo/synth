@@ -1,3 +1,4 @@
+using Synth.Domain;
 namespace Synth.Core;
 
 /// <summary>

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Synth.Api.Vcs;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 

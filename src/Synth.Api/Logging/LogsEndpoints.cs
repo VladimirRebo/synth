@@ -1,5 +1,6 @@
 using System.Globalization;
 using Serilog.Events;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Logging;
 

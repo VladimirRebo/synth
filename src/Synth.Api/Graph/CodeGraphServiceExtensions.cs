@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
 
 namespace Synth.Api.Graph;
 
