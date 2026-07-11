@@ -1,4 +1,4 @@
-namespace Synth.Core.Embeddings;
+namespace Synth.Domain.Embeddings;
 
 /// <summary>
 /// Configuration for the embedding generator, bound from the <c>Embedding</c> config section through

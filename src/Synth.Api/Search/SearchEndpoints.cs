@@ -1,6 +1,8 @@
 using Synth.Api.Mcp;
 using Synth.Api.Vcs;
 using Synth.Core;
+using Synth.Domain.Vcs;
+using Synth.Domain;
 
 namespace Synth.Api.Search;
 

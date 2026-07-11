@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 
 namespace Synth.Api.Embeddings;
 

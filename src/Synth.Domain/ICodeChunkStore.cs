@@ -1,4 +1,4 @@
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// Vector-store abstraction over <see cref="CodeChunk"/>: upsert embedded chunks,

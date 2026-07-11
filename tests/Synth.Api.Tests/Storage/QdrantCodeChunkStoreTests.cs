@@ -1,6 +1,7 @@
 using Qdrant.Client;
 using Synth.Api.Storage;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Api.Tests.Storage;
 

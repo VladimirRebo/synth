@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Api.Indexing;
 

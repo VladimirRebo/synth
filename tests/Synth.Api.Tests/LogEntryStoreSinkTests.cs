@@ -1,6 +1,7 @@
 using Serilog;
 using Serilog.Events;
 using Synth.Api.Logging;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Tests;
 

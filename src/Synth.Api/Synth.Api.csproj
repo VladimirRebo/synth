@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
     <ProjectReference Include="../Synth.Core/Synth.Core.csproj" />
     <ProjectReference Include="../Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
     <!-- The concrete chunkers this host wires into DI (see IndexingServiceExtensions). Each lives in

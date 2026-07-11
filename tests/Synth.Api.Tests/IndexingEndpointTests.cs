@@ -9,6 +9,7 @@ using Synth.Api.Indexing;
 using Synth.Api.Vcs;
 using Synth.Core.Indexing;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 

@@ -1,4 +1,4 @@
-namespace Synth.Core.Vcs;
+namespace Synth.Domain.Vcs;
 
 /// <summary>
 /// Coarse classification of a git remote's hosting provider, derived from the URL host.

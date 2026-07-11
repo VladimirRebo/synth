@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using Synth.Api.Configuration;
 using Synth.Core.Vcs;
+using Synth.Domain.Configuration;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Vcs;
 

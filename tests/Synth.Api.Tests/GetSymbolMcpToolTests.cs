@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Api.Tests;
 

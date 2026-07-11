@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Synth.Domain.Configuration;
 
 namespace Synth.Api.Configuration;
 

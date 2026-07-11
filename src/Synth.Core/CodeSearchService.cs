@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Synth.Domain;
 
 namespace Synth.Core;
 

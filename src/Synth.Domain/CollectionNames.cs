@@ -1,4 +1,4 @@
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// Well-known collection names shared across the store, indexing pipeline and search so every

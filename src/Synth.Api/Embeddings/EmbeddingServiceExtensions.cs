@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 
 namespace Synth.Api.Embeddings;
 

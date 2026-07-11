@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Synth.Core;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
+using Synth.Domain;
 
 namespace Synth.Api.Graph;
 

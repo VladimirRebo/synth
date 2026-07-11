@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Core;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
 using Synth.Core.Vcs;
+using Synth.Domain.Vcs;
+using Synth.Domain;
 
 namespace Synth.Core.Tests;
 

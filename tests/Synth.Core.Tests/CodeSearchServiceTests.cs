@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Synth.Core;
+using Synth.Domain;
 
 namespace Synth.Core.Tests;
 

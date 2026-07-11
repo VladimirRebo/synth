@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Synth.Core/Synth.Core.csproj" />
+    <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
   </ItemGroup>
 
 </Project>

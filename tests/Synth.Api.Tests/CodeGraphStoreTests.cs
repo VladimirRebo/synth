@@ -1,5 +1,5 @@
 using Synth.Api.Graph;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
 
 namespace Synth.Api.Tests;
 

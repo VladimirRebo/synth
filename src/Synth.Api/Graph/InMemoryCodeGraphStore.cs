@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
 
 namespace Synth.Api.Graph;
 

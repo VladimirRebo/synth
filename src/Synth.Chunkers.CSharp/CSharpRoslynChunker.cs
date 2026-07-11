@@ -3,7 +3,8 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Synth.Core.Graph;
+using Synth.Domain.Graph;
+using Synth.Domain;
 
 namespace Synth.Core;
 

@@ -1,3 +1,4 @@
+using Synth.Domain.Vcs;
 namespace Synth.Core.Vcs;
 
 /// <summary>

@@ -1,4 +1,4 @@
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// Thrown when an upsert targets an existing vector collection whose embedding dimension differs

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Synth.Core.Vcs;
+namespace Synth.Domain.Vcs;
 
 /// <summary>
 /// The parsed shape of a git remote URL in HTTPS form (e.g.

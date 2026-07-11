@@ -1,4 +1,4 @@
-namespace Synth.Api.Logging;
+namespace Synth.Domain.Logging;
 
 /// <summary>
 /// An immutable snapshot of a single log event, holding only what a log viewer needs to render.

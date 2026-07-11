@@ -1,4 +1,4 @@
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// Kind of source construct a <see cref="CodeChunk"/> represents.

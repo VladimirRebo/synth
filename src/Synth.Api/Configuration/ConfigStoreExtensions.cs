@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Synth.Domain.Configuration;
 
 namespace Synth.Api.Configuration;
 

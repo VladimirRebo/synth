@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using OllamaSharp;
 using Synth.Api.Embeddings;
-using Synth.Core.Embeddings;
+using Synth.Domain.Embeddings;
 
 namespace Synth.Api.Tests;
 

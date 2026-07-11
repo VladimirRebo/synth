@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Serilog.Core;
 using Serilog.Events;
+using Synth.Domain.Logging;
 
 namespace Synth.Api.Logging;
 

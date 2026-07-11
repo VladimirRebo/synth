@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Synth.Core;
+namespace Synth.Domain;
 
 /// <summary>
 /// A single unit of source code (or documentation) extracted from a repository,

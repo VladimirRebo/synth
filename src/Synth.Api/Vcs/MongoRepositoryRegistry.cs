@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Vcs;
 
