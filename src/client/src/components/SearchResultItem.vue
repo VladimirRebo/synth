@@ -1,12 +1,31 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { SearchResult } from '../api'
+import type { RepositoryEntry, SearchResult } from '../api'
 import { highlightCode } from '../highlight'
+import { useEditorLink } from '../composables/useEditorLink'
 import Icon from './Icon.vue'
 
-const props = defineProps<{ result: SearchResult }>()
+const props = defineProps<{
+  result: SearchResult
+  // The repository this result came from, when known (SearchPanel resolves it from the collection
+  // picker / the result's own `collection`). Used to build a local editor deep-link for
+  // local-path-indexed results.
+  sourceType?: RepositoryEntry['sourceType']
+  source?: string
+}>()
 
 const COLLAPSED_LINES = 6
+
+const { buildUri } = useEditorLink()
+
+// Only local-path-indexed results get an editor deep-link: repoUrl-indexed results already carry a
+// GitHub/GitLab `sourceUrl` (SYNTH-40), and we never show both for one result. Needs the absolute
+// root (`source`) to turn the relative path into something an editor can open.
+const editorUri = computed(() =>
+  props.sourceType === 'local' && props.source && !props.result.sourceUrl
+    ? buildUri(props.source, props.result.relativePath, props.result.startLine)
+    : null,
+)
 
 const expanded = ref(false)
 
@@ -37,6 +56,16 @@ function toggle() {
         >{{ result.relativePath }}</a
       >
       <span v-else class="path">{{ result.relativePath }}</span>
+      <a
+        v-if="editorUri"
+        class="editor-link"
+        :href="editorUri"
+        :title="`Open in editor at line ${result.startLine}`"
+        aria-label="Open in editor"
+        @click.stop
+      >
+        <Icon name="file-text" :size="14" />
+      </a>
       <span class="spacer" />
       <!-- Present only in all-collections search (result.collection populated), so single-collection
            results stay uncluttered — shows which repo this hit was found in. -->
@@ -102,6 +131,17 @@ function toggle() {
 
 .path-link:hover {
   text-decoration: underline;
+}
+
+.editor-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.editor-link:hover {
+  color: var(--accent);
 }
 
 .score {

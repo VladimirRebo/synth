@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { search, type SearchResult } from '../api'
+import { search, type RepositoryEntry, type SearchResult } from '../api'
 import { useSearchFocus } from '../composables/useSearchFocus'
 import { useRepositories } from '../composables/useRepositories'
+import { useEditorLink, EDITOR_OPTIONS } from '../composables/useEditorLink'
 import SearchResultItem from './SearchResultItem.vue'
 import Icon from './Icon.vue'
 
 const { inputRef } = useSearchFocus()
 const { repositories, refresh: refreshRepositories } = useRepositories()
+const { editor } = useEditorLink()
 const route = useRoute()
 const router = useRouter()
 
@@ -151,6 +153,18 @@ const filteredResults = computed(() => {
   return list
 })
 
+// --- Repository resolution (for editor deep-links) ---------------------------------------
+// A result's owning collection is its own `collection` in all-collections mode, otherwise the
+// picker's selection ('' being GET /search's "default" fallback). Match that against the loaded
+// RepositoryEntry list so SearchResultItem can build a local-editor link from `source`/`sourceType`.
+function repoForResult(result: SearchResult): RepositoryEntry | undefined {
+  const name =
+    result.collection ??
+    (collection.value === ALL_COLLECTIONS ? undefined : collection.value || 'default')
+  if (!name) return undefined
+  return repositories.value.find((r) => r.collection === name)
+}
+
 // --- Score insights --------------------------------------------------------------------
 // Synth's rerank score isn't bounded to [0, 1] like plain cosine similarity (chunk-type
 // weight and keyword boost can push it above 1) — a fixed percentage histogram would be
@@ -257,6 +271,11 @@ onUnmounted(() => {
           {{ repo.collection }} ({{ repo.sourceType }})
         </option>
       </select>
+      <select v-model="editor" aria-label="Editor for deep-links" class="editor">
+        <option v-for="opt in EDITOR_OPTIONS" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </option>
+      </select>
       <input
         v-model.number="limit"
         type="number"
@@ -314,7 +333,11 @@ onUnmounted(() => {
 
     <ul v-if="filteredResults.length > 0" class="results">
       <li v-for="(result, index) in filteredResults" :key="`${result.relativePath}-${result.startLine}-${index}`">
-        <SearchResultItem :result="result" />
+        <SearchResultItem
+          :result="result"
+          :source-type="repoForResult(result)?.sourceType"
+          :source="repoForResult(result)?.source"
+        />
       </li>
     </ul>
   </section>
@@ -376,6 +399,10 @@ select {
 
 .collection {
   max-width: 160px;
+}
+
+.editor {
+  max-width: 140px;
 }
 
 button {
