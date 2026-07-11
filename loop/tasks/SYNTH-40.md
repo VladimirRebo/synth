@@ -1,7 +1,7 @@
 ---
 id: SYNTH-40
 summary: "SourceUrl on CodeChunk + link in search results (GitHub/GitLab)"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'SourceUrl' src/Synth.Core/CodeChunk.cs"
 acceptance_criterion: ""
 boundaries: "Touch: src/Synth.Core/CodeChunk.cs, a new src/Synth.Core/Vcs/SourceUrlBuilder.cs (or similar name), src/Synth.Core/IndexingPipeline.cs (new optional parameter, additive — do not change its existing required-parameter behavior for callers that omit it), src/Synth.Api/Indexing/IndexingEndpoints.cs (pass RepoUrlInfo/branch through for the repoUrl case only), src/Synth.Api/Mcp/CodeSearchResult.cs, src/Synth.api/Storage/QdrantCodeChunkStore.cs (persist the new field), src/Synth.Core/LocalCodeChunkStore.cs (already stores full CodeChunk, likely no change needed there — verify), client SearchResultItem.vue, and tests. Local-path-indexed collections simply have a null SourceUrl on every chunk — do not error or warn for that case, it's the normal/expected state for local indexing."
