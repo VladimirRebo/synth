@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help build test aspire client client-install client-test index loop new-task validate clean
+.PHONY: help build test aspire client client-install client-test index loop new-task validate clean backup restore
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -42,3 +42,10 @@ validate: ## Run the deterministic validator for a task. Usage: make validate TA
 
 clean: ## Remove build artifacts (bin/obj) across the .NET solution
 	find src -type d \( -name bin -o -name obj \) -not -path '*/node_modules/*' -exec rm -rf {} +
+
+backup: ## Snapshot Mongo (config/registry/call-graph/logs) + every indexed Qdrant collection. Needs `make aspire` running. Usage: make backup [OUT=./backups/mybackup]
+	./scripts/backup.sh $(OUT)
+
+restore: ## Restore a backup made by `make backup`. Needs `make aspire` running. Usage: make restore DIR=./backups/20260711-120000
+	@test -n "$(DIR)" || (echo "DIR is required, e.g. make restore DIR=./backups/20260711-120000" && exit 1)
+	./scripts/restore.sh $(DIR)

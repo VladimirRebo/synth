@@ -73,3 +73,20 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-30 | COMPLETED | validator PASS, committed on fix/SYNTH-30 |
 - | SYNTH-31 | FAILED | validator exit=1 |
 - | SYNTH-31 | COMPLETED | validator PASS, committed on fix/SYNTH-31 |
+- | SYNTH-32 | COMPLETED | validator PASS, committed on fix/SYNTH-32 |
+- | SYNTH-33 | COMPLETED | validator PASS, committed on fix/SYNTH-33 |
+- | SYNTH-34 | COMPLETED | validator PASS, committed on fix/SYNTH-34 |
+- | SYNTH-35 | COMPLETED | validator PASS, committed on fix/SYNTH-35 |
+- | SYNTH-36 | COMPLETED | validator PASS, committed on fix/SYNTH-36 |
+- | SYNTH-37 | COMPLETED | validator PASS, committed on fix/SYNTH-37 |
+- | SYNTH-38 | COMPLETED | validator PASS, committed on fix/SYNTH-38 |
+- | SYNTH-39 | FAILED | validator exit=1 |
+- | SYNTH-39 | COMPLETED | validator PASS, committed on fix/SYNTH-39 |
+- | SYNTH-40 | COMPLETED | validator PASS, committed on fix/SYNTH-40 |
+- | SYNTH-41 | COMPLETED | validator PASS, committed on fix/SYNTH-41 |
+- | SYNTH-42 | COMPLETED | validator PASS, committed on fix/SYNTH-42 |
+- | SYNTH-43 | COMPLETED | validator PASS, committed on fix/SYNTH-43 |
+- | SYNTH-44 | COMPLETED | validator PASS, committed on fix/SYNTH-44 |
+- | SYNTH-45 | COMPLETED | validator PASS, committed on fix/SYNTH-45 |
+- | SYNTH-46 | COMPLETED | validator PASS, committed on fix/SYNTH-46 |
+- | SYNTH-47 | COMPLETED | validator PASS, committed on fix/SYNTH-47 |
