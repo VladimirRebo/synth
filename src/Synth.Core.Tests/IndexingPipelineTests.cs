@@ -17,14 +17,19 @@ public class IndexingPipelineTests : IDisposable
     {
         public const int Dimensions = 8;
 
-        public int CallCount { get; private set; }
+        private int _callCount;
+
+        // Thread-safe: the pipeline embeds files concurrently (SYNTH-44), so several files may call
+        // GenerateAsync at the same time. A plain field++ would lose increments and make the
+        // call-count assertions flaky; Interlocked keeps the tally exact under concurrency.
+        public int CallCount => Volatile.Read(ref _callCount);
 
         public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
             IEnumerable<string> values,
             EmbeddingGenerationOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            CallCount++;
+            Interlocked.Increment(ref _callCount);
             var embeddings = new GeneratedEmbeddings<Embedding<float>>(
                 values.Select(text => new Embedding<float>(Vectorize(text))));
             return Task.FromResult(embeddings);
@@ -640,5 +645,87 @@ public class IndexingPipelineTests : IDisposable
         await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
 
         Assert.Empty(await graphStore.FindCalleesAsync(CollectionNames.Default, "Sample.Pair.A"));
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_indexes_many_files_with_race_free_counts()
+    {
+        // SYNTH-44: with the per-file loop now parallelized, many files are chunked/embedded/upserted
+        // concurrently. Enough files here that they genuinely overlap; every file is one class + one
+        // method (2 chunks). A wrong total would betray a lost Interlocked increment (a sync bug).
+        const int fileCount = 40;
+        for (var i = 0; i < fileCount; i++)
+        {
+            // Multi-line so the class and method chunks get distinct line ranges (and thus distinct
+            // ChunkIds — see CodeChunk.ChunkId), giving a clean 2 chunks per file.
+            WriteFile($"File{i}.cs", $$"""
+                namespace S;
+
+                public class File{{i}}
+                {
+                    public void M{{i}}() { }
+                }
+                """);
+        }
+
+        var store = new LocalCodeChunkStore();
+        var generator = new FakeEmbeddingGenerator();
+        var pipeline = PipelineFor(store, generator);
+
+        var summary = await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        Assert.Equal(fileCount, summary.FilesIndexed);
+        Assert.Equal(0, summary.FilesSkipped);
+        Assert.Equal(fileCount * 2, summary.ChunksIndexed); // class + method per file.
+        Assert.Equal(fileCount, generator.CallCount);       // exactly one batched embed call per file.
+
+        // Every file's chunks actually landed in the store — the concurrent upserts didn't drop any.
+        for (var i = 0; i < fileCount; i++)
+        {
+            Assert.Equal(2, (await store.GetByFileAsync(CollectionNames.Default, $"File{i}.cs")).Count);
+        }
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_resolves_call_graph_across_many_files_concurrently()
+    {
+        // SYNTH-44: the call-graph accumulators (knownSymbols, rawCallSites) are written from every
+        // concurrent file. With many caller/callee pairs indexed at once, a dropped symbol or call site
+        // would leave an edge unresolved. Each Caller{i}.Run() calls Target{i}.Do{i}() in a sibling file.
+        const int pairCount = 30;
+        for (var i = 0; i < pairCount; i++)
+        {
+            WriteFile($"Caller{i}.cs", $$"""
+                namespace Sample;
+
+                public class Caller{{i}}
+                {
+                    private readonly Target{{i}} _t = new();
+                    public void Run() { _t.Do{{i}}(); }
+                }
+                """);
+            WriteFile($"Target{i}.cs", $$"""
+                namespace Sample;
+
+                public class Target{{i}}
+                {
+                    public void Do{{i}}() { }
+                }
+                """);
+        }
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = PipelineFor(new LocalCodeChunkStore(), new FakeEmbeddingGenerator(), graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        // Every one of the 30 cross-file edges resolved, despite the files being indexed concurrently.
+        for (var i = 0; i < pairCount; i++)
+        {
+            var callees = await graphStore.FindCalleesAsync(CollectionNames.Default, $"Sample.Caller{i}.Run");
+            var edge = Assert.Single(callees);
+            Assert.Equal($"Sample.Target{i}.Do{i}", edge.Callee);
+            Assert.Equal($"Caller{i}.cs", edge.SourceFile);
+        }
     }
 }
