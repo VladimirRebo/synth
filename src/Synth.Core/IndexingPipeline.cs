@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Core.Graph;
 using Synth.Core.Vcs;
@@ -18,6 +19,14 @@ public sealed class IndexingPipeline
 {
     /// <summary>Directory names never descended into (build output, VCS metadata, JS deps).</summary>
     private static readonly string[] SkippedDirectorySegments = ["bin", "obj", ".git", "node_modules"];
+
+    /// <summary>
+    /// Bounded per-file concurrency for the indexing walk (SYNTH-44). Each file's cost is dominated by
+    /// the embedding-generator HTTP round-trip, so overlapping several files' embed calls is the whole
+    /// point; the cap keeps generator/store load and memory bounded. Hardcoded by design — making it
+    /// configurable is explicitly out of scope for this task.
+    /// </summary>
+    private const int MaxIndexingConcurrency = 6;
 
     private readonly IReadOnlyList<IFileChunker> _chunkers;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
@@ -83,50 +92,63 @@ public sealed class IndexingPipeline
         progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
 
         // Call-graph accumulators (stage 1). Only lightweight strings are held across files — never the
-        // full CodeChunk content — so this stays within the existing per-file streaming design.
-        var rawCallSites = new List<RawCallSite>();
-        var knownSymbols = new HashSet<string>(StringComparer.Ordinal);
+        // full CodeChunk content — so this stays within the existing per-file streaming design. Because
+        // the per-file loop runs concurrently (SYNTH-44), these are thread-safe collections: a
+        // ConcurrentBag for the append-only call sites, and ConcurrentDictionary-as-set for the two
+        // sets, whose keys feed the sequential stage-2 resolution below unchanged.
+        var rawCallSites = new ConcurrentBag<RawCallSite>();
+        var knownSymbols = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 
         // Relative paths of every on-disk file seen this run. Diffed against the store at the end to
         // delete chunks of files that were indexed before but no longer exist on disk (SYNTH-33).
-        var seenPaths = new HashSet<string>(StringComparer.Ordinal);
+        var seenPaths = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 
-        foreach (var filePath in EnumerateSourceFiles(rootPath))
+        // Parallelize the per-file work with bounded concurrency (SYNTH-44). Each file's dominant cost is
+        // the embedding-generator round-trip, so overlapping several files' embed calls is where the time
+        // is won; chunking, hashing and upsert are cheap by comparison. The counters and accumulators
+        // touched inside the body are all thread-safe (Interlocked / concurrent collections), and the
+        // ICodeChunkStore is safe for concurrent GetByFile/Upsert. Everything AFTER this loop stays
+        // strictly sequential.
+        var parallelOptions = new ParallelOptions
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            MaxDegreeOfParallelism = MaxIndexingConcurrency,
+            CancellationToken = cancellationToken,
+        };
 
+        await Parallel.ForEachAsync(EnumerateSourceFiles(rootPath), parallelOptions, async (filePath, ct) =>
+        {
             var chunker = _chunkers.FirstOrDefault(c => c.CanHandle(filePath));
             if (chunker is null)
             {
-                filesSkipped++;
-                continue;
+                Interlocked.Increment(ref filesSkipped);
+                return;
             }
 
             string content;
             try
             {
-                content = await File.ReadAllTextAsync(filePath, cancellationToken);
+                content = await File.ReadAllTextAsync(filePath, ct);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Unreadable file: skip it, don't take down the whole run.
-                filesSkipped++;
-                continue;
+                Interlocked.Increment(ref filesSkipped);
+                return;
             }
 
             if (string.IsNullOrWhiteSpace(content))
             {
-                filesSkipped++;
-                continue;
+                Interlocked.Increment(ref filesSkipped);
+                return;
             }
 
             var relativePath = NormalizeRelativePath(Path.GetRelativePath(rootPath, filePath));
-            seenPaths.Add(relativePath);
+            seenPaths.TryAdd(relativePath, 0);
             var chunks = chunker.Chunk(filePath, relativePath, content);
             if (chunks.Count == 0)
             {
-                filesSkipped++;
-                continue;
+                Interlocked.Increment(ref filesSkipped);
+                return;
             }
 
             // Stamp a remote blob URL onto each chunk when indexing a repoUrl-sourced collection
@@ -147,46 +169,54 @@ public sealed class IndexingPipeline
             foreach (var chunk in chunks)
             {
                 if (IsCallableMember(chunk.ChunkType) && chunk.QualifiedName.Length > 0)
-                    knownSymbols.Add(chunk.QualifiedName);
+                    knownSymbols.TryAdd(chunk.QualifiedName, 0);
             }
 
             if (chunker is ICallSiteExtractor extractor)
-                rawCallSites.AddRange(extractor.ExtractCallSites(filePath, relativePath, content));
+            {
+                foreach (var site in extractor.ExtractCallSites(filePath, relativePath, content))
+                    rawCallSites.Add(site);
+            }
 
             // Incremental skip: if the file's content hash already stored matches this run's freshly
             // computed hash (every chunk of a file carries the same FileHash), the file is unchanged —
             // skip the expensive embedding-generator call and the upsert entirely, counting it the same
             // way as any other skipped file. The call graph above was already updated, so it stays correct.
             var freshHash = chunks[0].FileHash;
-            var stored = await _store.GetByFileAsync(collection, relativePath, cancellationToken);
+            var stored = await _store.GetByFileAsync(collection, relativePath, ct);
             if (stored.Count > 0 && string.Equals(stored[0].FileHash, freshHash, StringComparison.Ordinal))
             {
-                filesSkipped++;
-                continue;
+                Interlocked.Increment(ref filesSkipped);
+                return;
             }
 
-            var embedded = await EmbedAsync(chunks, cancellationToken);
-            await _store.UpsertAsync(collection, embedded, cancellationToken);
+            var embedded = await EmbedAsync(chunks, ct);
+            await _store.UpsertAsync(collection, embedded, ct);
 
-            filesIndexed++;
-            chunksIndexed += embedded.Count;
+            Interlocked.Increment(ref filesIndexed);
+            Interlocked.Add(ref chunksIndexed, embedded.Count);
 
-            progress?.Report(new IndexingProgress(filesIndexed, filesSkipped, totalFiles));
-        }
+            // Report the latest snapshot of the (now thread-safe) counters. Reports may interleave across
+            // concurrent files — that's fine, the client only cares about the newest snapshot, not a
+            // strict per-file sequence — and the final post-loop report below always carries the exact
+            // totals regardless of ordering.
+            progress?.Report(new IndexingProgress(
+                Volatile.Read(ref filesIndexed), Volatile.Read(ref filesSkipped), totalFiles));
+        });
 
         // Delete chunks of files that were indexed on a previous run but are no longer on disk. Diff the
         // store's known relative paths against the ones seen during this walk, and drop the stragglers.
         var storedPaths = await _store.ListRelativePathsAsync(collection, cancellationToken);
         foreach (var stalePath in storedPaths)
         {
-            if (!seenPaths.Contains(stalePath))
+            if (!seenPaths.ContainsKey(stalePath))
                 await _store.DeleteByFileAsync(collection, stalePath, cancellationToken);
         }
 
         // Stage 2: resolve every raw call site against the whole collection's known method names and
         // replace the graph in one shot. An empty edge set (no .cs files, or no resolved calls) still
         // replaces — clearing any stale edges from a previous index run.
-        var edges = ResolveEdges(collection, rawCallSites, knownSymbols);
+        var edges = ResolveEdges(collection, rawCallSites, knownSymbols.Keys);
         await _graphStore.ReplaceEdgesAsync(collection, edges, cancellationToken);
 
         // Final report guarantees the last-seen counts match the summary even when the run ended on a
@@ -207,8 +237,8 @@ public sealed class IndexingPipeline
     // edge per match (approximate, by design — issue #33); a name matching nothing emits no edge.
     private static IReadOnlyList<CallEdge> ResolveEdges(
         string collection,
-        List<RawCallSite> callSites,
-        HashSet<string> knownSymbols)
+        IEnumerable<RawCallSite> callSites,
+        IEnumerable<string> knownSymbols)
     {
         var bySimpleName = knownSymbols
             .GroupBy(SimpleNameOf, StringComparer.Ordinal)
