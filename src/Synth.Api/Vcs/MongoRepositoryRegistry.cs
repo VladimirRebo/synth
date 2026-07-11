@@ -7,7 +7,7 @@ namespace Synth.Api.Vcs;
 /// <summary>
 /// Mongo-backed <see cref="IRepositoryRegistry"/> storing one document per collection in the
 /// <c>repositories</c> collection. Each document is <c>{ _id: &lt;collection&gt;, Json: &lt;entry&gt; }</c>
-/// — the entry is kept as a single JSON string field, same as <see cref="Configuration.MongoConfigStore"/>
+/// — the entry is kept as a single JSON string field, same as <see cref="Configuration.FileConfigStore"/>
 /// (Mongo forbids dots in field names, so we never expand into nested Bson). Reads and writes both
 /// swallow connection failures and degrade to empty/no-op so no live Mongo is required in tests/dev.
 /// </summary>
