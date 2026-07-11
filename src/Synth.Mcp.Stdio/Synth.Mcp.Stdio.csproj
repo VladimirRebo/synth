@@ -18,6 +18,8 @@
   <ItemGroup>
     <!-- Domain types wired directly here (VcsOptions, IRepositoryRegistry). -->
     <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
+    <!-- CodeSearchService (search tool) is constructed directly in the stdio host wiring. -->
+    <ProjectReference Include="../Synth.Application/Synth.Application.csproj" />
     <!-- Reuse the search layer wiring (AddSynthEmbeddings/AddSynthVectorStore/AddSynthSearch)
          and the transport-agnostic CodeSearchTool from Synth.Api — no duplication. -->
     <ProjectReference Include="../Synth.Api/Synth.Api.csproj" />

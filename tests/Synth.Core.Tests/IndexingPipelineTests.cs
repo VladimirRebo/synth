@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
+using Synth.Application;
 using Synth.Core;
 using Synth.Domain.Graph;
 using Synth.Core.Vcs;

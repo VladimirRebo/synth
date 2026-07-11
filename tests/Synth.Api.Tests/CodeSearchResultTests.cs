@@ -1,5 +1,5 @@
 using Synth.Api.Mcp;
-using Synth.Core;
+using Synth.Application;
 using Synth.Domain;
 
 namespace Synth.Api.Tests;

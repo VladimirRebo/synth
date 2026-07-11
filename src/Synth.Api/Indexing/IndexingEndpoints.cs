@@ -1,5 +1,6 @@
 using Synth.Api.Vcs;
-using Synth.Core;
+using Synth.Application;
+using Synth.Application.Indexing;
 using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 using Synth.Domain;

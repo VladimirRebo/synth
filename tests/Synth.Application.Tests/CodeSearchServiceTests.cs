@@ -1,8 +1,9 @@
 using Microsoft.Extensions.AI;
+using Synth.Application;
 using Synth.Core;
 using Synth.Domain;
 
-namespace Synth.Core.Tests;
+namespace Synth.Application.Tests;
 
 // Proves SYNTH-11: CodeSearchService over-fetches from the store, reranks via
 // chunk-type weight × camelCase keyword boost, and enforces the dedup limits — all

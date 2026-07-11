@@ -1,7 +1,7 @@
-using Synth.Core.Vcs;
+using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
-namespace Synth.Core.Tests.Vcs;
+namespace Synth.Application.Tests.Vcs;
 
 // SYNTH-40: builds provider blob URLs (GitHub/GitLab) with a line range from an already-parsed
 // RepoUrlInfo, so a search result can link straight to the matched code on the remote.

@@ -9,7 +9,7 @@ namespace Synth.Api.Mcp;
 /// transport and the transport-agnostic tools — <see cref="CodeSearchTool"/> (vector search) and
 /// <see cref="CallGraphTool"/> (structural call graph). Depends on the search and call-graph layers
 /// (<c>AddSynthSearch</c>/<c>AddSynthCodeGraph</c>) registered earlier, since the tools resolve
-/// <see cref="Synth.Core.CodeSearchService"/> / <see cref="Synth.Core.Graph.ICodeGraphStore"/> from
+/// <see cref="Synth.Application.CodeSearchService"/> / <see cref="Synth.Core.Graph.ICodeGraphStore"/> from
 /// DI. The HTTP endpoints are mapped by <c>app.MapMcp()</c> in Program.cs.
 /// </summary>
 public static class McpServiceExtensions

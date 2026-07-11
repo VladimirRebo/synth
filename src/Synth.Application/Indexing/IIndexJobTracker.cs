@@ -1,6 +1,5 @@
-using Synth.Core.Indexing;
 
-namespace Synth.Api.Indexing;
+namespace Synth.Application.Indexing;
 
 /// <summary>
 /// Tracks the single current-or-most-recent index job so a client can poll indexing progress instead

@@ -1,4 +1,4 @@
-namespace Synth.Core.Indexing;
+namespace Synth.Application.Indexing;
 
 /// <summary>
 /// Lifecycle state of the single tracked index job. There is exactly one "current or most recently

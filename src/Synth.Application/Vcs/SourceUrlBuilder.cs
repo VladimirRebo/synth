@@ -1,5 +1,5 @@
 using Synth.Domain.Vcs;
-namespace Synth.Core.Vcs;
+namespace Synth.Application.Vcs;
 
 /// <summary>
 /// Builds a provider blob URL that points at a chunk's line range in the remote repository, so a

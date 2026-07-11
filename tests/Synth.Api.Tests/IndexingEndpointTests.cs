@@ -7,7 +7,8 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Synth.Api.Indexing;
 using Synth.Api.Vcs;
-using Synth.Core.Indexing;
+using Synth.Application;
+using Synth.Application.Indexing;
 using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Application.Embeddings;
 
 /// <summary>
 /// Lifecycle state of the single tracked Ollama model pull. Exactly one "current or most recently

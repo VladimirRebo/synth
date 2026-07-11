@@ -1,7 +1,6 @@
-using Synth.Api.Indexing;
-using Synth.Core.Indexing;
+using Synth.Application.Indexing;
 
-namespace Synth.Api.Tests;
+namespace Synth.Application.Tests;
 
 // Proves SYNTH-30: the in-memory job tracker reports Idle before anything runs, starts exactly one
 // job at a time (rejecting a concurrent start without disturbing the in-flight job), and transitions

@@ -1,6 +1,6 @@
-using Synth.Api.Embeddings;
+using Synth.Application.Embeddings;
 
-namespace Synth.Api.Tests;
+namespace Synth.Application.Tests;
 
 // Proves the in-memory Ollama pull tracker (SYNTH-50): Idle before anything runs, starts exactly one
 // pull at a time (rejecting a concurrent start without disturbing the in-flight one), and transitions

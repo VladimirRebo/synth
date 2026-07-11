@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Domain types/interfaces (CodeChunk, ICodeChunkStore, RepoUrlInfo, …) the use-case
+         orchestration here builds on. Application depends only on Domain — never on concrete
+         infrastructure (GitRepoService, LocalCodeChunkStore, Qdrant/Mongo stores stay in
+         Synth.Core / Infrastructure). -->
+    <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- IEmbeddingGenerator<string, Embedding<float>> abstraction used by IndexingPipeline and
+         CodeSearchService. -->
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
+  </ItemGroup>
+
+</Project>
