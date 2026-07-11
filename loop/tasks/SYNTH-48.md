@@ -1,7 +1,7 @@
 ---
 id: SYNTH-48
 summary: "Search across all collections at once"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'SearchAllCollectionsAsync' src/Synth.Core/CodeSearchService.cs"
 acceptance_criterion: ""
 boundaries: "Touch: src/Synth.Core/CodeSearchService.cs, src/Synth.Api/Search/SearchEndpoints.cs, src/Synth.Api/Mcp/CodeSearchTool.cs, src/Synth.Api/Mcp/CodeSearchResult.cs (or ScoredCodeChunk in Synth.Core if adding a Collection field there is cleaner — your call), client SearchPanel.vue/SearchResultItem.vue/api.ts, and tests. Do NOT re-embed the query once per collection — embed it exactly once and reuse the vector across every collection's store search, for both cost and latency reasons. Requires IRepositoryRegistry to enumerate known collections, so CodeSearchService (currently Synth.Core, no registry dependency) needs that injected — check whether this pulls Synth.Api-only types into Synth.Core (IRepositoryRegistry currently lives in Synth.Api.Vcs) and resolve the layering cleanly (e.g. take the collection list as a parameter from the caller, which already has registry access, rather than injecting the registry into Synth.Core)."
