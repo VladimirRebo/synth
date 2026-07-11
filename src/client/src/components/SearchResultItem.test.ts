@@ -55,4 +55,36 @@ describe('SearchResultItem', () => {
 
     expect(wrapper.find('.collection-badge').exists()).toBe(false)
   })
+
+  // SYNTH-49: a local-path-indexed result (sourceType 'local', a real absolute root, no sourceUrl)
+  // renders an "open in editor" deep-link built from source + relativePath + startLine.
+  it('renders an editor deep-link for a local-sourced result', () => {
+    const wrapper = mount(SearchResultItem, {
+      props: {
+        result: result({ sourceUrl: null }),
+        sourceType: 'local',
+        source: '/home/me/proj',
+      },
+    })
+
+    const link = wrapper.get('a.editor-link')
+    // Default editor preference is VS Code (no localStorage override in the test env).
+    expect(link.attributes('href')).toBe('vscode://file//home/me/proj/src/Greeter.cs:4')
+  })
+
+  // A repoUrl-indexed result already shows its GitHub/GitLab path link (SYNTH-40) — no editor link.
+  it('does not render an editor link for a repoUrl-sourced result', () => {
+    const wrapper = mount(SearchResultItem, {
+      props: {
+        result: result({ sourceUrl: 'https://github.com/owner/repo/blob/main/src/Greeter.cs#L4-L6' }),
+        sourceType: 'github',
+        source: 'https://github.com/owner/repo',
+      },
+    })
+
+    expect(wrapper.find('a.editor-link').exists()).toBe(false)
+    expect(wrapper.get('a.path').attributes('href')).toBe(
+      'https://github.com/owner/repo/blob/main/src/Greeter.cs#L4-L6',
+    )
+  })
 })
