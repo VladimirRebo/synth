@@ -1,7 +1,7 @@
 ---
 id: SYNTH-46
 summary: "Retry transient errors per-file during indexing"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'MaxRetries' src/Synth.Core/IndexingPipeline.cs"
 acceptance_criterion: ""
 boundaries: "Touch only src/Synth.Core/IndexingPipeline.cs and its tests. Read the current IndexDirectoryAsync body fresh before starting — other tasks (SYNTH-33 incremental indexing, SYNTH-40 SourceUrl, SYNTH-44 parallelization) may have landed first and changed its shape. Only retry the embed+upsert step for a single file — do not retry chunking (a parse failure isn't transient) and do not add job-level retry/resume."
