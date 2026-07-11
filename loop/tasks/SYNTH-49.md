@@ -1,7 +1,7 @@
 ---
 id: SYNTH-49
 summary: "Deep-link search results to open in a local editor"
-status: open
+status: done
 acceptance_command: "cd src/client && npm run build --silent && npm test -- --run"
 acceptance_criterion: ""
 boundaries: "Client-only task — no backend changes. Touch: src/client/src/components/SearchResultItem.vue, src/client/src/components/SearchPanel.vue (to pass collection/repository context down), a new small composable for the editor-preference + URI-building logic, and tests. Store the editor preference in localStorage (client-only), not a new backend Settings field — this is a single personal preference, not worth a server round-trip. Only show the editor link for local-path-indexed collections (SourceType == 'local') — repoUrl-indexed collections already got a GitHub/GitLab link in SYNTH-40 (issue #56), don't show both for the same result."
