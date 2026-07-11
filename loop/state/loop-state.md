@@ -94,3 +94,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-49 | COMPLETED | validator PASS, committed on fix/SYNTH-49 |
 - | SYNTH-50 | FAILED | validator exit=1 |
 - | SYNTH-50 | COMPLETED | validator PASS after fixing malformed acceptance_command grep, merged via #79 |
+- | SYNTH-51 | COMPLETED | validator PASS, committed on fix/SYNTH-51 |
+- | SYNTH-51 | MERGED | PR #83 merged to main (eb30518); closes issue #81 |
