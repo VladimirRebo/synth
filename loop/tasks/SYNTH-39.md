@@ -1,7 +1,7 @@
 ---
 id: SYNTH-39
 summary: "Paginate GET /repositories and GET /logs"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'offset' src/Synth.Api/Vcs/RepositoryEndpoints.cs"
 acceptance_criterion: ""
 boundaries: "Touch only src/Synth.Api/Vcs/RepositoryEndpoints.cs, src/Synth.Api/Logging/LogsEndpoints.cs, and their tests. Both new params are optional with backward-compatible defaults (omitting them must return the same full result either endpoint returns today) — do not change existing callers' behavior when they don't pass the new params. No client changes in this task (see Out of scope)."
