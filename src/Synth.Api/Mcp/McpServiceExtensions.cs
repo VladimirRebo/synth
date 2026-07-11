@@ -21,7 +21,9 @@ public static class McpServiceExtensions
             .WithHttpTransport()
             .WithTools<CodeSearchTool>()
             .WithTools<CallGraphTool>()
-            .WithTools<IndexCodeTool>();
+            .WithTools<IndexCodeTool>()
+            .WithTools<GetSymbolTool>()
+            .WithTools<GetFileTool>();
 
         return builder;
     }

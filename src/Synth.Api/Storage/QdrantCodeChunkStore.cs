@@ -130,6 +130,41 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
             .ToList();
     }
 
+    public async Task<IReadOnlyList<CodeChunk>> GetBySymbolAsync(
+        string collection,
+        string? className,
+        string? methodName,
+        CancellationToken cancellationToken = default)
+    {
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+            return [];
+
+        // Match on the same className/methodName payload keys UpsertAsync writes, combined with AND
+        // (Filter.Must). A null/empty filter arg is left out so it matches anything; the MCP tool
+        // guarantees at least one is present. MatchKeyword is exact (mirrors GetByFileAsync's
+        // relativePath filter) — case sensitivity follows Qdrant's keyword matching.
+        var filter = new Filter();
+        if (!string.IsNullOrEmpty(className))
+            filter.Must.Add(Conditions.MatchKeyword(ClassNameKey, className));
+        if (!string.IsNullOrEmpty(methodName))
+            filter.Must.Add(Conditions.MatchKeyword(MethodNameKey, methodName));
+
+        var response = await _client.ScrollAsync(
+            collectionName,
+            filter: filter,
+            limit: uint.MaxValue,
+            payloadSelector: true,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return response.Result
+            .Select(point => ToChunk(point.Payload))
+            .OrderBy(chunk => chunk.RelativePath, StringComparer.Ordinal)
+            .ThenBy(chunk => chunk.StartLine)
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<string>> ListRelativePathsAsync(
         string collection,
         CancellationToken cancellationToken = default)
