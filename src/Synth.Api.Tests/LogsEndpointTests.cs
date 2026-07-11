@@ -125,6 +125,40 @@ public class LogsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task Limit_and_offset_slice_the_result_preserving_oldest_first_order()
+    {
+        var client = CreateClient(SeededStore());
+
+        // Four entries oldest-first; skip 1, take 2 -> minutes 1 and 2.
+        var entries = await GetLogs(client, "?offset=1&limit=2");
+
+        Assert.Equal(
+            new[] { "indexing started", "slow query detected" },
+            entries.Select(e => e.Message));
+    }
+
+    [Fact]
+    public async Task Pagination_applies_after_the_filters()
+    {
+        var client = CreateClient(SeededStore());
+
+        // search=indexing matches minutes 1 and 3; offset=1 drops the first -> only "indexing failed".
+        var entries = await GetLogs(client, "?search=indexing&offset=1");
+
+        Assert.Equal(new[] { "indexing failed" }, entries.Select(e => e.Message));
+    }
+
+    [Fact]
+    public async Task Negative_offset_is_rejected()
+    {
+        var client = CreateClient(SeededStore());
+
+        var response = await client.GetAsync("/logs?offset=-1");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Unknown_level_is_rejected()
     {
         var client = CreateClient(SeededStore());

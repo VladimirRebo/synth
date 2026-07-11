@@ -13,8 +13,32 @@ public static class RepositoryEndpoints
 {
     public static IEndpointRouteBuilder MapRepositoryEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/repositories", async (IRepositoryRegistry registry, CancellationToken cancellationToken) =>
-            Results.Ok(await registry.ListAsync(cancellationToken)));
+        // GET /repositories?limit=&offset= — both optional. Omitting both returns everything (the
+        // client's picker relies on this backward-compatible default); when provided they slice the
+        // list. ListAsync's order is not stable (ConcurrentDictionary enumeration in-memory, an
+        // unsorted Mongo Find otherwise), so we impose a deterministic most-recently-indexed-first
+        // order before slicing, so limit/offset page through a repeatable sequence.
+        endpoints.MapGet("/repositories", async (
+            IRepositoryRegistry registry,
+            int? limit,
+            int? offset,
+            CancellationToken cancellationToken) =>
+        {
+            if (offset is < 0)
+                return Results.BadRequest(new { error = $"'offset' must be non-negative: {offset}" });
+            if (limit is < 0)
+                return Results.BadRequest(new { error = $"'limit' must be non-negative: {limit}" });
+
+            var repositories = await registry.ListAsync(cancellationToken);
+            IEnumerable<RepositoryEntry> ordered = repositories.OrderByDescending(r => r.LastIndexedAt);
+
+            if (offset is { } skip)
+                ordered = ordered.Skip(skip);
+            if (limit is { } take)
+                ordered = ordered.Take(take);
+
+            return Results.Ok(ordered.ToArray());
+        });
 
         // Removes an indexed collection completely: its vector-store collection, its call-graph edges
         // (ReplaceEdgesAsync with an empty list is a full clear), and its registry entry. The store and
