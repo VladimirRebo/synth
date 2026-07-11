@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -21,11 +20,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Synth.Domain\Synth.Domain.csproj" />
-    <!-- Tests here exercise moved Application types directly (CodeSearchService, IndexingPipeline,
-         IIndexJobTracker) alongside the Api endpoints/tools that wrap them. -->
     <ProjectReference Include="..\..\src\Synth.Application\Synth.Application.csproj" />
-    <ProjectReference Include="..\..\src\Synth.Api\Synth.Api.csproj" />
-    <ProjectReference Include="..\..\src\Synth.Mcp.Stdio\Synth.Mcp.Stdio.csproj" />
+    <!-- CodeSearchServiceTests drives CodeSearchService against the concrete LocalCodeChunkStore
+         (an ICodeChunkStore impl that stays in Synth.Core until the Infrastructure slice). -->
+    <ProjectReference Include="..\..\src\Synth.Core\Synth.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Synth.Domain;
 
-namespace Synth.Core;
+namespace Synth.Application;
 
 /// <summary>
 /// A <see cref="CodeChunk"/> paired with its final rerank score from

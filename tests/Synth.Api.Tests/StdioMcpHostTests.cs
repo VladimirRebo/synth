@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Storage;
+using Synth.Application;
+using Synth.Application.Indexing;
 using Synth.Core;
 using Synth.Mcp.Stdio;
 using Synth.Domain;
@@ -41,10 +43,10 @@ public class StdioMcpHostTests
         // registry and job tracker per invocation, so all must be registered over stdio too.
         var services = StdioMcpHost.CreateBuilder([]).Services;
 
-        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.IndexingPipeline));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Application.IndexingPipeline));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.Vcs.GitRepoService));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Domain.Vcs.IRepositoryRegistry));
-        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Indexing.IIndexJobTracker));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Application.Indexing.IIndexJobTracker));
     }
 
     [Theory]

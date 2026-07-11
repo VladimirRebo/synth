@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Synth.Api.Configuration;
 using Synth.Api.Embeddings;
+using Synth.Application.Embeddings;
 using Synth.Domain.Configuration;
 
 namespace Synth.Api.Tests;

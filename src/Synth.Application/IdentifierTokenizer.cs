@@ -1,7 +1,7 @@
 using System.Text;
 using Synth.Domain;
 
-namespace Synth.Core;
+namespace Synth.Application;
 
 /// <summary>
 /// Splits identifiers and free-text queries into lowercase word tokens, aware of

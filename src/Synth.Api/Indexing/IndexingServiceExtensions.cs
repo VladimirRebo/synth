@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Synth.Application;
+using Synth.Application.Indexing;
 using Synth.Core;
 using Synth.Domain;
 

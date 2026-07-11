@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Synth.Core;
+using Synth.Application;
 using Synth.Domain;
 
 namespace Synth.Api.Search;

@@ -1,5 +1,5 @@
 using Synth.Domain;
-namespace Synth.Core;
+namespace Synth.Application;
 
 /// <summary>
 /// Lightweight RU→EN query expansion. When a search query contains Cyrillic characters,

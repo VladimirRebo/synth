@@ -1,7 +1,7 @@
-using Synth.Core;
+using Synth.Application;
 using Synth.Domain;
 
-namespace Synth.Core.Tests;
+namespace Synth.Application.Tests;
 
 // Proves the camelCase-aware tokenization SYNTH-11's keyword boost relies on.
 public class IdentifierTokenizerTests
