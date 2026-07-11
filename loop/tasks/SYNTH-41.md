@@ -1,7 +1,7 @@
 ---
 id: SYNTH-41
 summary: "TS/Vue regex-based chunker"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'class.*Chunker' src/Synth.Core/TsVueChunker.cs"
 acceptance_criterion: ""
 boundaries: "New file(s) under src/Synth.Core/ for the chunker + its DI registration in src/Synth.Api/Indexing/IndexingServiceExtensions.cs (one more AddSingleton<IFileChunker, ...> line, additive). Do NOT touch CSharpRoslynChunker.cs or IndexingPipeline.cs's dispatch logic (FirstOrDefault(c => c.CanHandle(f)) already handles multiple chunkers correctly as long as CanHandle doesn't overlap .cs). Do NOT implement ICallSiteExtractor for this chunker — call-graph extraction stays C#-only for this pass, chunking only."
