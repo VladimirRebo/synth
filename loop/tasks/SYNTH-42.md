@@ -1,7 +1,7 @@
 ---
 id: SYNTH-42
 summary: "MCP tools: get_symbol + get_file"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'get_symbol' src/Synth.Api/Mcp/ && grep -rq 'get_file' src/Synth.Api/Mcp/"
 acceptance_criterion: ""
 boundaries: "New files under src/Synth.Api/Mcp/, one new public method on GitRepoService (checkout-path resolution, reusing not duplicating its existing private ResolveWorkspaceRoot logic), registration in both Program.cs and src/Synth.Mcp.Stdio/StdioMcpHost.cs, and tests. Do NOT change ICodeChunkStore's public surface for get_symbol if GetByFileAsync-style filtering can be added as a new method following the same pattern already established (GetByFileAsync exists — add an analogous GetBySymbolAsync, don't repurpose an existing method's contract)."
