@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   getVcsSettings,
   updateVcsSettings,
   getEmbeddingSettings,
   updateEmbeddingSettings,
+  getOllamaModels,
+  pullOllamaModel,
+  getOllamaPullStatus,
   getRawSettings,
   updateRawSettings,
   type VcsSettings,
   type EmbeddingSettings,
   type VcsSettingsPatch,
   type EmbeddingSettingsPatch,
+  type OllamaPullStatus,
 } from '../api'
 import Icon from './Icon.vue'
 
@@ -37,6 +41,18 @@ const openaiKeyClear = ref(false)
 const openaiModel = ref('')
 const embeddingStatus = ref<SaveStatus>('idle')
 const embeddingError = ref('')
+
+// Ollama model picker (SYNTH-50): the locally-available models fetched from the live instance, plus
+// the fire-and-forget "pull a new model" flow polled from the backend (mirrors IndexPanel's polling).
+const POLL_INTERVAL_MS = 1000
+const ollamaModels = ref<string[]>([])
+const ollamaModelsError = ref('')
+const pullModel = ref('')
+const pullStarting = ref(false)
+const pullError = ref('') // from the POST itself (400/409) — distinct from a Failed pull's own error
+const pull = ref<OllamaPullStatus | null>(null)
+let pullPollTimer: ReturnType<typeof setInterval> | null = null
+let pullPollSeq = 0 // guards against an overlapping older poll resolving after a newer one
 
 const rawExpanded = ref(false)
 const rawJson = ref('')
@@ -87,7 +103,104 @@ function applyEmbedding(settings: EmbeddingSettings) {
   openaiModel.value = settings.openai.model ?? ''
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  loadAll() // applyEmbedding sets `provider`, which the watch below turns into a model fetch when Ollama
+  pollPull() // resumes an in-flight or just-finished pull even after a reload
+})
+
+onUnmounted(stopPullPolling)
+
+// Fetch the model list whenever the section becomes relevant — i.e. `provider` turns to Ollama, whether
+// from the initial load (applyEmbedding) or the user switching the dropdown. The section only renders
+// then, so there's no point fetching for OpenAI/default. The endpoint resolves server-side from the
+// *saved* config, so a save is what changes it — hence saveEmbedding refetches too.
+watch(provider, (value) => {
+  if (value === 'Ollama' && ollamaModels.value.length === 0) fetchOllamaModels()
+})
+
+async function fetchOllamaModels() {
+  ollamaModelsError.value = ''
+  try {
+    ollamaModels.value = await getOllamaModels()
+  } catch (err) {
+    ollamaModelsError.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+// The <select> options: the fetched models plus the currently-selected one (so a model saved earlier
+// but no longer reported — or not yet listed — stays selectable rather than silently vanishing).
+const ollamaModelOptions = computed(() => {
+  const models = new Set(ollamaModels.value)
+  if (ollamaModel.value) models.add(ollamaModel.value)
+  return [...models]
+})
+
+async function pollPull() {
+  const seq = ++pullPollSeq
+  let result: OllamaPullStatus
+  try {
+    result = await getOllamaPullStatus()
+  } catch {
+    return // transient poll failure — keep the last known state, try again next tick
+  }
+  if (seq !== pullPollSeq) return // a newer poll already landed while this one was in flight — discard
+
+  pull.value = result
+  if (result.state === 'Running') {
+    if (pullPollTimer === null) startPullPolling()
+  } else {
+    stopPullPolling()
+    // A finished pull may have added the model locally — refresh the picker so it shows up.
+    if (result.state === 'Done') fetchOllamaModels()
+  }
+}
+
+function startPullPolling() {
+  stopPullPolling()
+  pullPollTimer = setInterval(pollPull, POLL_INTERVAL_MS)
+}
+
+function stopPullPolling() {
+  if (pullPollTimer !== null) {
+    clearInterval(pullPollTimer)
+    pullPollTimer = null
+  }
+}
+
+const pullBusy = computed(() => pullStarting.value || pull.value?.state === 'Running')
+
+async function startPull() {
+  const model = pullModel.value.trim()
+  if (!model || pullBusy.value) return
+
+  pullError.value = ''
+  pullStarting.value = true
+  try {
+    await pullOllamaModel(model)
+    await pollPull()
+    pullModel.value = ''
+  } catch (err) {
+    pullError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    pullStarting.value = false
+  }
+}
+
+const pullStatusText = computed(() => {
+  if (pullError.value) return pullError.value
+  const state = pull.value?.state
+  if (state === 'Running') {
+    const detail = pull.value?.status
+    return detail ? `Pulling ${pull.value?.model}… ${detail}` : `Pulling ${pull.value?.model}…`
+  }
+  if (state === 'Done') return `Pulled ${pull.value?.model}.`
+  if (state === 'Failed') return `Pull failed: ${pull.value?.error ?? 'unknown error'}`
+  return ''
+})
+
+const pullStatusClass = computed(() =>
+  pullError.value || pull.value?.state === 'Failed' ? 'error' : '',
+)
 
 async function saveVcs() {
   if (!vcs.value) return
@@ -138,6 +251,8 @@ async function saveEmbedding() {
     const updated = await updateEmbeddingSettings(patch)
     applyEmbedding(updated)
     embeddingStatus.value = 'saved'
+    // The endpoint may have changed — refresh the model list against the just-saved Ollama instance.
+    if (provider.value === 'Ollama') fetchOllamaModels()
   } catch (err) {
     embeddingError.value = err instanceof Error ? err.message : String(err)
     embeddingStatus.value = 'error'
@@ -254,8 +369,31 @@ const providerLabel = computed(() =>
             </div>
             <div class="field">
               <label>Model</label>
-              <input v-model="ollamaModel" type="text" placeholder="uses the Aspire connection if blank" />
+              <select v-model="ollamaModel" aria-label="Ollama model">
+                <option value="">uses the Aspire connection if blank</option>
+                <option v-for="model in ollamaModelOptions" :key="model" :value="model">{{ model }}</option>
+              </select>
             </div>
+            <p v-if="ollamaModelsError" class="hint error">{{ ollamaModelsError }}</p>
+            <div class="field">
+              <label>Pull a model</label>
+              <input
+                v-model="pullModel"
+                type="text"
+                placeholder="e.g. nomic-embed-text"
+                aria-label="Model to pull"
+                @keyup.enter="startPull"
+              />
+              <button
+                type="button"
+                class="pull-button"
+                :disabled="pullBusy || !pullModel.trim()"
+                @click="startPull"
+              >
+                {{ pull?.state === 'Running' ? 'Pulling…' : 'Pull' }}
+              </button>
+            </div>
+            <p v-if="pullStatusText" class="hint" :class="pullStatusClass">{{ pullStatusText }}</p>
           </template>
 
           <template v-else-if="provider === 'OpenAI'">
@@ -374,6 +512,22 @@ const providerLabel = computed(() =>
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text-h);
+}
+
+.pull-button {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-bg);
+  white-space: nowrap;
+}
+
+.pull-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .clear-toggle {

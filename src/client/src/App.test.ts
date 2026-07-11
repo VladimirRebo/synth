@@ -20,6 +20,12 @@ beforeEach(() => {
     openai: { apiKeySet: false, model: null },
   })
   vi.mocked(api.getRawSettings).mockResolvedValue('{}')
+  vi.mocked(api.getOllamaPullStatus).mockResolvedValue({
+    state: 'Idle',
+    model: '',
+    status: '',
+    error: null,
+  })
   vi.mocked(api.getLogs).mockResolvedValue([])
 })
 

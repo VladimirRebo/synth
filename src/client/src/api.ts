@@ -102,6 +102,15 @@ export interface EmbeddingSettingsPatch {
   openai?: { apiKey?: string; model?: string | null }
 }
 
+// Mirrors Synth.Api.Embeddings.OllamaPullStatus — the single current-or-most-recent model pull,
+// polled by the client instead of streaming (SYNTH-50), same fire-and-forget shape as IndexJobStatus.
+export interface OllamaPullStatus {
+  state: 'Idle' | 'Running' | 'Done' | 'Failed'
+  model: string
+  status: string
+  error: string | null
+}
+
 // Mirrors Synth.Api.Logging.LogEntry.
 export interface LogEntry {
   timestamp: string
@@ -259,6 +268,43 @@ export async function updateEmbeddingSettings(patch: EmbeddingSettingsPatch): Pr
   }
 
   return (await response.json()) as EmbeddingSettings
+}
+
+// Lists the models available on the live Ollama instance (GET .../ollama/models). The backend
+// resolves the effective Ollama endpoint (Settings override or the Aspire connection) and proxies
+// Ollama's own /api/tags, returning just the model names.
+export async function getOllamaModels(): Promise<string[]> {
+  const response = await fetch('/api/settings/embedding/ollama/models')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading Ollama models failed (${response.status})`))
+  }
+
+  return (await response.json()) as string[]
+}
+
+// Kicks off a fire-and-forget pull of `model` (202 Accepted) or throws — 400 for a blank model, 409
+// when a pull is already running. Progress is observed via getOllamaPullStatus, not this response.
+export async function pullOllamaModel(model: string): Promise<void> {
+  const response = await fetch('/api/settings/embedding/ollama/pull', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Starting the model pull failed (${response.status})`))
+  }
+}
+
+export async function getOllamaPullStatus(): Promise<OllamaPullStatus> {
+  const response = await fetch('/api/settings/embedding/ollama/pull/status')
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Loading pull status failed (${response.status})`))
+  }
+
+  return (await response.json()) as OllamaPullStatus
 }
 
 export async function getRawSettings(): Promise<string> {

@@ -118,6 +118,16 @@ public sealed class ConfigurableEmbeddingGenerator : IEmbeddingGenerator<string,
         return BuildOllama(null, null, aspireDefault);
     }
 
+    /// <summary>
+    /// The effective Ollama base endpoint for a given config snapshot: the <c>Embedding:Ollama:Endpoint</c>
+    /// override when set, otherwise the Aspire-supplied embeddings connection endpoint (null when neither
+    /// is available). This is the exact same resolution the live Ollama generator uses in
+    /// <see cref="BuildOllama"/>, exposed so the Ollama model-picker/pull endpoints (SYNTH-50) talk to the
+    /// same server the embeddings actually use rather than re-deriving it.
+    /// </summary>
+    public static string? ResolveOllamaEndpoint(EmbeddingOptions options, OllamaConnection aspireDefault) =>
+        FirstNonEmpty(options.Ollama.Endpoint, aspireDefault.Endpoint);
+
     private static IEmbeddingGenerator<string, Embedding<float>> BuildOllama(
         string? endpointOverride, string? modelOverride, OllamaConnection aspireDefault)
     {
