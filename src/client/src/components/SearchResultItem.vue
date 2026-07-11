@@ -27,7 +27,16 @@ function toggle() {
 <template>
   <article class="result">
     <header class="result-header" :class="{ clickable: isTruncatable }" @click="toggle">
-      <span class="path">{{ result.relativePath }}</span>
+      <a
+        v-if="result.sourceUrl"
+        class="path path-link"
+        :href="result.sourceUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        @click.stop
+        >{{ result.relativePath }}</a
+      >
+      <span v-else class="path">{{ result.relativePath }}</span>
       <span class="spacer" />
       <span class="score" :title="`Rerank score: ${result.score.toFixed(3)}`">{{
         result.score.toFixed(2)
@@ -81,6 +90,15 @@ function toggle() {
   font-size: 14px;
   color: var(--text-h);
   word-break: break-all;
+}
+
+.path-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.path-link:hover {
+  text-decoration: underline;
 }
 
 .score {

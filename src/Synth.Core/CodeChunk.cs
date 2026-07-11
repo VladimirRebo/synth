@@ -57,6 +57,14 @@ public sealed class CodeChunk
     public string FileHash { get; init; } = string.Empty;
 
     /// <summary>
+    /// Provider blob URL (GitHub/GitLab) pointing at this chunk's line range in the remote
+    /// repository, e.g. <c>https://github.com/owner/repo/blob/HEAD/path#L10-L20</c>. Populated only
+    /// for repositories indexed by remote URL; <c>null</c> for local-path-indexed chunks (there is no
+    /// meaningful source URL for those) and for providers with no known blob-URL shape.
+    /// </summary>
+    public string? SourceUrl { get; init; }
+
+    /// <summary>
     /// Embedding vector for <see cref="EmbeddingText"/>. Empty until the chunk has
     /// been run through the embedding model; vector stores read it on upsert and the
     /// search side compares query vectors against it. Not part of the embedding input.
@@ -153,7 +161,30 @@ public sealed class CodeChunk
         StartLine = StartLine,
         EndLine = EndLine,
         FileHash = FileHash,
+        SourceUrl = SourceUrl,
         Embedding = embedding,
+    };
+
+    /// <summary>
+    /// Returns a copy of this chunk carrying <paramref name="sourceUrl"/> as its
+    /// <see cref="SourceUrl"/>, leaving every other field unchanged. Used by the indexing pipeline to
+    /// stamp a remote blob URL onto a chunk without mutating the original (init-only model).
+    /// </summary>
+    public CodeChunk WithSourceUrl(string? sourceUrl) => new()
+    {
+        FilePath = FilePath,
+        RelativePath = RelativePath,
+        Namespace = Namespace,
+        ClassName = ClassName,
+        MethodName = MethodName,
+        ChunkType = ChunkType,
+        Content = Content,
+        Summary = Summary,
+        StartLine = StartLine,
+        EndLine = EndLine,
+        FileHash = FileHash,
+        SourceUrl = sourceUrl,
+        Embedding = Embedding,
     };
 
     private static string TruncateContent(string content)

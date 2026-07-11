@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Core;
 using Synth.Core.Graph;
+using Synth.Core.Vcs;
 
 namespace Synth.Core.Tests;
 
@@ -143,6 +144,52 @@ public class IndexingPipelineTests : IDisposable
         // Every stored chunk carries an embedding of the fake generator's dimension.
         foreach (var chunk in fooChunks.Concat(barChunks))
             Assert.Equal(FakeEmbeddingGenerator.Dimensions, chunk.Embedding.Length);
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_with_repoInfo_stamps_source_url_on_every_chunk()
+    {
+        // Foo: class + method => 2 chunks, each getting a GitHub blob URL for its own line range.
+        WriteFile("Foo.cs", """
+            namespace Sample;
+            public class Foo { public void M() { } }
+            """);
+
+        var store = new LocalCodeChunkStore();
+        var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
+        var repoInfo = RepoUrlInfo.Parse("https://github.com/owner/repo.git");
+
+        await pipeline.IndexDirectoryAsync(
+            CollectionNames.Default, _root, repoInfo: repoInfo, branch: "main");
+
+        var chunks = await store.GetByFileAsync(CollectionNames.Default, "Foo.cs");
+        Assert.NotEmpty(chunks);
+        Assert.All(chunks, chunk =>
+        {
+            Assert.NotNull(chunk.SourceUrl);
+            Assert.Equal(
+                $"https://github.com/owner/repo/blob/main/Foo.cs#L{chunk.StartLine}-L{chunk.EndLine}",
+                chunk.SourceUrl);
+        });
+    }
+
+    [Fact]
+    public async Task IndexDirectoryAsync_without_repoInfo_leaves_source_url_null()
+    {
+        WriteFile("Foo.cs", """
+            namespace Sample;
+            public class Foo { public void M() { } }
+            """);
+
+        var store = new LocalCodeChunkStore();
+        var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
+
+        // The local-path case (no repoInfo argument): SourceUrl stays null on every chunk.
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        var chunks = await store.GetByFileAsync(CollectionNames.Default, "Foo.cs");
+        Assert.NotEmpty(chunks);
+        Assert.All(chunks, chunk => Assert.Null(chunk.SourceUrl));
     }
 
     [Fact]

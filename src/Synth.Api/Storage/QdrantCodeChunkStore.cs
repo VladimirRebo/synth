@@ -27,6 +27,7 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
     private const string StartLineKey = "startLine";
     private const string EndLineKey = "endLine";
     private const string FileHashKey = "fileHash";
+    private const string SourceUrlKey = "sourceUrl";
 
     private readonly QdrantClient _client;
 
@@ -67,6 +68,11 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
                     [FileHashKey] = chunk.FileHash,
                 },
             };
+
+            // Only remote-indexed chunks carry a SourceUrl; local-path chunks leave the key absent
+            // so ToChunk reads them back as null (SYNTH-40).
+            if (chunk.SourceUrl is not null)
+                point.Payload[SourceUrlKey] = chunk.SourceUrl;
 
             points.Add(point);
         }
@@ -233,10 +239,16 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
         StartLine = (int)GetInt(payload, StartLineKey),
         EndLine = (int)GetInt(payload, EndLineKey),
         FileHash = GetString(payload, FileHashKey),
+        SourceUrl = GetNullableString(payload, SourceUrlKey),
     };
 
     private static string GetString(IReadOnlyDictionary<string, Value> payload, string key) =>
         payload.TryGetValue(key, out var value) && value.HasStringValue ? value.StringValue : string.Empty;
+
+    // Absent (or non-string) key -> null, distinguishing "no source URL" (local-path chunks) from an
+    // actual empty string. Used for CodeChunk.SourceUrl, which is meaningfully nullable.
+    private static string? GetNullableString(IReadOnlyDictionary<string, Value> payload, string key) =>
+        payload.TryGetValue(key, out var value) && value.HasStringValue ? value.StringValue : null;
 
     private static long GetInt(IReadOnlyDictionary<string, Value> payload, string key) =>
         payload.TryGetValue(key, out var value) && value.HasIntegerValue ? value.IntegerValue : 0L;

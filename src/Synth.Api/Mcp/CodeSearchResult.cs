@@ -18,7 +18,8 @@ public sealed record CodeSearchResult(
     int StartLine,
     int EndLine,
     string Snippet,
-    double Score)
+    double Score,
+    string? SourceUrl)
 {
     /// <summary>Projects a matched <see cref="ScoredCodeChunk"/> into a tool result.</summary>
     public static CodeSearchResult From(ScoredCodeChunk scored)
@@ -33,6 +34,7 @@ public sealed record CodeSearchResult(
             chunk.StartLine,
             chunk.EndLine,
             chunk.Content,
-            scored.Score);
+            scored.Score,
+            chunk.SourceUrl);
     }
 }

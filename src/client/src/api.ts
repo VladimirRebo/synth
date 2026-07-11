@@ -16,6 +16,9 @@ export interface SearchResult {
   // [0, 1] (the weight/boost multipliers can push it above 1) — treat as a relative ranking
   // signal within one result set, not a percentage. See CodeSearchService.SearchAsync.
   score: number
+  // Provider blob URL (GitHub/GitLab) pointing at this chunk's line range, when the collection was
+  // indexed by remote repoUrl. null for local-path-indexed results — render the plain path then.
+  sourceUrl: string | null
 }
 
 // Mirrors Synth.Core.Indexing.IndexJobStatus. SYNTH-31 made POST /index fire-and-forget — this is
