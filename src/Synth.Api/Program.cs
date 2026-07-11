@@ -72,6 +72,11 @@ builder.AddSynthIndexing();
 // records what has been indexed. Uses Mongo when configured, an in-memory fallback otherwise.
 builder.AddSynthVcs();
 
+// Startup orphan sweep (SYNTH-45): a one-shot hosted service that GCs workspace-root checkouts with
+// no matching registry entry (collections deleted before checkout cleanup existed, or removed
+// out-of-band). Registered like LogEntryStoreWriter (SYNTH-28); runs once at startup and returns.
+builder.Services.AddHostedService<OrphanCheckoutSweeper>();
+
 // Call-graph storage: registers ICodeGraphStore for structural "who calls X / what does X call"
 // edges (issue #33). Mongo when configured, an in-memory fallback otherwise. Registration only —
 // extraction (SYNTH-26) and query tools (SYNTH-27) build on top of it later.

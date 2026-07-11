@@ -1,5 +1,6 @@
 using Synth.Core;
 using Synth.Core.Graph;
+using Synth.Core.Vcs;
 
 namespace Synth.Api.Vcs;
 
@@ -50,10 +51,21 @@ public static class RepositoryEndpoints
             ICodeChunkStore chunkStore,
             ICodeGraphStore graphStore,
             IRepositoryRegistry registry,
+            GitRepoService gitRepoService,
             CancellationToken cancellationToken) =>
         {
+            // Read the entry before the delete sequence removes it, so we know its SourceType: only a
+            // cloned remote (github/gitlab) has an on-disk checkout under the workspace root to remove;
+            // a local source was indexed in place and never cloned.
+            var entries = await registry.ListAsync(cancellationToken);
+            var entry = entries.FirstOrDefault(e =>
+                string.Equals(e.Collection, collection, StringComparison.Ordinal));
+
             var removed = await DeleteCollectionAsync(
                 collection, chunkStore, graphStore, registry, cancellationToken);
+
+            if (removed && entry is not null && IsClonedRemote(entry.SourceType))
+                DeleteCheckout(gitRepoService.ResolveCheckoutPath(collection));
 
             return removed ? Results.NoContent() : Results.NotFound();
         });
@@ -80,5 +92,32 @@ public static class RepositoryEndpoints
         await chunkStore.DeleteCollectionAsync(collection, cancellationToken);
         await graphStore.ReplaceEdgesAsync(collection, [], cancellationToken);
         return await registry.DeleteAsync(collection, cancellationToken);
+    }
+
+    /// <summary>
+    /// True for source types that <see cref="GitRepoService"/> clones into the workspace root
+    /// (<c>github</c>/<c>gitlab</c>), i.e. those with an on-disk checkout to clean up. A <c>local</c>
+    /// source is indexed in place and has none.
+    /// </summary>
+    internal static bool IsClonedRemote(string sourceType) =>
+        string.Equals(sourceType, "github", StringComparison.Ordinal) ||
+        string.Equals(sourceType, "gitlab", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Removes an on-disk checkout directory (recursively), tolerating an already-gone directory — the
+    /// checkout may have been deleted out-of-band or never fully cloned. Shared by the DELETE handler
+    /// and the startup orphan sweep (<see cref="OrphanCheckoutSweeper"/>).
+    /// </summary>
+    internal static void DeleteCheckout(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Raced with another removal between the Exists check and the delete — already gone.
+        }
     }
 }

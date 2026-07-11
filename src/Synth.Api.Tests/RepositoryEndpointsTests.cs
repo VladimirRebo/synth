@@ -17,14 +17,21 @@ public class RepositoryEndpointsTests : IClassFixture<WebApplicationFactory<Prog
 
     public RepositoryEndpointsTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-    private HttpClient CreateClient(IRepositoryRegistry registry) =>
+    private HttpClient CreateClient(IRepositoryRegistry registry, string? workspaceRoot = null) =>
         _factory
             .WithWebHostBuilder(builder =>
+            {
+                // Point GitRepoService at a temp workspace so DELETE's checkout cleanup never touches
+                // the real ~/.synth/workspaces.
+                if (workspaceRoot is not null)
+                    builder.UseSetting("Vcs:WorkspaceRoot", workspaceRoot);
+
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IRepositoryRegistry>();
                     services.AddSingleton(registry);
-                }))
+                });
+            })
             .CreateClient();
 
     private static async Task<InMemoryRepositoryRegistry> SeededRegistry(params string[] collections)
@@ -122,5 +129,72 @@ public class RepositoryEndpointsTests : IClassFixture<WebApplicationFactory<Prog
         var response = await client.DeleteAsync("/repositories/never-indexed");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("github")]
+    [InlineData("gitlab")]
+    public async Task Delete_of_a_cloned_remote_removes_its_on_disk_checkout(string sourceType)
+    {
+        var workspaceRoot = Directory.CreateTempSubdirectory("synth-gc-workspace-");
+        try
+        {
+            // The checkout lives at {WorkspaceRoot}/{collection} (slug == collection name).
+            var checkout = Directory.CreateDirectory(Path.Combine(workspaceRoot.FullName, "remote-repo"));
+            File.WriteAllText(Path.Combine(checkout.FullName, "README.md"), "cloned");
+
+            var registry = new InMemoryRepositoryRegistry();
+            await registry.UpsertAsync(new RepositoryEntry
+            {
+                Collection = "remote-repo",
+                SourceType = sourceType,
+                Source = "https://example.com/acme/remote-repo.git",
+                LastIndexedAt = DateTime.UtcNow,
+                ChunkCount = 1,
+            });
+            var client = CreateClient(registry, workspaceRoot.FullName);
+
+            var response = await client.DeleteAsync("/repositories/remote-repo");
+
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            Assert.False(Directory.Exists(checkout.FullName));
+        }
+        finally
+        {
+            workspaceRoot.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Delete_of_a_local_collection_leaves_any_workspace_directory_untouched()
+    {
+        var workspaceRoot = Directory.CreateTempSubdirectory("synth-gc-workspace-");
+        try
+        {
+            // A local source is never cloned, so DELETE must attempt no checkout removal. A stray
+            // same-named directory under the workspace root proves the local branch is skipped: it
+            // must survive the delete.
+            var strayDirectory = Directory.CreateDirectory(Path.Combine(workspaceRoot.FullName, "local-repo"));
+
+            var registry = new InMemoryRepositoryRegistry();
+            await registry.UpsertAsync(new RepositoryEntry
+            {
+                Collection = "local-repo",
+                SourceType = "local",
+                Source = "/some/local/path",
+                LastIndexedAt = DateTime.UtcNow,
+                ChunkCount = 1,
+            });
+            var client = CreateClient(registry, workspaceRoot.FullName);
+
+            var response = await client.DeleteAsync("/repositories/local-repo");
+
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            Assert.True(Directory.Exists(strayDirectory.FullName));
+        }
+        finally
+        {
+            workspaceRoot.Delete(recursive: true);
+        }
     }
 }
