@@ -1,7 +1,7 @@
 ---
 id: SYNTH-47
 summary: "Collection browse/preview: inspect a file's chunks + embedding text"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'GetByFileAsync' src/Synth.Api/Search/SearchEndpoints.cs"
 acceptance_criterion: ""
 boundaries: "Backend: touch only src/Synth.Api/Search/SearchEndpoints.cs (or a new small file in the same directory) and tests. This reuses ICodeChunkStore.GetByFileAsync, which already exists — do not add a new store method. Client: a new small component, wired into the existing routed pages (Sidebar.vue navigation), not merged into SearchPanel.vue."
