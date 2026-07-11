@@ -101,6 +101,10 @@ public static class IndexingEndpoints
         string? repoUrl = null;
         string? branch = null;
 
+        // Parsed remote-repo URL, carried into the background run so it can build per-chunk blob URLs
+        // (SYNTH-40). Stays null for the local-path case (no remote URL, so no source links).
+        RepoUrlInfo? repoInfo = null;
+
         if (hasPath)
         {
             if (!Directory.Exists(request.Path))
@@ -131,6 +135,8 @@ public static class IndexingEndpoints
             {
                 return IndexStartOutcome.ValidationError(ex.Message);
             }
+
+            repoInfo = info;
 
             // Per-repo collection derived from the URL (SYNTH-18); the same URL always maps here.
             collection = info.Slug;
@@ -169,8 +175,10 @@ public static class IndexingEndpoints
                 var progress = new Progress<IndexingProgress>(p =>
                     tracker.ReportProgress(p.FilesIndexed, p.FilesSkipped, p.TotalFiles));
 
+                // repoInfo/branch are non-null only for the repoUrl branch; the local-path case leaves
+                // them null so SourceUrl stays null on every chunk (SYNTH-40).
                 var summary = await pipeline.IndexDirectoryAsync(
-                    collection, indexRoot, CancellationToken.None, progress);
+                    collection, indexRoot, CancellationToken.None, progress, repoInfo, branch);
 
                 // Registry upsert moved here from the endpoint body: it can no longer happen before
                 // the response is sent, so it runs once the work actually finished.

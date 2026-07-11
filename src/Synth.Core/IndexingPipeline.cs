@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Synth.Core.Graph;
+using Synth.Core.Vcs;
 
 namespace Synth.Core;
 
@@ -47,12 +48,25 @@ public sealed class IndexingPipeline
     /// total-file count, then after each indexed file, and once more with the final counts. Callers
     /// that omit it (tests, existing callers) are unaffected — behavior is otherwise identical.
     /// </param>
+    /// <param name="repoInfo">
+    /// Optional, additive (SYNTH-40): the parsed remote-repo URL when indexing a <c>repoUrl</c>-sourced
+    /// collection. When provided, each chunk gets a provider blob URL (<see cref="CodeChunk.SourceUrl"/>)
+    /// built from it and <paramref name="branch"/>. When null — the local-path case, and every existing
+    /// caller that omits it — <see cref="CodeChunk.SourceUrl"/> stays null.
+    /// </param>
+    /// <param name="branch">
+    /// Optional, additive (SYNTH-40): the indexed branch, or null when the repo's default branch was
+    /// used (the blob URL then uses the literal <c>HEAD</c> segment). Only meaningful together with
+    /// <paramref name="repoInfo"/>.
+    /// </param>
     /// <returns>A summary of how many files were indexed vs. skipped and the chunk total.</returns>
     public async Task<IndexingSummary> IndexDirectoryAsync(
         string collection,
         string rootPath,
         CancellationToken cancellationToken = default,
-        IProgress<IndexingProgress>? progress = null)
+        IProgress<IndexingProgress>? progress = null,
+        RepoUrlInfo? repoInfo = null,
+        string? branch = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
@@ -113,6 +127,16 @@ public sealed class IndexingPipeline
             {
                 filesSkipped++;
                 continue;
+            }
+
+            // Stamp a remote blob URL onto each chunk when indexing a repoUrl-sourced collection
+            // (SYNTH-40). No-op for the local-path case (repoInfo == null): SourceUrl stays null.
+            if (repoInfo is not null)
+            {
+                chunks = chunks
+                    .Select(c => c.WithSourceUrl(
+                        SourceUrlBuilder.Build(repoInfo, branch, c.RelativePath, c.StartLine, c.EndLine)))
+                    .ToList();
             }
 
             // Stage 1: remember this file's declared method/constructor names (candidate callees) and,

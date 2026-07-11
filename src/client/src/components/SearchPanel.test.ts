@@ -20,6 +20,7 @@ function result(overrides: Partial<api.SearchResult> = {}): api.SearchResult {
     endLine: 4,
     snippet: 'public string Greet(string name) => $"Hello, {name}!";',
     score: 1.2,
+    sourceUrl: null,
     ...overrides,
   }
 }
