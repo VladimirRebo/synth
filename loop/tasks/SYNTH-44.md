@@ -1,7 +1,7 @@
 ---
 id: SYNTH-44
 summary: "Parallelize indexing: concurrent per-file chunk+embed+upsert"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'ParallelOptions' src/Synth.Core/IndexingPipeline.cs"
 acceptance_criterion: ""
 boundaries: "Touch only src/Synth.Core/IndexingPipeline.cs and its tests. This runs after SYNTH-40 (SourceUrl) and SYNTH-33 (incremental indexing) have both already landed on main — read the current IndexDirectoryAsync body fresh before starting, don't assume the shape described here is exactly current if other tasks landed first. Preserve every existing behavior: incremental skip-if-unchanged (SYNTH-33), the call-graph two-stage resolution, progress reporting, stale-file cleanup, and (if already merged) SourceUrl population — this task is purely about concurrency, not changing what gets computed."
