@@ -92,9 +92,16 @@ public sealed class GitRepoService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
-        var root = ResolveWorkspaceRoot(_options.CurrentValue.WorkspaceRoot);
-        return Path.Combine(root, slug);
+        return Path.Combine(ResolveWorkspaceRoot(), slug);
     }
+
+    /// <summary>
+    /// Resolves the configured workspace root (the directory that holds one checkout subdirectory per
+    /// repository slug), applying the same default-path/env-expansion logic <see cref="EnsureRepoAsync"/>
+    /// and <see cref="ResolveCheckoutPath"/> use, so the three never drift. Used by the startup orphan
+    /// sweep (SYNTH-45) to enumerate on-disk checkouts and drop the ones with no registry entry.
+    /// </summary>
+    public string ResolveWorkspaceRoot() => ResolveWorkspaceRoot(_options.CurrentValue.WorkspaceRoot);
 
     // A directory counts as a usable checkout only if it carries a .git entry (dir for a normal
     // clone, file for a worktree/submodule). Otherwise we (re)clone.
