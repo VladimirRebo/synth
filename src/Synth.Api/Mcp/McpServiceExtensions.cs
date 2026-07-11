@@ -23,7 +23,10 @@ public static class McpServiceExtensions
             .WithTools<CallGraphTool>()
             .WithTools<IndexCodeTool>()
             .WithTools<GetSymbolTool>()
-            .WithTools<GetFileTool>();
+            .WithTools<GetFileTool>()
+            .WithTools<ListCollectionsTool>()
+            .WithTools<DeleteCollectionTool>()
+            .WithTools<HealthCheckTool>();
 
         return builder;
     }

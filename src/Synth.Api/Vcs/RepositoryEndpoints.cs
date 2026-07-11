@@ -52,13 +52,33 @@ public static class RepositoryEndpoints
             IRepositoryRegistry registry,
             CancellationToken cancellationToken) =>
         {
-            await chunkStore.DeleteCollectionAsync(collection, cancellationToken);
-            await graphStore.ReplaceEdgesAsync(collection, [], cancellationToken);
-            var removed = await registry.DeleteAsync(collection, cancellationToken);
+            var removed = await DeleteCollectionAsync(
+                collection, chunkStore, graphStore, registry, cancellationToken);
 
             return removed ? Results.NoContent() : Results.NotFound();
         });
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// Removes an indexed collection completely — its vector-store collection, its call-graph edges
+    /// (a full clear via <see cref="ICodeGraphStore.ReplaceEdgesAsync"/> with an empty list), and its
+    /// registry entry — and reports whether the registry actually held an entry to remove. Factored
+    /// out of the <c>DELETE /repositories/{collection}</c> handler so the <c>delete_collection</c> MCP
+    /// tool (SYNTH-43) drives the exact same three-step sequence rather than duplicating it. The store
+    /// and graph cleanup run even when the registry has no entry (the two could drift); a
+    /// <c>false</c> return maps to the REST endpoint's 404 for "delete something that doesn't exist".
+    /// </summary>
+    public static async Task<bool> DeleteCollectionAsync(
+        string collection,
+        ICodeChunkStore chunkStore,
+        ICodeGraphStore graphStore,
+        IRepositoryRegistry registry,
+        CancellationToken cancellationToken = default)
+    {
+        await chunkStore.DeleteCollectionAsync(collection, cancellationToken);
+        await graphStore.ReplaceEdgesAsync(collection, [], cancellationToken);
+        return await registry.DeleteAsync(collection, cancellationToken);
     }
 }

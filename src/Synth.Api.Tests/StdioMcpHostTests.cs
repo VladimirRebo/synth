@@ -46,6 +46,33 @@ public class StdioMcpHostTests
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Api.Indexing.IIndexJobTracker));
     }
 
+    [Theory]
+    [InlineData("list_collections")]
+    [InlineData("delete_collection")]
+    [InlineData("health_check")]
+    public void Repository_and_health_tools_are_registered_on_the_stdio_mcp_server(string toolName)
+    {
+        // SYNTH-43: the three operability tools must be present over stdio as well as HTTP.
+        using var host = StdioMcpHost.CreateBuilder([]).Build();
+
+        var tools = host.Services.GetServices<McpServerTool>();
+
+        Assert.Contains(tools, tool => tool.ProtocolTool.Name == toolName);
+    }
+
+    [Fact]
+    public void Host_wires_the_health_layer_the_health_check_tool_depends_on()
+    {
+        // health_check (SYNTH-43) resolves IHealthCheckService per invocation, so AddSynthHealthChecks
+        // must run over stdio too. With no live Qdrant configured it falls back to the always-healthy
+        // probe, so the service resolves without a backend — mirroring SYNTH-35's "not configured" path.
+        using var host = StdioMcpHost.CreateBuilder([]).Build();
+
+        var health = host.Services.GetService<Synth.Api.Health.IHealthCheckService>();
+
+        Assert.NotNull(health);
+    }
+
     [Fact]
     public void Host_wires_the_search_layer_the_tool_depends_on()
     {
