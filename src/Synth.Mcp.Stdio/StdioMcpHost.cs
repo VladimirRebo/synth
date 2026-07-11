@@ -58,14 +58,18 @@ public static class StdioMcpHost
         builder.Services.AddSingleton<GitRepoService>();
         builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
 
-        // MCP server over stdio (not HTTP): the same `search_code` + call-graph + `index_code` tools,
-        // spawned by the client on stdin/stdout. No HTTP endpoints are mapped in this process.
+        // MCP server over stdio (not HTTP): the same search_code + call-graph + index_code +
+        // get_symbol + get_file tools, spawned by the client on stdin/stdout. get_symbol resolves
+        // ICodeChunkStore (from AddSynthVectorStore); get_file resolves IRepositoryRegistry +
+        // GitRepoService wired just above. No HTTP endpoints are mapped in this process.
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithTools<CodeSearchTool>()
             .WithTools<CallGraphTool>()
-            .WithTools<IndexCodeTool>();
+            .WithTools<IndexCodeTool>()
+            .WithTools<GetSymbolTool>()
+            .WithTools<GetFileTool>();
 
         return builder;
     }

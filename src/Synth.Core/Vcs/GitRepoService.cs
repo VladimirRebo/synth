@@ -80,6 +80,22 @@ public sealed class GitRepoService
         }
     }
 
+    /// <summary>
+    /// Resolves the on-disk checkout directory for a repoUrl-indexed collection without cloning or
+    /// fetching: it is <c>{WorkspaceRoot}/{slug}</c>, the same location <see cref="EnsureRepoAsync"/>
+    /// checks the repository out into (and <paramref name="slug"/> equals the collection name — see
+    /// <c>IndexingEndpoints.StartIndexing</c>). Reuses the same <see cref="ResolveWorkspaceRoot"/>
+    /// default-path/env-expansion logic as the clone path, so the two never drift. Used by the
+    /// <c>get_file</c> MCP tool to read a file out of an already-indexed remote checkout.
+    /// </summary>
+    public string ResolveCheckoutPath(string slug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+        var root = ResolveWorkspaceRoot(_options.CurrentValue.WorkspaceRoot);
+        return Path.Combine(root, slug);
+    }
+
     // A directory counts as a usable checkout only if it carries a .git entry (dir for a normal
     // clone, file for a worktree/submodule). Otherwise we (re)clone.
     private static bool IsGitCheckout(string checkout)

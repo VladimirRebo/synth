@@ -51,12 +51,68 @@ public class QdrantCodeChunkStoreTests
         }
     }
 
+    [Fact]
+    public async Task GetBySymbolAsync_filters_by_class_and_method_with_AND()
+    {
+        var url = Environment.GetEnvironmentVariable(UrlVariable);
+        if (string.IsNullOrWhiteSpace(url))
+            return; // No live Qdrant configured — skip gracefully, like the Mongo store tests do.
+
+        var apiKey = Environment.GetEnvironmentVariable(KeyVariable);
+        using var client = new QdrantClient(new Uri(url), apiKey);
+        var store = new QdrantCodeChunkStore(client);
+
+        var collection = $"synth-symbol-test-{Guid.NewGuid():N}";
+
+        try
+        {
+            await store.UpsertAsync(collection,
+            [
+                SymbolChunk("user.cs", "UserRepository", "GetById", [0.1f, 0.2f]),
+                SymbolChunk("user.cs", "UserRepository", "Save", [0.3f, 0.4f]),
+                SymbolChunk("order.cs", "OrderRepository", "GetById", [0.5f, 0.6f]),
+            ]);
+
+            // Class-only: both UserRepository methods.
+            var byClass = await store.GetBySymbolAsync(collection, "UserRepository", methodName: null);
+            Assert.Equal(["GetById", "Save"], byClass.Select(c => c.MethodName));
+
+            // Method-only across classes.
+            var byMethod = await store.GetBySymbolAsync(collection, className: null, methodName: "GetById");
+            Assert.Equal(["OrderRepository", "UserRepository"], byMethod.Select(c => c.ClassName));
+
+            // Both combined with AND narrows to the single chunk.
+            var byBoth = await store.GetBySymbolAsync(collection, "UserRepository", "GetById");
+            var only = Assert.Single(byBoth);
+            Assert.Equal("UserRepository", only.ClassName);
+            Assert.Equal("GetById", only.MethodName);
+
+            // No match yields empty.
+            Assert.Empty(await store.GetBySymbolAsync(collection, "MissingClass", methodName: null));
+        }
+        finally
+        {
+            await client.DeleteCollectionAsync(collection);
+        }
+    }
+
     private static CodeChunk ChunkWithVector(string id, float[] vector) => new()
     {
         RelativePath = $"{id}.cs",
         StartLine = 1,
         EndLine = 2,
         Content = id,
+        Embedding = vector,
+    };
+
+    private static CodeChunk SymbolChunk(string relativePath, string className, string methodName, float[] vector) => new()
+    {
+        RelativePath = relativePath,
+        ClassName = className,
+        MethodName = methodName,
+        StartLine = 1,
+        EndLine = 2,
+        Content = $"{className}.{methodName}",
         Embedding = vector,
     };
 }

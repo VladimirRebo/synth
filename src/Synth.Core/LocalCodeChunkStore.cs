@@ -64,6 +64,32 @@ public sealed class LocalCodeChunkStore : ICodeChunkStore
         return Task.FromResult<IReadOnlyList<CodeChunk>>(matches);
     }
 
+    public Task<IReadOnlyList<CodeChunk>> GetBySymbolAsync(
+        string collection,
+        string? className,
+        string? methodName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        if (!_collections.TryGetValue(collection, out var bucket))
+            return Task.FromResult<IReadOnlyList<CodeChunk>>([]);
+
+        // A null/empty filter arg is ignored; the ones supplied are matched case-insensitively and
+        // combined with AND. At least one is guaranteed by the MCP tool layer (see GetSymbolTool).
+        var matches = bucket.Values
+            .Where(chunk =>
+                (string.IsNullOrEmpty(className) ||
+                    string.Equals(chunk.ClassName, className, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(methodName) ||
+                    string.Equals(chunk.MethodName, methodName, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(chunk => chunk.RelativePath, StringComparer.Ordinal)
+            .ThenBy(chunk => chunk.StartLine)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<CodeChunk>>(matches);
+    }
+
     public Task<IReadOnlyList<string>> ListRelativePathsAsync(
         string collection,
         CancellationToken cancellationToken = default)

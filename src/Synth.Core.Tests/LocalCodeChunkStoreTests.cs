@@ -75,6 +75,80 @@ public class LocalCodeChunkStoreTests
         Assert.Equal(["First", "Second", "Third"], chunks.Select(c => c.MethodName));
     }
 
+    private static CodeChunk SymbolChunk(string relativePath, string className, string methodName, int startLine = 1) => new()
+    {
+        RelativePath = relativePath,
+        ClassName = className,
+        MethodName = methodName,
+        StartLine = startLine,
+        EndLine = startLine + 1,
+        Content = $"{className}.{methodName}",
+        Embedding = new[] { 1f, 0f },
+    };
+
+    [Fact]
+    public async Task GetBySymbolAsync_matches_by_class_only()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default,
+        [
+            SymbolChunk("user.cs", "UserRepository", "GetById", startLine: 10),
+            SymbolChunk("user.cs", "UserRepository", "Save", startLine: 20),
+            SymbolChunk("order.cs", "OrderRepository", "GetById", startLine: 1),
+        ]);
+
+        var chunks = await store.GetBySymbolAsync(CollectionNames.Default, "UserRepository", methodName: null);
+
+        Assert.Equal(["GetById", "Save"], chunks.Select(c => c.MethodName));
+        Assert.All(chunks, c => Assert.Equal("UserRepository", c.ClassName));
+    }
+
+    [Fact]
+    public async Task GetBySymbolAsync_matches_by_method_only()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default,
+        [
+            SymbolChunk("user.cs", "UserRepository", "GetById", startLine: 10),
+            SymbolChunk("order.cs", "OrderRepository", "GetById", startLine: 1),
+            SymbolChunk("user.cs", "UserRepository", "Save", startLine: 20),
+        ]);
+
+        var chunks = await store.GetBySymbolAsync(CollectionNames.Default, className: null, methodName: "GetById");
+
+        // Ordered by relative path then start line: order.cs before user.cs.
+        Assert.Equal(["OrderRepository", "UserRepository"], chunks.Select(c => c.ClassName));
+        Assert.All(chunks, c => Assert.Equal("GetById", c.MethodName));
+    }
+
+    [Fact]
+    public async Task GetBySymbolAsync_matches_by_both_class_and_method_case_insensitively()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default,
+        [
+            SymbolChunk("user.cs", "UserRepository", "GetById", startLine: 10),
+            SymbolChunk("user.cs", "UserRepository", "Save", startLine: 20),
+            SymbolChunk("order.cs", "OrderRepository", "GetById", startLine: 1),
+        ]);
+
+        // Different casing on both filters still matches the exact name (case-insensitive contract).
+        var chunks = await store.GetBySymbolAsync(CollectionNames.Default, "userrepository", "GETBYID");
+
+        var only = Assert.Single(chunks);
+        Assert.Equal("UserRepository", only.ClassName);
+        Assert.Equal("GetById", only.MethodName);
+    }
+
+    [Fact]
+    public async Task GetBySymbolAsync_returns_empty_when_no_match()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync(CollectionNames.Default, [SymbolChunk("user.cs", "UserRepository", "GetById")]);
+
+        Assert.Empty(await store.GetBySymbolAsync(CollectionNames.Default, "MissingClass", methodName: null));
+    }
+
     [Fact]
     public async Task GetByFileAsync_returns_empty_when_no_match()
     {
