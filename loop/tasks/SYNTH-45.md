@@ -1,7 +1,7 @@
 ---
 id: SYNTH-45
 summary: "GC orphaned git checkouts under workspace root"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'ResolveCheckoutPath' src/Synth.Core/Vcs/GitRepoService.cs"
 acceptance_criterion: ""
 boundaries: "Touch: src/Synth.Api/Vcs/RepositoryEndpoints.cs (hook checkout cleanup into the existing DELETE handler), src/Synth.Core/Vcs/GitRepoService.cs (a public ResolveCheckoutPath helper if one doesn't already exist — check first, another task may have added it; reuse rather than duplicate if so), a new small startup sweep component, and tests. Do NOT delete checkouts for local-path-indexed collections (SourceType == \"local\") — those were never cloned by GitRepoService, there's nothing under the workspace root to clean up for them. Do NOT add age-based eviction — only remove checkouts with no corresponding registry entry, never guess at staleness by time."
