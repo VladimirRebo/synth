@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Synth.Api.Mcp;
+using Synth.Api.Search;
 
 namespace Synth.Api.Tests;
 
@@ -115,5 +116,70 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.GetAsync("/search");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Browse endpoint (SYNTH-47): GET /repositories/{collection}/files/{*relativePath} returns
+    // every chunk stored for a file, in ascending line order, each carrying its assembled
+    // EmbeddingText. Indexes a real multi-method file first (via POST /index) so several chunks
+    // exist for one path, then browses it — same fake-embedding, no-Ollama setup as the search test.
+    [Fact]
+    public async Task Browse_returns_a_files_chunks_in_line_order_with_embedding_text()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("synth-browse-endpoint-test-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "Calculator.cs"), """
+                namespace Sample;
+
+                public class Calculator
+                {
+                    public int Add(int a, int b) => a + b;
+
+                    public int Subtract(int a, int b) => a - b;
+                }
+                """);
+
+            var client = _factory.CreateClient();
+            var indexResponse = await client.PostAsJsonAsync("/index", new { path = tempDir.FullName });
+            Assert.Equal(HttpStatusCode.Accepted, indexResponse.StatusCode);
+            await WaitForIndexDoneAsync(client);
+
+            // Local-path indexing uses the default collection, so browse it back by relative path.
+            var response = await client.GetAsync("/repositories/default/files/Calculator.cs");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var raw = await response.Content.ReadAsStringAsync();
+            // chunkType must serialize as its string name (e.g. "Method"), matching the client type.
+            Assert.DoesNotMatch("\"chunkType\":\\d", raw);
+
+            var deserializeOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            deserializeOptions.Converters.Add(new JsonStringEnumConverter());
+            var chunks = JsonSerializer.Deserialize<List<FileChunkResult>>(raw, deserializeOptions);
+            Assert.NotNull(chunks);
+            Assert.NotEmpty(chunks);
+
+            // Chunks come back in ascending StartLine order (GetByFileAsync's contract).
+            var startLines = chunks.Select(c => c.StartLine).ToList();
+            Assert.Equal(startLines.OrderBy(line => line).ToList(), startLines);
+
+            // The whole point of the endpoint: each chunk carries its assembled embedding text,
+            // prefixed with [code] for source (not [docs]) — not just the raw content.
+            Assert.All(chunks, c => Assert.False(string.IsNullOrWhiteSpace(c.EmbeddingText)));
+            Assert.Contains(chunks, c => c.EmbeddingText.Contains("[code]"));
+        }
+        finally
+        {
+            tempDir.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Browse_returns_404_when_the_file_has_no_chunks()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/repositories/default/files/NeverIndexed.cs");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

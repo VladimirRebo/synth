@@ -42,6 +42,7 @@ describe('App', () => {
     expect(wrapper.get('.brand').text()).toBe('Synth')
     expect(wrapper.findAll('.nav-link').map((l) => l.text())).toEqual([
       'Search',
+      'Browse',
       'Index',
       'MCP',
       'Settings',
