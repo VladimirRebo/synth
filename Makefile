@@ -6,10 +6,10 @@ help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build the .NET solution
-	dotnet build src/Synth.slnx --nologo
+	dotnet build Synth.slnx --nologo
 
 test: ## Run the .NET test suite
-	dotnet test src/Synth.slnx --nologo
+	dotnet test Synth.slnx --nologo
 
 aspire: ## Run the full local stack (Mongo/Qdrant/Ollama/API/client) via Aspire — API on :5042, client on :5173 (fixed, see AppHost.cs)
 	cd src && dotnet run --project Synth.AppHost --no-launch-profile
@@ -41,7 +41,7 @@ validate: ## Run the deterministic validator for a task. Usage: make validate TA
 	./scripts/validate.sh $(TASK)
 
 clean: ## Remove build artifacts (bin/obj) across the .NET solution
-	find src -type d \( -name bin -o -name obj \) -not -path '*/node_modules/*' -exec rm -rf {} +
+	find src tests -type d \( -name bin -o -name obj \) -not -path '*/node_modules/*' -exec rm -rf {} +
 
 backup: ## Snapshot Mongo (config/registry/call-graph/logs) + every indexed Qdrant collection. Needs `make aspire` running. Usage: make backup [OUT=./backups/mybackup]
 	./scripts/backup.sh $(OUT)

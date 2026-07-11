@@ -19,10 +19,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: dotnet build
-        run: dotnet build src/Synth.slnx --nologo -v q
+        run: dotnet build Synth.slnx --nologo -v q
 
       - name: dotnet test
-        run: dotnet test src/Synth.slnx --nologo -v q
+        run: dotnet test Synth.slnx --nologo -v q
 
   client:
     name: Client build + test

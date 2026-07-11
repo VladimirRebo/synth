@@ -35,7 +35,7 @@ summary: "${SUMMARY}"
 status: open
 # One of the two below defines the contract the validator enforces:
 #   acceptance_command — a shell command that must exit 0 (preferred, strongest)
-#   acceptance_criterion — a string that must appear somewhere in src/
+#   acceptance_criterion — a string that must appear somewhere in src/ or tests/
 acceptance_command: ""
 acceptance_criterion: ""
 boundaries: "Only touch files needed for this task. Do not change unrelated modules."

@@ -38,8 +38,8 @@ echo "== validate ${TASK_ID} =="
 echo "root: $ROOT"
 
 # --- 1. build (only if a project actually exists) ------------------------------
-CSPROJ="$(find "$ROOT/src" -name '*.csproj' 2>/dev/null | head -1)"
-SLN="$(find "$ROOT/src" \( -name '*.sln' -o -name '*.slnx' \) 2>/dev/null | head -1)"
+CSPROJ="$(find "$ROOT/src" "$ROOT/tests" -name '*.csproj' 2>/dev/null | head -1)"
+SLN="$(find "$ROOT" -maxdepth 1 \( -name '*.sln' -o -name '*.slnx' \) 2>/dev/null | head -1)"
 BUILD_TARGET="${SLN:-$CSPROJ}"
 if [ -n "$BUILD_TARGET" ]; then
   echo "-- dotnet build"
@@ -57,7 +57,7 @@ if [ -f "$ROOT/src/client/package.json" ]; then
 fi
 
 # --- 2. tests (only if a test project exists) ----------------------------------
-TESTPROJ="$(find "$ROOT/src" -name '*Tests*.csproj' -o -name '*.Tests.csproj' 2>/dev/null | head -1)"
+TESTPROJ="$(find "$ROOT/src" "$ROOT/tests" -name '*Tests*.csproj' -o -name '*.Tests.csproj' 2>/dev/null | head -1)"
 if [ -n "$TESTPROJ" ]; then
   echo "-- dotnet test"
   (cd "$ROOT" && dotnet test "$BUILD_TARGET" --nologo -v q) || fail "dotnet test failed"
@@ -68,11 +68,11 @@ if [ -n "$CRITERION_CMD" ]; then
   echo "-- acceptance_command: $CRITERION_CMD"
   (cd "$ROOT" && bash -c "$CRITERION_CMD") || fail "acceptance_command exited non-zero"
 elif [ -n "$CRITERION" ]; then
-  echo "-- acceptance_criterion (must appear in src/): $CRITERION"
-  if grep -RqF -- "$CRITERION" "$ROOT/src" 2>/dev/null; then
+  echo "-- acceptance_criterion (must appear in src/ or tests/): $CRITERION"
+  if grep -RqF -- "$CRITERION" "$ROOT/src" "$ROOT/tests" 2>/dev/null; then
     echo "found."
   else
-    fail "acceptance_criterion not found in src/: $CRITERION"
+    fail "acceptance_criterion not found in src/ or tests/: $CRITERION"
   fi
 else
   # Fail closed: refuse to pass a task that defines nothing to prove.
