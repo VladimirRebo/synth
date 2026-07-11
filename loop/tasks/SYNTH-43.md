@@ -1,7 +1,7 @@
 ---
 id: SYNTH-43
 summary: "MCP tools: list_collections, delete_collection, health_check"
-status: open
+status: done
 acceptance_command: "dotnet build src/Synth.slnx --nologo -v q && dotnet test src/Synth.slnx --nologo -v q && grep -rq 'list_collections' src/Synth.Api/Mcp/ && grep -rq 'delete_collection' src/Synth.Api/Mcp/"
 acceptance_criterion: ""
 boundaries: "These three tools are thin wrappers around logic that already exists (IRepositoryRegistry.ListAsync, the DeleteCollectionAsync/ReplaceEdgesAsync/DeleteAsync sequence from RepositoryEndpoints.cs's DELETE handler, and IHealthCheckService from SYNTH-35) — do not reimplement any of that logic, call the same services/methods the REST endpoints already call. New files under src/Synth.Api/Mcp/, registration in Program.cs + StdioMcpHost.cs, and tests."
