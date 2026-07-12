@@ -1,9 +1,8 @@
 using Qdrant.Client;
-using Synth.Api.Storage;
-using Synth.Core;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
-namespace Synth.Api.Tests.Storage;
+namespace Synth.Infrastructure.Tests.Storage;
 
 // Exercises QdrantCodeChunkStore against a *live* Qdrant instance. There is no in-memory Qdrant to
 // stand in — the dimension guard is a property of the real gRPC collection metadata — so, following

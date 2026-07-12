@@ -1,7 +1,7 @@
-using Synth.Api.Graph;
 using Synth.Domain.Graph;
+using Synth.Infrastructure.Graph;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Round-trip + isolation + replace coverage of the ICodeGraphStore contract against the in-memory
 // implementation (the production fallback used when no Mongo is configured, and the same shape

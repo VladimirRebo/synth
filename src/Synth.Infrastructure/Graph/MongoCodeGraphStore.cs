@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using Synth.Domain.Graph;
 
-namespace Synth.Api.Graph;
+namespace Synth.Infrastructure.Graph;
 
 /// <summary>
 /// Mongo-backed <see cref="ICodeGraphStore"/>. Unlike <c>MongoRepositoryRegistry</c>/

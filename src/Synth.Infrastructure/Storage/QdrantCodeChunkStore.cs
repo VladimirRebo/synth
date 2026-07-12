@@ -2,10 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
-using Synth.Core;
 using Synth.Domain;
 
-namespace Synth.Api.Storage;
+namespace Synth.Infrastructure.Storage;
 
 /// <summary>
 /// Qdrant-backed <see cref="ICodeChunkStore"/>. Stores each chunk's embedding vector as

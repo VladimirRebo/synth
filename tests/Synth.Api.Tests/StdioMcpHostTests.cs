@@ -1,11 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
-using Synth.Api.Storage;
 using Synth.Application;
 using Synth.Application.Indexing;
-using Synth.Core;
 using Synth.Mcp.Stdio;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
 namespace Synth.Api.Tests;
 

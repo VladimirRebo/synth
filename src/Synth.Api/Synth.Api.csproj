@@ -31,6 +31,9 @@
          trackers) this host wires into DI and endpoints. -->
     <ProjectReference Include="../Synth.Application/Synth.Application.csproj" />
     <ProjectReference Include="../Synth.Core/Synth.Core.csproj" />
+    <!-- Concrete Domain-interface implementations (the Qdrant/Local chunk stores + Mongo/in-memory
+         call-graph stores) and their AddSynth* DI wiring, wired into DI in Program.cs. -->
+    <ProjectReference Include="../Synth.Infrastructure/Synth.Infrastructure.csproj" />
     <ProjectReference Include="../Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
     <!-- The concrete chunkers this host wires into DI (see IndexingServiceExtensions). Each lives in
          its own project so only C#-parsing consumers pull in Roslyn. -->

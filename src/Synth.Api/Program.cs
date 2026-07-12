@@ -9,11 +9,12 @@ using Synth.Api.Indexing;
 using Synth.Api.Logging;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
-using Synth.Api.Storage;
 using Synth.Api.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Logging;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Graph;
+using Synth.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 

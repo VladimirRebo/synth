@@ -8,10 +8,11 @@ using Synth.Api.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
-using Synth.Api.Storage;
 using Synth.Api.Vcs;
 using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Graph;
+using Synth.Infrastructure.Storage;
 
 namespace Synth.Mcp.Stdio;
 

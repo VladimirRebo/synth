@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Domain interfaces (ICodeChunkStore, ICodeGraphStore, CodeChunk, CallEdge, …) that the
+         concrete store implementations here realize. Infrastructure depends only on Domain. -->
+    <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mongo driver (via Aspire integration): MongoCodeGraphStore + the AddSynthCodeGraph wiring
+         build a MongoClient from the "synthdata" connection string. -->
+    <PackageReference Include="Aspire.MongoDB.Driver" Version="13.4.6" />
+    <!-- Aspire Qdrant client integration: QdrantCodeChunkStore's QdrantClient + AddSynthVectorStore's
+         builder.AddQdrantClient(...) registration. -->
+    <PackageReference Include="Aspire.Qdrant.Client" Version="13.4.6" />
+  </ItemGroup>
+
+</Project>

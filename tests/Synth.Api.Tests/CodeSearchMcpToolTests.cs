@@ -5,8 +5,8 @@ using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
 using Synth.Api.Vcs;
 using Synth.Application;
-using Synth.Core;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Storage;
 using Synth.Domain;
 
 namespace Synth.Api.Tests;

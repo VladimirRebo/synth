@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Synth.Api.Storage;
-using Synth.Core;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
 namespace Synth.Api.Tests;
 

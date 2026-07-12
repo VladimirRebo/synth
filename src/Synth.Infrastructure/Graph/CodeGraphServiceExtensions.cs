@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 using Synth.Domain.Graph;
 
-namespace Synth.Api.Graph;
+namespace Synth.Infrastructure.Graph;
 
 /// <summary>
 /// DI wiring for the call-graph storage layer: picks the <see cref="ICodeGraphStore"/> implementation
