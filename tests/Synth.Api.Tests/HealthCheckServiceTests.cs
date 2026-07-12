@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
-using Synth.Api.Embeddings;
 using Synth.Api.Health;
 using Synth.Domain.Embeddings;
+using Synth.Infrastructure.Embeddings;
 
 namespace Synth.Api.Tests;
 

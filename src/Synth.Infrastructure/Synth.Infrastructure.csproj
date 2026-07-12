@@ -10,6 +10,9 @@
     <!-- Domain interfaces (ICodeChunkStore, ICodeGraphStore, CodeChunk, CallEdge, …) that the
          concrete store implementations here realize. Infrastructure depends only on Domain. -->
     <ProjectReference Include="../Synth.Domain/Synth.Domain.csproj" />
+    <!-- Application-layer embedding contracts (IOllamaPullTracker/InMemoryOllamaPullTracker) that
+         AddSynthEmbeddings wires into DI. Application depends only on Domain, so this adds no cycle. -->
+    <ProjectReference Include="../Synth.Application/Synth.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +26,12 @@
     <!-- Aspire Qdrant client integration: QdrantCodeChunkStore's QdrantClient + AddSynthVectorStore's
          builder.AddQdrantClient(...) registration. -->
     <PackageReference Include="Aspire.Qdrant.Client" Version="13.4.6" />
+    <!-- Aspire Community Toolkit: Ollama client (OllamaApiClient) + Microsoft.Extensions.AI embedding
+         generator for ConfigurableEmbeddingGenerator's Ollama provider. -->
+    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.4.0" />
+    <!-- OpenAI-backed IEmbeddingGenerator: EmbeddingClient.AsIEmbeddingGenerator() (brings in the
+         official OpenAI SDK transitively) for the OpenAI provider in ConfigurableEmbeddingGenerator. -->
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.7.0" />
   </ItemGroup>
 
 </Project>

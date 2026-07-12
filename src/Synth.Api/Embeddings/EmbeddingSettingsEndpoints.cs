@@ -5,6 +5,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Configuration;
+using Synth.Infrastructure.Embeddings;
 using Synth.Domain.Configuration;
 
 namespace Synth.Api.Embeddings;
