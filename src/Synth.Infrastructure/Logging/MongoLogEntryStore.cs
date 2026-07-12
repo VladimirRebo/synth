@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Logging;
+namespace Synth.Infrastructure.Logging;
 
 /// <summary>
 /// Durable <see cref="ILogEntryStore"/> backed by a <em>capped</em> Mongo collection — the same shape

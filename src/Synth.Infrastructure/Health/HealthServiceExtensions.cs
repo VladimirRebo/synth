@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Qdrant.Client;
 
-namespace Synth.Api.Health;
+namespace Synth.Infrastructure.Health;
 
 /// <summary>
 /// DI wiring for Synth's <c>GET /health</c> reachability checks. Registers the

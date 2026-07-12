@@ -1,9 +1,9 @@
 using Serilog;
 using Serilog.Events;
-using Synth.Api.Logging;
+using Synth.Infrastructure.Logging;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // The LogEvent -> LogEntry conversion that used to live in RingBufferLogSink.Emit now lives in
 // LogEntryStoreSink, which drops entries onto a channel instead of a ring buffer. These assert the

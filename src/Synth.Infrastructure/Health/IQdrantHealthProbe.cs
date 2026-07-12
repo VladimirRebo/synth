@@ -1,6 +1,6 @@
 using Qdrant.Client;
 
-namespace Synth.Api.Health;
+namespace Synth.Infrastructure.Health;
 
 /// <summary>
 /// A thin seam over "is Qdrant reachable?". A real <see cref="QdrantClient"/> is a sealed concrete

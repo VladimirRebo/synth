@@ -3,7 +3,7 @@ using Serilog.Core;
 using Serilog.Events;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Logging;
+namespace Synth.Infrastructure.Logging;
 
 /// <summary>
 /// The Serilog sink Synth's logging pipeline writes into. Converts each <see cref="LogEvent"/> to a

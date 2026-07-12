@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Logging;
+namespace Synth.Infrastructure.Logging;
 
 /// <summary>
 /// Background drain that moves entries from <see cref="LogEntryStoreSink"/>'s channel into the active

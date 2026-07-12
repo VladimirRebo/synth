@@ -1,5 +1,5 @@
 using Synth.Domain.Logging;
-namespace Synth.Api.Logging;
+namespace Synth.Infrastructure.Logging;
 
 /// <summary>
 /// Bounded, process-local <see cref="ILogEntryStore"/> — the fallback used when no Mongo connection

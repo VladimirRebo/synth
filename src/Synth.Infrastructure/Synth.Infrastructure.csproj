@@ -32,6 +32,9 @@
     <!-- OpenAI-backed IEmbeddingGenerator: EmbeddingClient.AsIEmbeddingGenerator() (brings in the
          official OpenAI SDK transitively) for the OpenAI provider in ConfigurableEmbeddingGenerator. -->
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.7.0" />
+    <!-- Serilog core (ILogEventSink / LogEvent) that LogEntryStoreSink implements. The Api host owns
+         the pipeline wiring via Serilog.AspNetCore; this library only needs the base sink contract. -->
+    <PackageReference Include="Serilog" Version="4.3.0" />
   </ItemGroup>
 
 </Project>
