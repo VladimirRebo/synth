@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Application;
 using Synth.Domain.Graph;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 using Synth.Domain;
 using Synth.Infrastructure.Storage;

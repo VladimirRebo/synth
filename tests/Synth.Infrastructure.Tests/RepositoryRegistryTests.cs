@@ -1,7 +1,7 @@
-using Synth.Api.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Round-trip coverage of the registry contract against the in-memory implementation (the
 // production fallback used when no Mongo is configured, and the same shape MongoRepositoryRegistry

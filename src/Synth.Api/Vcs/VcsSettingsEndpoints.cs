@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
-using Synth.Core.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Vcs;
 using Synth.Infrastructure.Configuration;

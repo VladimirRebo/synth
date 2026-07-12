@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
-using Synth.Api.Vcs;
+using Synth.Infrastructure.Vcs;
 using Synth.Application;
 using Synth.Domain.Vcs;
 using Synth.Infrastructure.Storage;

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Infrastructure.Vcs;
 
 /// <summary>
 /// Process-local <see cref="IRepositoryRegistry"/> used when no Mongo connection is configured —

@@ -1,8 +1,10 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Infrastructure.Vcs;
 
 /// <summary>
 /// DI wiring for the VCS layer: binds <see cref="VcsOptions"/> from the <c>Vcs</c> config section
@@ -16,7 +18,7 @@ public static class VcsServiceExtensions
     // The Aspire connection-string name for Synth's Mongo database (see AppHost / ConfigStoreExtensions).
     private const string ConnectionName = "synthdata";
 
-    public static WebApplicationBuilder AddSynthVcs(this WebApplicationBuilder builder)
+    public static IHostApplicationBuilder AddSynthVcs(this IHostApplicationBuilder builder)
     {
         builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
         builder.Services.AddSingleton<GitRepoService>();

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Infrastructure.Vcs;
 
 /// <summary>
 /// One-shot startup sweep (SYNTH-45) that garbage-collects orphaned git checkouts under the workspace
@@ -73,7 +72,7 @@ public sealed class OrphanCheckoutSweeper : BackgroundService
             if (known.Contains(name))
                 continue;
 
-            RepositoryEndpoints.DeleteCheckout(directory);
+            GitRepoService.DeleteCheckout(directory);
             _logger.LogInformation(
                 "Removed orphaned checkout '{Checkout}' (no matching indexed collection).", name);
         }

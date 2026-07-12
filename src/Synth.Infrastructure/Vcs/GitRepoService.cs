@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using Synth.Domain.Vcs;
 
-namespace Synth.Core.Vcs;
+namespace Synth.Infrastructure.Vcs;
 
 /// <summary>
 /// Ensures a remote GitHub/GitLab repository is available as a local checkout: clones it the first
@@ -103,6 +103,25 @@ public sealed class GitRepoService
     /// sweep (SYNTH-45) to enumerate on-disk checkouts and drop the ones with no registry entry.
     /// </summary>
     public string ResolveWorkspaceRoot() => ResolveWorkspaceRoot(_options.CurrentValue.WorkspaceRoot);
+
+    /// <summary>
+    /// Removes an on-disk checkout directory (recursively), tolerating an already-gone directory — the
+    /// checkout may have been deleted out-of-band or never fully cloned. Shared by the
+    /// <c>DELETE /repositories/{collection}</c> handler and the startup orphan sweep
+    /// (<c>OrphanCheckoutSweeper</c>).
+    /// </summary>
+    public static void DeleteCheckout(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Raced with another removal between the Exists check and the delete — already gone.
+        }
+    }
 
     // A directory counts as a usable checkout only if it carries a .git entry (dir for a normal
     // clone, file for a worktree/submodule). Otherwise we (re)clone.

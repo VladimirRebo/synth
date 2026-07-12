@@ -2,10 +2,9 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Synth.Api.Indexing;
 using Synth.Application.Indexing;
-using Synth.Api.Vcs;
 using Synth.Application;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Mcp;

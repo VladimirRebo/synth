@@ -3,7 +3,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Infrastructure.Vcs;
 
 /// <summary>
 /// Mongo-backed <see cref="IRepositoryRegistry"/> storing one document per collection in the

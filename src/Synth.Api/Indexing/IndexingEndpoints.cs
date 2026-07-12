@@ -1,8 +1,7 @@
-using Synth.Api.Vcs;
 using Synth.Application;
 using Synth.Application.Indexing;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Indexing;
