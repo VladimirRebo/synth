@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
-using Synth.Api.Graph;
 using Synth.Api.Mcp;
 using Synth.Api.Vcs;
-using Synth.Core;
 using Synth.Domain.Graph;
+using Synth.Infrastructure.Graph;
+using Synth.Infrastructure.Storage;
 using Synth.Domain.Vcs;
 using Synth.Domain;
 

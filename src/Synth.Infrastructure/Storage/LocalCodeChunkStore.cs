@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Synth.Domain;
 
-namespace Synth.Core;
+namespace Synth.Infrastructure.Storage;
 
 /// <summary>
 /// In-memory <see cref="ICodeChunkStore"/>: an outer dictionary keyed by collection name, each

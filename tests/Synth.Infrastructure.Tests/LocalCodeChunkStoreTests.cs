@@ -1,7 +1,7 @@
-using Synth.Core;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
-namespace Synth.Core.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Proves SYNTH-9 wiring against the in-memory Local store (no Qdrant/Docker): upsert +
 // nearest-neighbour search (closer vectors rank higher) + get-by-file, plus upsert-as-replace.

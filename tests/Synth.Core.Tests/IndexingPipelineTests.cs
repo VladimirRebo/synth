@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Application;
-using Synth.Core;
 using Synth.Domain.Graph;
 using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
 namespace Synth.Core.Tests;
 
@@ -96,9 +96,9 @@ public class IndexingPipelineTests : IDisposable
         public void Dispose() { }
     }
 
-    // Minimal in-memory ICodeGraphStore for the pipeline's stage-2 output. The real fallback store
-    // (InMemoryCodeGraphStore) lives in Synth.Api, which Synth.Core.Tests does not reference, so this
-    // stands in — same delete-then-insert / by-collection lookup contract the pipeline relies on.
+    // Minimal in-memory ICodeGraphStore for the pipeline's stage-2 output. Rather than couple these
+    // pipeline tests to the production InMemoryCodeGraphStore (Synth.Infrastructure), this stands in —
+    // same delete-then-insert / by-collection lookup contract the pipeline relies on.
     private sealed class FakeCodeGraphStore : ICodeGraphStore
     {
         private readonly ConcurrentDictionary<string, List<CallEdge>> _byCollection = new();

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Synth.Domain.Graph;
 
-namespace Synth.Api.Graph;
+namespace Synth.Infrastructure.Graph;
 
 /// <summary>
 /// Process-local <see cref="ICodeGraphStore"/> used when no Mongo connection is configured — the

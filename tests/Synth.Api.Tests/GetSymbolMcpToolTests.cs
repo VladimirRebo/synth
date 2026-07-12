@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
-using Synth.Core;
 using Synth.Domain;
+using Synth.Infrastructure.Storage;
 
 namespace Synth.Api.Tests;
 

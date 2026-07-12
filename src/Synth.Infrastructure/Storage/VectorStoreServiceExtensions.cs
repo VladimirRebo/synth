@@ -1,10 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Synth.Core;
 using Synth.Domain;
 
-namespace Synth.Api.Storage;
+namespace Synth.Infrastructure.Storage;
 
 /// <summary>
 /// DI wiring for Synth's vector store. Registers an <see cref="ICodeChunkStore"/> backed by

@@ -20,9 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Synth.Domain\Synth.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Synth.Application\Synth.Application.csproj" />
-    <!-- CodeSearchServiceTests drives CodeSearchService against the concrete LocalCodeChunkStore
-         (an ICodeChunkStore impl that lives in Synth.Infrastructure). -->
+    <!-- The concrete store implementations under test (LocalCodeChunkStore, QdrantCodeChunkStore,
+         InMemory/Mongo CodeGraphStore). QdrantClient comes transitively via Aspire.Qdrant.Client. -->
     <ProjectReference Include="..\..\src\Synth.Infrastructure\Synth.Infrastructure.csproj" />
   </ItemGroup>
 
