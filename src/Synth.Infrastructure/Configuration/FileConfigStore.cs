@@ -1,5 +1,5 @@
 using Synth.Domain.Configuration;
-namespace Synth.Api.Configuration;
+namespace Synth.Infrastructure.Configuration;
 
 // File-backed IConfigStore: a single JSON document under a local path
 // (default ~/.synth/config.json). This is the default when no Mongo connection

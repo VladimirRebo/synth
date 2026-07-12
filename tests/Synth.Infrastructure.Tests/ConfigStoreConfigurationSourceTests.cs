@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Configuration;
-using Synth.Api.Configuration;
+using Synth.Infrastructure.Configuration;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Verifies the configuration glue: a JSON document from any IConfigStore is
 // flattened into IConfiguration keys, environment variables override it, and a

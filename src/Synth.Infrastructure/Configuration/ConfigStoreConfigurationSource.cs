@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Configuration;
+namespace Synth.Infrastructure.Configuration;
 
 // Bridges an IConfigStore into the .NET configuration system. Added to the
 // configuration builder so the store's JSON document becomes a normal

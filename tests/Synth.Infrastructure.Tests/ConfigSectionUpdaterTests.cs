@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Synth.Api.Configuration;
+using Synth.Infrastructure.Configuration;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Unit tests for the thread-safe section merge helper: it must create a section from an empty
 // document, replace only the named top-level section, and serialise a race-free result under
