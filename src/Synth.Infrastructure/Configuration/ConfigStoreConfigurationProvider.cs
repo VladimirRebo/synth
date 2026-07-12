@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Configuration;
+namespace Synth.Infrastructure.Configuration;
 
 // Loads the IConfigStore's JSON document, flattens it into colon-delimited
 // configuration keys, and reloads whenever the store signals a change so that

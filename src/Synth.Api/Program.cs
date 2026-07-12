@@ -7,6 +7,7 @@ using Synth.Api.Graph;
 using Synth.Api.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Logging;
+using Synth.Infrastructure.Configuration;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
 using Synth.Api.Vcs;

@@ -1,7 +1,7 @@
-using Synth.Api.Configuration;
+using Synth.Infrastructure.Configuration;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // FileConfigStore is the default store for local dev without Docker. These tests
 // use a throwaway temp path so they never touch the real ~/.synth/config.json and

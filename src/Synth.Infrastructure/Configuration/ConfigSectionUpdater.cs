@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Configuration;
+namespace Synth.Infrastructure.Configuration;
 
 /// <summary>
 /// Thread-safe read-merge-write of a single top-level section of the <see cref="IConfigStore"/>'s

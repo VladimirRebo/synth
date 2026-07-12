@@ -1,15 +1,16 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Synth.Domain.Configuration;
 
-namespace Synth.Api.Configuration;
+namespace Synth.Infrastructure.Configuration;
 
 // Wires the config-store layer into the host: exposes the file-backed store
 // through DI, feeds it into IConfiguration, and re-adds environment variables
 // last so they always take precedence.
 public static class ConfigStoreExtensions
 {
-    public static WebApplicationBuilder AddSynthConfigStore(this WebApplicationBuilder builder)
+    public static IHostApplicationBuilder AddSynthConfigStore(this IHostApplicationBuilder builder)
     {
         var store = CreateStore();
 
@@ -25,8 +26,9 @@ public static class ConfigStoreExtensions
         ((IConfigurationBuilder)builder.Configuration).Add(new ConfigStoreConfigurationSource(store));
 
         // Layer 3: environment variables, re-added last so they win over the store
-        // (the standard __ -> : convention needs no extra code).
-        builder.Configuration.AddEnvironmentVariables();
+        // (the standard __ -> : convention needs no extra code). IConfigurationManager
+        // implements IConfigurationBuilder explicitly, so add through that interface.
+        ((IConfigurationBuilder)builder.Configuration).AddEnvironmentVariables();
 
         return builder;
     }

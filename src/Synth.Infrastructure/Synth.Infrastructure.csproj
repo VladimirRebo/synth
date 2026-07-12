@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Config-store wiring (ConfigStoreExtensions.AddSynthConfigStore) re-adds environment variables
+         as the top configuration layer so they win over the stored document. The Api project got this
+         transitively from the Web SDK; a plain library must reference it explicitly. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
     <!-- Mongo driver (via Aspire integration): MongoCodeGraphStore + the AddSynthCodeGraph wiring
          build a MongoClient from the "synthdata" connection string. -->
     <PackageReference Include="Aspire.MongoDB.Driver" Version="13.4.6" />

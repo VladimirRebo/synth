@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using Synth.Api.Configuration;
 using Synth.Domain.Embeddings;
+using Synth.Infrastructure.Configuration;
 using Synth.Domain.Configuration;
 
 namespace Synth.Api.Embeddings;

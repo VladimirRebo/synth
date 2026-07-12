@@ -3,6 +3,7 @@ using Synth.Domain.Embeddings;
 using Synth.Core.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Configuration;
 
 namespace Synth.Api.Configuration;
 
