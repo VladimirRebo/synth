@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Synth.Api.Embeddings;
 using Synth.Application;
+using Synth.Infrastructure.Embeddings;
 using Synth.Api.Graph;
 using Synth.Api.Health;
 using Synth.Api.Indexing;

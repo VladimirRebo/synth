@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using Synth.Application.Embeddings;
 using Synth.Domain.Embeddings;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Infrastructure.Embeddings;
 
 /// <summary>
 /// DI wiring for Synth's embedding generator. Registers a

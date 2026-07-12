@@ -14,6 +14,7 @@ using Synth.Api.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Logging;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Embeddings;
 using Synth.Infrastructure.Graph;
 using Synth.Infrastructure.Storage;
 

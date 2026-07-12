@@ -1,9 +1,9 @@
 using Microsoft.Extensions.AI;
 using OllamaSharp;
-using Synth.Api.Embeddings;
 using Synth.Domain.Embeddings;
+using Synth.Infrastructure.Embeddings;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // SYNTH-21: ConfigurableEmbeddingGenerator is provider-selectable (Ollama/OpenAI) and hot-swappable
 // via IOptionsMonitor<EmbeddingOptions>, with the Aspire Ollama connection as the zero-config fallback.

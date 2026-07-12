@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using OllamaSharp;
 using Synth.Domain.Embeddings;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Infrastructure.Embeddings;
 
 /// <summary>
 /// An <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/> (TInput = <c>string</c>,

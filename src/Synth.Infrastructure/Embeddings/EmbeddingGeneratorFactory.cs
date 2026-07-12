@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Synth.Domain.Embeddings;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Infrastructure.Embeddings;
 
 /// <summary>
 /// Builds a throwaway <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/> from a candidate
