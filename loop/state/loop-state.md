@@ -111,3 +111,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-57 | MERGED | PR #89 merged to main; issue #82 slice 5/many |
 - | SYNTH-58 | COMPLETED | validator PASS, committed on fix/SYNTH-58 |
 - | SYNTH-58 | MERGED | PR #90 merged to main; issue #82 slice 6/many; Synth.Core now empty (retirement is a follow-up slice) |
+- | SYNTH-59 | COMPLETED | validator PASS, committed on fix/SYNTH-59 |
+- | SYNTH-59 | MERGED | PR #91 merged to main; issue #82 slice 7/many (last Infrastructure slice) — Synth.Infrastructure now holds every concrete implementation |
