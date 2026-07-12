@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Synth.Core.Tests.Vcs;
+namespace Synth.Infrastructure.Tests;
 
 // Minimal IOptionsMonitor over a fixed value, so GitRepoService can be exercised without a DI
 // container. Tokens/workspace root are set once per test — no live reload is needed here.

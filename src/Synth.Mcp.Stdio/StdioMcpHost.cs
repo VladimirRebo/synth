@@ -8,11 +8,10 @@ using Synth.Api.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
-using Synth.Api.Vcs;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 using Synth.Infrastructure.Graph;
 using Synth.Infrastructure.Storage;
+using Synth.Infrastructure.Vcs;
 
 namespace Synth.Mcp.Stdio;
 
@@ -54,8 +53,8 @@ public static class StdioMcpHost
 
         // Indexing stack so the `index_code` tool (SYNTH-36) can resolve its dependencies over stdio
         // the same way it does over HTTP: the pipeline + the single job tracker come from
-        // AddSynthIndexing; GitRepoService and the repository registry are wired inline here because
-        // AddSynthVcs targets WebApplicationBuilder (this host is a plain generic host). No Mongo is
+        // AddSynthIndexing; GitRepoService and the repository registry are wired inline here rather
+        // than via AddSynthVcs so the stdio host always pins the in-memory registry. No Mongo is
         // configured for the stdio process, so the in-memory registry is the right fallback.
         builder.AddSynthIndexing();
         builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));

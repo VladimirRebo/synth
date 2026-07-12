@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Synth.Api.Vcs;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // SYNTH-45: the startup sweep removes workspace-root subdirectories with no matching registry entry
 // while leaving matching ones alone, and no-ops when the workspace root doesn't exist yet. Driven

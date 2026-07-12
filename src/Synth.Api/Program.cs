@@ -17,6 +17,7 @@ using Synth.Domain.Vcs;
 using Synth.Infrastructure.Embeddings;
 using Synth.Infrastructure.Graph;
 using Synth.Infrastructure.Storage;
+using Synth.Infrastructure.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Api.Vcs;
 using Synth.Application;
 using Synth.Domain.Vcs;
 using Synth.Domain;

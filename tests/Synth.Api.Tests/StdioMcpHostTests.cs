@@ -43,7 +43,7 @@ public class StdioMcpHostTests
         var services = StdioMcpHost.CreateBuilder([]).Services;
 
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Application.IndexingPipeline));
-        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Core.Vcs.GitRepoService));
+        Assert.Contains(services, d => d.ServiceType == typeof(Synth.Infrastructure.Vcs.GitRepoService));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Domain.Vcs.IRepositoryRegistry));
         Assert.Contains(services, d => d.ServiceType == typeof(Synth.Application.Indexing.IIndexJobTracker));
     }

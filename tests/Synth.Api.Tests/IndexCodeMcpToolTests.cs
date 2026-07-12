@@ -5,11 +5,10 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Synth.Api.Indexing;
 using Synth.Api.Mcp;
-using Synth.Api.Vcs;
 using Synth.Application;
 using Synth.Application.Indexing;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Tests;

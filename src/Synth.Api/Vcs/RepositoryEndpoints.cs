@@ -1,8 +1,7 @@
-using Synth.Core;
 using Synth.Domain.Graph;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
 using Synth.Domain;
+using Synth.Infrastructure.Vcs;
 
 namespace Synth.Api.Vcs;
 
@@ -67,7 +66,7 @@ public static class RepositoryEndpoints
                 collection, chunkStore, graphStore, registry, cancellationToken);
 
             if (removed && entry is not null && IsClonedRemote(entry.SourceType))
-                DeleteCheckout(gitRepoService.ResolveCheckoutPath(collection));
+                GitRepoService.DeleteCheckout(gitRepoService.ResolveCheckoutPath(collection));
 
             return removed ? Results.NoContent() : Results.NotFound();
         });
@@ -104,22 +103,4 @@ public static class RepositoryEndpoints
     internal static bool IsClonedRemote(string sourceType) =>
         string.Equals(sourceType, "github", StringComparison.Ordinal) ||
         string.Equals(sourceType, "gitlab", StringComparison.Ordinal);
-
-    /// <summary>
-    /// Removes an on-disk checkout directory (recursively), tolerating an already-gone directory — the
-    /// checkout may have been deleted out-of-band or never fully cloned. Shared by the DELETE handler
-    /// and the startup orphan sweep (<see cref="OrphanCheckoutSweeper"/>).
-    /// </summary>
-    internal static void DeleteCheckout(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, recursive: true);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // Raced with another removal between the Exists check and the delete — already gone.
-        }
-    }
 }

@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using Synth.Core.Vcs;
 using Synth.Domain.Vcs;
+using Synth.Infrastructure.Vcs;
 
-namespace Synth.Core.Tests.Vcs;
+namespace Synth.Infrastructure.Tests;
 
 // SYNTH-18: clone/fetch behaviour proven against a real local git fixture reached over a file://
 // URL — no network access to github.com/gitlab.com. Each test builds a bare "origin" and an
