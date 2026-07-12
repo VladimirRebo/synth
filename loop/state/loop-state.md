@@ -107,3 +107,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-55 | MERGED | PR #87 merged to main (9c9f892); issue #82 slice 3/many |
 - | SYNTH-56 | COMPLETED | validator PASS, committed on fix/SYNTH-56 |
 - | SYNTH-56 | MERGED | PR #88 merged to main; issue #82 slice 4/many |
+- | SYNTH-57 | COMPLETED | validator PASS, committed on fix/SYNTH-57 |
+- | SYNTH-57 | MERGED | PR #89 merged to main; issue #82 slice 5/many |
