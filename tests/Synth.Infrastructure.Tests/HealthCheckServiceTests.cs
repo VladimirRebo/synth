@@ -1,9 +1,9 @@
 using Microsoft.Extensions.AI;
-using Synth.Api.Health;
+using Synth.Infrastructure.Health;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Embeddings;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Unit-tests HealthCheckService directly against fake Qdrant and embedding dependencies (a
 // reachable-vs-unreachable case each), following the project's "fake when no live service is

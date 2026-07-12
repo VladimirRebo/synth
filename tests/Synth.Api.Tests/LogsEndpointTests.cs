@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Serilog.Events;
-using Synth.Api.Logging;
+using Synth.Infrastructure.Logging;
 using Synth.Domain.Logging;
 
 namespace Synth.Api.Tests;

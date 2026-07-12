@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Synth.Api.Health;
+using Synth.Infrastructure.Health;
 
 namespace Synth.Api.Tests;
 

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Logging;
+namespace Synth.Infrastructure.Logging;
 
 /// <summary>
 /// DI wiring for the log-persistence layer: registers the <see cref="LogEntryStoreSink"/> (already

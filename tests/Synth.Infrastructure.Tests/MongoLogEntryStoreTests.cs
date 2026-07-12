@@ -1,8 +1,8 @@
 using MongoDB.Driver;
-using Synth.Api.Logging;
+using Synth.Infrastructure.Logging;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // MongoLogEntryStore must degrade gracefully when Mongo is unreachable — the same "no live Mongo
 // required in tests/dev" guarantee every other Mongo-backed store in this repo makes. Its durability

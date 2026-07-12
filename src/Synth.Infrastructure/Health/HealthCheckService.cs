@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Embeddings;
 
-namespace Synth.Api.Health;
+namespace Synth.Infrastructure.Health;
 
 /// <summary>Real reachability check for Synth's live dependencies, backing <c>GET /health</c>.</summary>
 public interface IHealthCheckService

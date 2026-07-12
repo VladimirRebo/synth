@@ -1,7 +1,7 @@
-using Synth.Api.Logging;
+using Synth.Infrastructure.Logging;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Tests;
+namespace Synth.Infrastructure.Tests;
 
 // Round-trip + capacity-eviction coverage of the ILogEntryStore contract against the in-memory
 // implementation (the production fallback used when no Mongo is configured, and the same shape
