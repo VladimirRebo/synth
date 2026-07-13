@@ -50,6 +50,15 @@ builder.AddServiceDefaults();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+// Controllers (issue #82, slice 10): the endpoint-mapping files are being converted from Minimal
+// APIs to Controllers one at a time — SearchController is the first. AddControllers() is set up
+// once here (later conversions just rely on it). The same JsonStringEnumConverter is applied to the
+// Controller JSON pipeline so Controller and still-Minimal-API responses agree on the wire shape
+// (enums as their string name) until every endpoint file has converted.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 // Config layering: appsettings.json (bootstrap) -> IConfigStore document
 // (local ~/.synth/config.json, live-reloaded) -> environment variables (always win).
 builder.AddSynthConfigStore();
@@ -144,10 +153,6 @@ app.MapOllamaModelEndpoints();
 // validates only that the body is a well-formed JSON object. Shares the section endpoints' reload path.
 app.MapRawSettingsEndpoints();
 
-// Plain REST search (GET /search?q=...&limit=...) for the Vue client — the MCP tool at
-// /mcp is for AI-agent clients, this is the human-facing equivalent over CodeSearchService.
-app.MapSearchEndpoints();
-
 // Plain REST call-graph queries (GET /callers?symbol=..., GET /callees?symbol=...) — the
 // human-facing equivalent of the find_callers/find_callees MCP tools over ICodeGraphStore.
 app.MapCallGraphEndpoints();
@@ -155,6 +160,11 @@ app.MapCallGraphEndpoints();
 // Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
 // client can poll the live log — `since` returns only entries newer than the last poll.
 app.MapLogsEndpoints();
+
+// Controller routes (issue #82, slice 10): SearchController (GET /search, GET
+// /repositories/{collection}/files/{*relativePath}) auto-registers its routes here — no per-file
+// mapping call needed. Runs once; later endpoint-file conversions reuse this same call.
+app.MapControllers();
 
 // MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
 app.MapMcp("/mcp");
