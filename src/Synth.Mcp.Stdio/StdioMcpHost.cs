@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Application;
+using Synth.Application.Cqrs;
 using Synth.Application.Vcs;
 using Synth.Infrastructure.Embeddings;
 using Synth.Api.Graph;
@@ -65,6 +66,11 @@ public static class StdioMcpHost
         // Same singleton behind the Application-layer port the index_code command handler depends on.
         builder.Services.AddSingleton<IGitRepoService>(sp => sp.GetRequiredService<GitRepoService>());
         builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
+        // Same delete-collection command handler AddSynthVcs registers for Synth.Api, wired inline
+        // here (this host doesn't call AddSynthVcs) so the delete_collection tool resolves it over
+        // stdio just as it does over HTTP.
+        builder.Services.AddSingleton<
+            ICommandHandler<DeleteCollectionCommand, bool>, DeleteCollectionCommandHandler>();
 
         // Health checks so the `health_check` tool (SYNTH-43) resolves IHealthCheckService over stdio
         // just as it does over HTTP. Its Qdrant probe seam resolves QdrantClient lazily via GetService

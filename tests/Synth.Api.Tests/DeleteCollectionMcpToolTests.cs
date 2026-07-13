@@ -2,22 +2,44 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
-using Synth.Infrastructure.Vcs;
+using Synth.Application.Vcs;
+using Synth.Domain;
 using Synth.Domain.Graph;
+using Synth.Domain.Vcs;
 using Synth.Infrastructure.Graph;
 using Synth.Infrastructure.Storage;
-using Synth.Domain.Vcs;
-using Synth.Domain;
+using Synth.Infrastructure.Vcs;
 
 namespace Synth.Api.Tests;
 
-// Proves SYNTH-43 (part 2): the `delete_collection` MCP tool drives the exact same three-step removal
+// Proves SYNTH-43 (part 2): the `delete_collection` MCP tool drives the exact same removal sequence
 // (vector-store collection, call-graph edges, registry entry) that DELETE /repositories/{collection}
-// uses — both go through the shared RepositoryEndpoints.DeleteCollectionAsync — and mirrors its
-// 204/404 split via DeleteCollectionResult.Deleted. Runs offline against in-memory stores.
+// uses — both now go through the shared DeleteCollectionCommandHandler (SYNTH-67 moved it behind the
+// CQRS seam) — and the tool mirrors its 204/404 split via DeleteCollectionResult.Deleted. Runs offline
+// against in-memory stores.
 public class DeleteCollectionMcpToolTests
 {
     private const string Collection = "repo-a";
+
+    // Cloned-remote checkout cleanup is exercised in DeleteCollectionCommandHandlerTests; these MCP
+    // tests only care about the deleted/not-deleted result, so a no-op git service suffices.
+    private sealed class NoopGitRepoService : IGitRepoService
+    {
+        public Task<string> EnsureRepoAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult(string.Empty);
+
+        public void RemoveCheckout(string slug) { }
+    }
+
+    private static DeleteCollectionCommandHandler CreateHandler(
+        IRepositoryRegistry registry,
+        ICodeChunkStore? chunkStore = null,
+        ICodeGraphStore? graphStore = null) =>
+        new(
+            chunkStore ?? new LocalCodeChunkStore(),
+            graphStore ?? new InMemoryCodeGraphStore(),
+            registry,
+            new NoopGitRepoService());
 
     private static async Task<InMemoryRepositoryRegistry> SeededRegistry(params string[] collections)
     {
@@ -47,7 +69,7 @@ public class DeleteCollectionMcpToolTests
         await graphStore.ReplaceEdgesAsync(Collection, [new CallEdge(Collection, "A.M", "B.N", "A.cs", 1)]);
 
         var result = await DeleteCollectionTool.DeleteCollectionAsync(
-            chunkStore, graphStore, registry, Collection);
+            CreateHandler(registry, chunkStore, graphStore), Collection);
 
         Assert.True(result.Deleted);
         Assert.Equal(Collection, result.Collection);
@@ -67,7 +89,7 @@ public class DeleteCollectionMcpToolTests
         var registry = await SeededRegistry(Collection);
 
         var result = await DeleteCollectionTool.DeleteCollectionAsync(
-            new LocalCodeChunkStore(), new InMemoryCodeGraphStore(), registry, "never-indexed");
+            CreateHandler(registry), "never-indexed");
 
         Assert.False(result.Deleted);
         Assert.Equal("never-indexed", result.Collection);
@@ -77,7 +99,7 @@ public class DeleteCollectionMcpToolTests
     public async Task Delete_rejects_a_blank_collection()
     {
         await Assert.ThrowsAsync<ArgumentException>(() => DeleteCollectionTool.DeleteCollectionAsync(
-            new LocalCodeChunkStore(), new InMemoryCodeGraphStore(), new InMemoryRepositoryRegistry(), "  "));
+            CreateHandler(new InMemoryRepositoryRegistry()), "  "));
     }
 
     [Fact]
