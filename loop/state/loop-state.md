@@ -126,3 +126,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-64 | MERGED | PR #96 merged to main; issue #80 slice 4/4 (last) — closes #80; Mongo fully removed except Synth.AppHost's local-dev resource (follow-up) |
 - | SYNTH-65 | COMPLETED | validator PASS, committed on fix/SYNTH-65 |
 - | SYNTH-65 | MERGED | PR #97 merged to main; issue #82 slice 10/many — first Controller (SearchController), Controllers support set up in Program.cs |
+- | SYNTH-66 | COMPLETED | validator PASS, committed on fix/SYNTH-66 |
+- | SYNTH-66 | MERGED | PR #98 merged to main; issue #82 slice 11/many (IndexingController) |
