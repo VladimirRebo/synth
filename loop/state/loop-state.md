@@ -118,3 +118,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-61 | FAILED | validator exit=1 |
 - | SYNTH-62 | COMPLETED | validator PASS, committed on fix/SYNTH-62 |
 - | SYNTH-62 | MERGED | PR #93 merged to main; issue #80 slice 2/many (repository registry -> SQLite) |
+- | SYNTH-61 | COMPLETED | validator PASS, committed on fix/SYNTH-61 |
+- | SYNTH-61 | MERGED | PR #94 merged to main, rebased onto post-SYNTH-62 main by hand (conflict in VcsServiceExtensions.cs, resolved); issue #82 slice 9/many (CQRS scaffolding + first command) |
