@@ -136,3 +136,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-69 | MERGED | PR #101 merged to main; issue #82 slice 14/many (EmbeddingSettingsController + UpdateEmbeddingSettingsCommand) |
 - | SYNTH-70 | COMPLETED | validator PASS, committed on fix/SYNTH-70 |
 - | SYNTH-70 | MERGED | PR #102 merged to main; issue #82 slice 15/many (OllamaModelEndpoints merged into EmbeddingSettingsController + PullOllamaModelCommand) |
+- | SYNTH-71 | COMPLETED | validator PASS, committed on fix/SYNTH-71 |
+- | SYNTH-71 | MERGED | PR #103 merged to main; issue #82 slice 16/many (RawSettingsController + ReplaceRawSettingsCommand) — all 3 Settings endpoint files now Controllers |
