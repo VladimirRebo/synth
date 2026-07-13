@@ -11,17 +11,17 @@ using Synth.Domain.Logging;
 namespace Synth.Api.Tests;
 
 // Drives GET /logs over HTTP. An InMemoryLogEntryStore is pre-populated with a known set of entries
-// and swapped in as the ILogEntryStore singleton the endpoint injects, so the buffer contents are
+// and swapped in as the ILogEntryStore singleton the controller injects, so the buffer contents are
 // fully deterministic (no live Serilog pipeline, no timing) and every filter can be asserted
 // precisely. Only the store substitution changed from the pre-SYNTH-28 version (was a raw
 // RingBufferLogSink); the filter behavior under test is unchanged.
-public class LogsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class LogsControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private static readonly DateTimeOffset Base = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public LogsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public LogsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private HttpClient CreateClient(ILogEntryStore store) =>
         _factory

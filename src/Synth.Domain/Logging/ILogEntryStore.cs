@@ -17,7 +17,7 @@ public interface ILogEntryStore
 
     /// <summary>
     /// Returns the most recent entries, oldest first — the same ordering
-    /// <c>RingBufferLogSink.Snapshot()</c> used to return, which <see cref="LogsEndpoints"/>'s
+    /// <c>RingBufferLogSink.Snapshot()</c> used to return, which <c>LogsController</c>'s
     /// level/since/search filtering depends on. Capped to a client-facing read size (see
     /// <see cref="InMemoryLogEntryStore"/>'s capacity) even when far more history is retained on disk.
     /// </summary>
