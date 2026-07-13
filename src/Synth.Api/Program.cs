@@ -126,11 +126,6 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
         : Results.Json(report, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
-// Manual indexing trigger (POST /index { "path": "..." }) plus its progress poll
-// (GET /index/status). SYNTH-31: POST /index is fire-and-forget — it validates, returns 202
-// immediately and runs the clone+indexing in the background; clients poll /index/status.
-app.MapIndexingEndpoints();
-
 // Lists the known collections and their metadata (GET /repositories) from the repository registry.
 app.MapRepositoryEndpoints();
 
