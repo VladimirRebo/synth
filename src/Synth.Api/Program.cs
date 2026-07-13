@@ -126,9 +126,9 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
         : Results.Json(report, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
-// Settings API for the Vcs config section (GET/PUT /settings/vcs): read/write the workspace
-// root and provider tokens at runtime, masking secrets and live-reloading IOptionsMonitor<VcsOptions>.
-app.MapVcsSettingsEndpoints();
+// GET/PUT /settings/vcs (read/write the workspace root and provider tokens at runtime, masking
+// secrets and live-reloading IOptionsMonitor<VcsOptions>) is a Controller — VcsSettingsController,
+// mapped by app.MapControllers() below (SYNTH-68).
 
 // Settings API for the Embedding config section (GET/PUT /settings/embedding): read/write the
 // provider/model/key at runtime, masking the OpenAI key and probing a candidate config before it is

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Synth.Application.Configuration;
 using Synth.Domain.Configuration;
 
 namespace Synth.Infrastructure.Configuration;
@@ -19,6 +20,11 @@ public static class ConfigStoreExtensions
         // Thread-safe read-merge-write of one section of the store document, used by the Settings
         // write APIs (e.g. PUT /settings/vcs) to persist a section and live-reload IConfiguration.
         builder.Services.AddSingleton<ConfigSectionUpdater>();
+        // Same singleton behind the Application-layer port so command handlers there
+        // (UpdateVcsSettingsCommandHandler) can depend on IConfigSectionUpdater without seeing this
+        // concrete Infrastructure type; the endpoints that need the raw-document members keep using
+        // ConfigSectionUpdater directly — mirrors how AddSynthVcs exposes GitRepoService as IGitRepoService.
+        builder.Services.AddSingleton<IConfigSectionUpdater>(sp => sp.GetRequiredService<ConfigSectionUpdater>());
 
         // Layer 2: the config-store document, above appsettings.json.
         // ConfigurationManager implements IConfigurationBuilder explicitly, so add
