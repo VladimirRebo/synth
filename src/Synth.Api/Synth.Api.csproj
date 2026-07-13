@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.MongoDB.Driver" Version="13.4.6" />
     <!-- Aspire Qdrant client integration: registers a QdrantClient from the AppHost's endpoint + key. -->
     <PackageReference Include="Aspire.Qdrant.Client" Version="13.4.6" />
     <!-- Aspire Community Toolkit: Ollama client + Microsoft.Extensions.AI embedding generator. -->
@@ -30,8 +29,8 @@
     <!-- Application-layer use-case orchestration (CodeSearchService, IndexingPipeline, the job/pull
          trackers) this host wires into DI and endpoints. -->
     <ProjectReference Include="../Synth.Application/Synth.Application.csproj" />
-    <!-- Concrete Domain-interface implementations (the Qdrant/Local chunk stores + Mongo/in-memory
-         call-graph stores) and their AddSynth* DI wiring, wired into DI in Program.cs. -->
+    <!-- Concrete Domain-interface implementations (the Qdrant/Local chunk stores + SQLite-backed
+         registry/call-graph/log stores) and their AddSynth* DI wiring, wired into DI in Program.cs. -->
     <ProjectReference Include="../Synth.Infrastructure/Synth.Infrastructure.csproj" />
     <ProjectReference Include="../Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
     <!-- The concrete chunkers this host wires into DI (see IndexingServiceExtensions). Each lives in

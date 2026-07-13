@@ -20,16 +20,14 @@
          as the top configuration layer so they win over the stored document. The Api project got this
          transitively from the Web SDK; a plain library must reference it explicitly. -->
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
-    <!-- Mongo driver (via Aspire integration): still needed by MongoLogEntryStore until its own
-         issue #80 slice moves the log store to SQLite. -->
-    <PackageReference Include="Aspire.MongoDB.Driver" Version="13.4.6" />
     <!-- Aspire Qdrant client integration: QdrantCodeChunkStore's QdrantClient + AddSynthVectorStore's
          builder.AddQdrantClient(...) registration. -->
     <PackageReference Include="Aspire.Qdrant.Client" Version="13.4.6" />
-    <!-- Embedded SQLite provider (ADO.NET). Backs the local-first stores that replace Mongo per
-         issue #80 — SqliteRepositoryRegistry (SYNTH-62) and, in later slices, the call-graph and
-         log stores — all sharing one ~/.synth/synth.db file via SqliteConnectionFactory. Pinned to
-         10.0.0 to match the Microsoft.Extensions.* 10.0.0 packages already used here. -->
+    <!-- Embedded SQLite provider (ADO.NET). Backs the local-first stores that replaced Mongo per
+         issue #80 — SqliteRepositoryRegistry (SYNTH-62), SqliteCodeGraphStore (SYNTH-63) and
+         SqliteLogEntryStore (SYNTH-64) — all sharing one ~/.synth/synth.db file via
+         SqliteConnectionFactory. Pinned to 10.0.0 to match the Microsoft.Extensions.* 10.0.0
+         packages already used here. -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
     <!-- Aspire Community Toolkit: Ollama client (OllamaApiClient) + Microsoft.Extensions.AI embedding
          generator for ConfigurableEmbeddingGenerator's Ollama provider. -->
