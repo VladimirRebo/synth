@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="13.4.6" />
-    <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.4.6" />
     <!-- Aspire hosting integration for Qdrant (Synth's vector store). -->
     <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.4.6" />
     <!-- Aspire Community Toolkit: hosting integration for Ollama (embedding provider). -->

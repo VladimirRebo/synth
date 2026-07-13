@@ -1,34 +1,5 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// MongoDB backs Synth's general-purpose data (config, repository registry, call-graph
-// edges, logs) — one database, several collections. Run it as an Aspire-managed
-// container with a persistent data volume so data survives restarts.
-//
-// Pin the admin credentials instead of letting Aspire generate a new random
-// password per run: AddMongoDB otherwise regenerates the password on every
-// `dotnet run`, but WithDataVolume keeps the *previous* run's admin user (with
-// the *old* password) on disk — the new random password then fails to
-// authenticate against it ("SCRAM authentication failed, storedKey mismatch"),
-// the resource never reports healthy, and `WaitFor` blocks the API from
-// starting forever. A fixed local-dev-only password keeps the volume and the
-// credentials in sync across restarts. Not meant to protect real secrets.
-var mongoUser = builder.AddParameter("mongo-username", "synth", publishValueAsDefault: true);
-var mongoPassword = builder.AddParameter("mongo-password", "synth-local-dev-only", secret: true);
-
-// Pinned to the conventional Mongo port (27017, IsProxied=false) for the same reason as the
-// API/client below: a stable connection string instead of a new random host port every
-// `dotnet run` — external tools (the mongodb-synth MCP server, mongosh, Compass) would
-// otherwise need reconfiguring after every restart.
-var mongo = builder.AddMongoDB("mongo", userName: mongoUser, password: mongoPassword)
-    .WithDataVolume()
-    .WithEndpoint("tcp", e =>
-    {
-        e.Port = 27017;
-        e.IsProxied = false;
-    });
-
-var dataDb = mongo.AddDatabase("synthdata");
-
 // Ollama is Synth's embedding provider. Run it as an Aspire-managed container with
 // a persistent data volume so pulled models survive restarts, and pull a default
 // embedding model on startup. The referenced model resource hands the API an
@@ -44,9 +15,10 @@ var embeddings = ollama.AddModel("embeddings", "qwen3-embedding:4b");
 var qdrant = builder.AddQdrant("qdrant")
     .WithDataVolume();
 
-// Synth.Api runs as an Aspire project resource. It gets a MongoDB connection
-// string, the Ollama embedding endpoint, and the Qdrant vector store via service
-// discovery from the referenced resources.
+// Synth.Api runs as an Aspire project resource. It gets the Ollama embedding endpoint and
+// the Qdrant vector store via service discovery from the referenced resources. Config,
+// repository registry, call-graph, and logs are all local SQLite/file storage now (issue
+// #80) — no database resource/connection string needed here.
 //
 // IsProxied=false pins the externally-reachable port to the app's own launchSettings.json
 // port (5042) instead of a DCP-assigned proxy port that changes every run — otherwise the
@@ -54,8 +26,6 @@ var qdrant = builder.AddQdrant("qdrant")
 // have to re-discover the port each time. Same discipline Sonar's AppHost uses.
 var api = builder.AddProject<Projects.Synth_Api>("api")
     .WithEndpoint("http", e => e.IsProxied = false)
-    .WithReference(dataDb)
-    .WaitFor(dataDb)
     .WithReference(embeddings)
     .WaitFor(embeddings)
     .WithReference(qdrant)

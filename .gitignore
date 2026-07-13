@@ -27,7 +27,7 @@ dist-ssr/
 !.env.example
 *.pem
 
-# --- Backups (scripts/backup.sh) — the Mongo dump includes VCS tokens/API keys, never commit ---
+# --- Backups (scripts/backup.sh) — config.json includes VCS tokens/API keys, never commit ---
 /backups/
 
 # --- OS / editors ---
