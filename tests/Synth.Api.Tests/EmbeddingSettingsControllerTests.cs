@@ -5,24 +5,23 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Synth.Api.Embeddings;
+using Synth.Application.Embeddings;
 using Synth.Infrastructure.Configuration;
-using Synth.Infrastructure.Embeddings;
 using Synth.Domain.Embeddings;
 using Synth.Domain.Configuration;
 
 namespace Synth.Api.Tests;
 
-// Drives GET/PUT /settings/embedding over HTTP. As with the VCS settings tests, one in-memory
-// IConfigStore backs both the endpoint's writes and a configuration layer, so the round trip is
-// hermetic and the store's Changed event genuinely reloads IOptionsMonitor<EmbeddingOptions>. The
-// network-talking piece (the probe generator) is faked, so no live Ollama/OpenAI is needed and the
-// probe can be made to succeed or fail deterministically.
-public class EmbeddingSettingsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+// Drives GET/PUT /settings/embedding over HTTP against EmbeddingSettingsController (SYNTH-69). As with
+// the VCS settings tests, one in-memory IConfigStore backs both the controller's writes and a
+// configuration layer, so the round trip is hermetic and the store's Changed event genuinely reloads
+// IOptionsMonitor<EmbeddingOptions>. The network-talking piece (the probe generator) is faked, so no
+// live Ollama/OpenAI is needed and the probe can be made to succeed or fail deterministically.
+public class EmbeddingSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public EmbeddingSettingsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public EmbeddingSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(
         string? initialJson = null, IEmbeddingGeneratorFactory? probeFactory = null)

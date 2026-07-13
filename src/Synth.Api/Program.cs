@@ -130,10 +130,9 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
 // secrets and live-reloading IOptionsMonitor<VcsOptions>) is a Controller — VcsSettingsController,
 // mapped by app.MapControllers() below (SYNTH-68).
 
-// Settings API for the Embedding config section (GET/PUT /settings/embedding): read/write the
-// provider/model/key at runtime, masking the OpenAI key and probing a candidate config before it is
-// persisted so a broken provider is never saved.
-app.MapEmbeddingSettingsEndpoints();
+// GET/PUT /settings/embedding (read/write the provider/model/key at runtime, masking the OpenAI key
+// and probing a candidate config before it is persisted so a broken provider is never saved) is a
+// Controller — EmbeddingSettingsController, mapped by app.MapControllers() below (SYNTH-69).
 
 // Ollama model picker for the Embedding settings (SYNTH-50): list locally-available models
 // (GET /settings/embedding/ollama/models) and pull a new one (POST .../pull) with polled progress
