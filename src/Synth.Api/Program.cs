@@ -145,7 +145,7 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
 
 // Plain REST call-graph queries (GET /callers?symbol=..., GET /callees?symbol=...) — the
 // human-facing equivalent of the find_callers/find_callees MCP tools over ICodeGraphStore.
-app.MapCallGraphEndpoints();
+// Served by CallGraphController, mapped by app.MapControllers() below (SYNTH-72).
 
 // Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
 // client can poll the live log — `since` returns only entries newer than the last poll.
