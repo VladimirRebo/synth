@@ -124,3 +124,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-63 | MERGED | PR #95 merged to main; issue #80 slice 3/many (call-graph store -> SQLite) |
 - | SYNTH-64 | COMPLETED | validator PASS, committed on fix/SYNTH-64 |
 - | SYNTH-64 | MERGED | PR #96 merged to main; issue #80 slice 4/4 (last) — closes #80; Mongo fully removed except Synth.AppHost's local-dev resource (follow-up) |
+- | SYNTH-65 | COMPLETED | validator PASS, committed on fix/SYNTH-65 |
+- | SYNTH-65 | MERGED | PR #97 merged to main; issue #82 slice 10/many — first Controller (SearchController), Controllers support set up in Program.cs |
