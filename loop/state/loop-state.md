@@ -132,3 +132,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-67 | MERGED | PR #99 merged to main; issue #82 slice 12/many (RepositoriesController + DeleteCollectionCommand) |
 - | SYNTH-68 | COMPLETED | validator PASS, committed on fix/SYNTH-68 |
 - | SYNTH-68 | MERGED | PR #100 merged to main; issue #82 slice 13/many (VcsSettingsController + UpdateVcsSettingsCommand) |
+- | SYNTH-69 | COMPLETED | validator PASS, committed on fix/SYNTH-69 |
+- | SYNTH-69 | MERGED | PR #101 merged to main; issue #82 slice 14/many (EmbeddingSettingsController + UpdateEmbeddingSettingsCommand) |
