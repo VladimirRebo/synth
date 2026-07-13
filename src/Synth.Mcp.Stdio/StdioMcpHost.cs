@@ -48,8 +48,10 @@ public static class StdioMcpHost
         builder.AddSynthVectorStore();
         builder.AddSynthSearch();
 
-        // Same call-graph store as Synth.Api (Mongo-or-in-memory) so the find_callers/find_callees
-        // tools resolve ICodeGraphStore over stdio just as they do over HTTP.
+        // Same call-graph store as Synth.Api (SQLite-backed, shared ~/.synth/synth.db) so the
+        // find_callers/find_callees tools resolve ICodeGraphStore over stdio just as they do over
+        // HTTP; AddSynthCodeGraph registers its own SqliteConnectionFactory (this host does not call
+        // AddSynthVcs).
         builder.AddSynthCodeGraph();
 
         // Indexing stack so the `index_code` tool (SYNTH-36) can resolve its dependencies over stdio
