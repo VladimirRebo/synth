@@ -142,3 +142,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-72 | MERGED | PR #104 merged to main; issue #82 slice 17/many (CallGraphController) |
 - | SYNTH-73 | COMPLETED | validator PASS, committed on fix/SYNTH-73 |
 - | SYNTH-73 | MERGED | PR #105 merged to main; issue #82 slice 18/many (LogsController) — only GET /health left |
+- | SYNTH-74 | COMPLETED | validator PASS, committed on fix/SYNTH-74 |
+- | SYNTH-74 | MERGED | PR #106 merged to main; issue #82 slice 19/19 (last) — closes #82; every Minimal-API endpoint file converted to a Controller, CQRS used throughout for real logic |
