@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Synth.Application.Configuration;
 using Synth.Application.Cqrs;
 
-namespace Synth.Api.Configuration;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The raw-settings endpoints: <c>GET /settings/raw</c> (read the whole stored config document as-is,
@@ -14,7 +14,7 @@ namespace Synth.Api.Configuration;
 /// affordance, not a broken security boundary (2026-07-09 decision, SYNTH-29).
 /// <para>
 /// The read stays a thin action over <see cref="IConfigSectionUpdater.LoadDocumentAsync"/> — no Query
-/// wrapper, same judgment call as <see cref="Synth.Api.Vcs.VcsSettingsController"/>'s reads — while the
+/// wrapper, same judgment call as <see cref="VcsSettingsController"/>'s reads — while the
 /// write's replace-and-warn logic lives behind the CQRS seam in
 /// <see cref="ReplaceRawSettingsCommandHandler"/> (issue #82). Unlike <c>/settings/embedding</c> there is
 /// deliberately <b>no probe-before-persist</b>: a malformed or non-object body is rejected with

@@ -1,16 +1,12 @@
 using System.Text.Json.Serialization;
 using Serilog;
 using Synth.Api.Agents;
-using Synth.Api.Configuration;
-using Synth.Api.Graph;
 using Synth.Api.Indexing;
-using Synth.Api.Logging;
 using Synth.Infrastructure.Configuration;
 using Synth.Infrastructure.Health;
 using Synth.Infrastructure.Logging;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
-using Synth.Api.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Logging;
 using Synth.Domain.Vcs;

@@ -7,7 +7,7 @@ using Synth.Application.Cqrs;
 using Synth.Application.Embeddings;
 using Synth.Domain.Embeddings;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The <c>Embedding</c> settings endpoints under <c>/settings/embedding/*</c>: <c>GET /settings/embedding</c>
@@ -16,7 +16,7 @@ namespace Synth.Api.Embeddings;
 /// model-picker actions (list locally-available models, pull a new one with polled progress). The reads and
 /// the model-list proxy stay thin actions over <see cref="IOptionsMonitor{TOptions}"/>/
 /// <see cref="IHttpClientFactory"/> — no Query wrapper, same judgment call as
-/// <see cref="Synth.Api.Vcs.VcsSettingsController"/>'s reads — while the two pieces with real orchestration
+/// <see cref="VcsSettingsController"/>'s reads — while the two pieces with real orchestration
 /// live behind the CQRS seam: the write's probe-before-persist logic in
 /// <see cref="UpdateEmbeddingSettingsCommandHandler"/> (SYNTH-69) and the pull's fire-and-forget dispatch in
 /// <see cref="PullOllamaModelCommandHandler"/> (SYNTH-70), both under issue #82. A candidate embedding

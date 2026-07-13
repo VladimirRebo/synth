@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Synth.Api.Mcp;
+using Synth.Api.Search;
 using Synth.Application;
 using Synth.Domain.Vcs;
 using Synth.Domain;
 
-namespace Synth.Api.Search;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// Plain REST search endpoints for the Vue client. The MCP tool <see cref="CodeSearchTool"/>

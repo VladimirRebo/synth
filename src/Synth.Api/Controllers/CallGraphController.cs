@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Synth.Domain.Graph;
 using Synth.Domain;
 
-namespace Synth.Api.Graph;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// Plain REST call-graph endpoints for the Vue client, mirroring the <c>search_code</c>/<c>GET

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Synth.Infrastructure.Health;
 
-namespace Synth.Api;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// Serves <c>GET /health</c>: Synth's readiness check. Unlike Aspire's own liveness endpoint at

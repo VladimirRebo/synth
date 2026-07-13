@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Api.Vcs;
+using Synth.Api.Controllers;
 using Synth.Domain.Vcs;
 
 namespace Synth.Api.Mcp;

@@ -5,14 +5,14 @@ using Synth.Application.Cqrs;
 using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The <c>Vcs</c> settings endpoints: <c>GET /settings/vcs</c> (read the effective
 /// <see cref="VcsOptions"/>, masking each provider token to a set/not-set flag rather than echoing the
 /// secret) and <c>PUT /settings/vcs</c> (partial write). The read stays a thin action over
 /// <see cref="IOptionsMonitor{TOptions}"/> — no Query wrapper, same judgment call as
-/// <see cref="Synth.Api.Search.SearchController"/>'s reads — while the write's real
+/// <see cref="SearchController"/>'s reads — while the write's real
 /// probe-before-persist logic lives behind the CQRS seam in
 /// <see cref="UpdateVcsSettingsCommandHandler"/> (issue #82). A newly-set, non-empty GitHub/GitLab
 /// token is probed against the provider's API before it is saved; a bad token is rejected with

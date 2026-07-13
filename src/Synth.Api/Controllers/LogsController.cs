@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Serilog.Events;
 using Synth.Domain.Logging;
 
-namespace Synth.Api.Logging;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// Serves <c>GET /logs</c>: a filterable, read-only view over the active <see cref="ILogEntryStore"/>

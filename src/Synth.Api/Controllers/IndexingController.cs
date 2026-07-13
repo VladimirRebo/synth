@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
 
-namespace Synth.Api.Indexing;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The manual indexing trigger and its progress endpoint. SYNTH-19 added the remote-repo branch

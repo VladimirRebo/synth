@@ -3,14 +3,14 @@ using Synth.Application.Cqrs;
 using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The repository-registry endpoints: <c>GET /repositories</c> (list the known collections and their
 /// metadata — backing the Vue collection picker from SYNTH-20 and any caller that needs a valid
 /// collection name) and <c>DELETE /repositories/{collection}</c> (remove an indexed collection
 /// entirely). The read stays a thin action over <see cref="IRepositoryRegistry"/> — no Query wrapper,
-/// same judgment call as <see cref="Synth.Api.Search.SearchController"/>'s reads — while the delete's
+/// same judgment call as <see cref="SearchController"/>'s reads — while the delete's
 /// real multi-step logic lives behind the CQRS seam in
 /// <see cref="DeleteCollectionCommandHandler"/> (issue #82), shared with the <c>delete_collection</c>
 /// MCP tool. SYNTH-67 converted this from the Minimal-API <c>RepositoryEndpoints</c> to a Controller
