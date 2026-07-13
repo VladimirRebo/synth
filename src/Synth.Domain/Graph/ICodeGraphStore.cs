@@ -4,7 +4,7 @@ namespace Synth.Domain.Graph;
 /// Storage for the structural call graph: directed <see cref="CallEdge"/>s answering "who calls X"
 /// and "what does X call" precisely, alongside Synth's approximate vector search. Every operation is
 /// scoped by <c>collection</c> (one indexed source) so edges never leak between repos. Backed by a
-/// real, doubly-indexed store (Mongo in production, in-memory in tests/dev) — see SYNTH-25 / issue #33.
+/// real, doubly-indexed store (SQLite in production, in-memory in tests/dev) — see SYNTH-25 / issue #33.
 /// Extraction (SYNTH-26) and query tools (SYNTH-27) build on top of this abstraction.
 /// </summary>
 public interface ICodeGraphStore
