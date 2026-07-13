@@ -88,7 +88,7 @@ public sealed class SqliteLogEntryStore : ILogEntryStore
         await using var connection = await OpenAndEnsureSchemaAsync(ct);
         await using var command = connection.CreateCommand();
         // Id DESC = newest first; take the most recent ReadLimit, then reverse to the oldest-first
-        // order LogsEndpoints (and the in-memory store) expose.
+        // order LogsController (and the in-memory store) expose.
         command.CommandText =
             "SELECT Timestamp, Level, Message, Exception FROM logs ORDER BY Id DESC LIMIT $limit;";
         command.Parameters.AddWithValue("$limit", ReadLimit);

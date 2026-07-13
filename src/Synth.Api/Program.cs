@@ -149,7 +149,7 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
 
 // Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
 // client can poll the live log — `since` returns only entries newer than the last poll.
-app.MapLogsEndpoints();
+// Served by LogsController, mapped by app.MapControllers() below (SYNTH-73).
 
 // Controller routes (issue #82): SearchController (GET /search, GET
 // /repositories/{collection}/files/{*relativePath}), IndexingController (POST /index, GET
