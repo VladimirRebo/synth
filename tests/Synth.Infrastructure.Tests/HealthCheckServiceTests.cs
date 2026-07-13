@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Synth.Application.Embeddings;
 using Synth.Infrastructure.Health;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Embeddings;

@@ -1,30 +1,36 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using Synth.Application.Configuration;
+using Synth.Application.Cqrs;
 using Synth.Domain.Embeddings;
-using Synth.Infrastructure.Configuration;
-using Synth.Infrastructure.Embeddings;
-using Synth.Domain.Configuration;
 
-namespace Synth.Api.Embeddings;
+namespace Synth.Application.Embeddings;
 
 /// <summary>
-/// Maps <c>GET</c>/<c>PUT /settings/embedding</c>: the read/write API over the <c>Embedding</c>
-/// config section (<see cref="EmbeddingOptions"/>). Reads report whether the OpenAI API key is set
-/// rather than echoing it (same masking as <c>SYNTH-20</c>'s VCS tokens); writes are partial (an absent
-/// field is left unchanged) and persist through <see cref="ConfigSectionUpdater"/> so the change is
-/// picked up live by <c>IOptionsMonitor&lt;EmbeddingOptions&gt;</c>.
+/// Handles <see cref="UpdateEmbeddingSettingsCommand"/>: the partial write over the <c>Embedding</c>
+/// config section (<see cref="EmbeddingOptions"/>). Writes are partial (an absent field is left
+/// unchanged) and persist through <see cref="IConfigSectionUpdater"/> so the change is picked up live by
+/// <c>IOptionsMonitor&lt;EmbeddingOptions&gt;</c>.
 /// <para>
 /// Unlike VCS settings, an embedding config is cheaply provable, so a <c>PUT</c> is
-/// <b>probe-before-persist</b>: a candidate generator built from the incoming config must produce one
-/// real embedding for the fixed probe string before anything is saved. A probe failure (exception,
-/// timeout, or an empty vector) is rejected with 400 and nothing is persisted — a saved broken provider
-/// would otherwise poison every subsequent embedding request until fixed by hand.
+/// <b>probe-before-persist</b>: a candidate generator built from the incoming config (via
+/// <see cref="IEmbeddingGeneratorFactory"/>) must produce one real embedding for the fixed probe string
+/// before anything is saved. A probe failure (exception, timeout, or an empty vector) yields a
+/// <see cref="UpdateEmbeddingSettingsResult.ValidationError"/> (mapped to 400 at the controller) and
+/// nothing is persisted — a saved broken provider would otherwise poison every subsequent embedding
+/// request until fixed by hand.
+/// </para>
+/// <para>
+/// SYNTH-69 lifted this out of <c>EmbeddingSettingsEndpoints</c>'s PUT handler essentially unchanged so
+/// it lives behind the CQRS seam (issue #82), following the pattern <see cref="Vcs.UpdateVcsSettingsCommandHandler"/>
+/// established: the dependencies it used to take as endpoint parameters are now constructor-injected, and
+/// it depends on the <see cref="IConfigSectionUpdater"/> and <see cref="IEmbeddingGeneratorFactory"/>
+/// ports rather than concrete Infrastructure types so Application never references Infrastructure.
 /// </para>
 /// </summary>
-public static class EmbeddingSettingsEndpoints
+public sealed class UpdateEmbeddingSettingsCommandHandler
+    : ICommandHandler<UpdateEmbeddingSettingsCommand, UpdateEmbeddingSettingsResult>
 {
     // Section keys mirror EmbeddingOptions' property names (config binding is case-insensitive, but we
     // write the canonical casing so the stored document reads the same as appsettings would).
@@ -40,46 +46,48 @@ public static class EmbeddingSettingsEndpoints
     private const string ProbeText = "dimension probe";
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(10);
 
-    public static IEndpointRouteBuilder MapEmbeddingSettingsEndpoints(this IEndpointRouteBuilder endpoints)
+    private readonly IEmbeddingGeneratorFactory _factory;
+    private readonly IConfigSectionUpdater _updater;
+    private readonly IOptionsMonitor<EmbeddingOptions> _options;
+
+    public UpdateEmbeddingSettingsCommandHandler(
+        IEmbeddingGeneratorFactory factory,
+        IConfigSectionUpdater updater,
+        IOptionsMonitor<EmbeddingOptions> options)
     {
-        // GET /settings/embedding — current effective EmbeddingOptions, API key masked to a flag.
-        endpoints.MapGet("/settings/embedding",
-            (IOptionsMonitor<EmbeddingOptions> options) => Results.Ok(Mask(options.CurrentValue)));
+        _factory = factory;
+        _updater = updater;
+        _options = options;
+    }
 
-        // PUT /settings/embedding — probe the candidate config, then partial-update on success.
-        endpoints.MapPut("/settings/embedding", async (
-            JsonElement body,
-            IEmbeddingGeneratorFactory factory,
-            ConfigSectionUpdater updater,
-            IOptionsMonitor<EmbeddingOptions> options,
-            CancellationToken cancellationToken) =>
+    public async Task<UpdateEmbeddingSettingsResult> HandleAsync(
+        UpdateEmbeddingSettingsCommand command, CancellationToken cancellationToken = default)
+    {
+        var body = command.Body;
+
+        if (body.ValueKind != JsonValueKind.Object)
+            return UpdateEmbeddingSettingsResult.ValidationError("Request body must be a JSON object.");
+
+        // Merge the request over the current config so the probe sees exactly what a subsequent GET
+        // would report — including the currently-stored API key when the caller omits it.
+        var candidate = BuildCandidate(_options.CurrentValue, body);
+
+        var probeError = await ProbeAsync(_factory, candidate, cancellationToken);
+        if (probeError is not null)
+            return UpdateEmbeddingSettingsResult.ValidationError(probeError);
+
+        await _updater.UpdateSectionAsync(EmbeddingOptions.SectionName, section =>
         {
-            if (body.ValueKind != JsonValueKind.Object)
-                return Results.BadRequest(new { error = "Request body must be a JSON object." });
+            if (TryGetPropertyIgnoreCase(body, "provider", out var provider))
+                section[ProviderKey] = ToStringValueOrNull(provider);
 
-            // Merge the request over the current config so the probe sees exactly what a subsequent GET
-            // would report — including the currently-stored API key when the caller omits it.
-            var candidate = BuildCandidate(options.CurrentValue, body);
+            ApplyOllama(body, section);
+            ApplyOpenAI(body, section);
+        }, cancellationToken);
 
-            var probeError = await ProbeAsync(factory, candidate, cancellationToken);
-            if (probeError is not null)
-                return Results.BadRequest(new { error = probeError });
-
-            await updater.UpdateSectionAsync(EmbeddingOptions.SectionName, section =>
-            {
-                if (TryGetPropertyIgnoreCase(body, "provider", out var provider))
-                    section[ProviderKey] = ToStringValueOrNull(provider);
-
-                ApplyOllama(body, section);
-                ApplyOpenAI(body, section);
-            }, cancellationToken);
-
-            // Built from IOptionsMonitor.CurrentValue after the save, so a correct masked shape here
-            // proves the store's Changed event reloaded IConfiguration live (same guarantee as VCS).
-            return Results.Ok(Mask(options.CurrentValue));
-        });
-
-        return endpoints;
+        // Built from IOptionsMonitor.CurrentValue after the save, so a correct masked shape here
+        // proves the store's Changed event reloaded IConfiguration live (same guarantee as VCS).
+        return UpdateEmbeddingSettingsResult.Ok(EmbeddingSettingsResponse.Mask(_options.CurrentValue));
     }
 
     // Generates one embedding for the probe text with the candidate generator under a short timeout.
@@ -189,11 +197,6 @@ public static class EmbeddingSettingsEndpoints
         return created;
     }
 
-    private static EmbeddingSettingsResponse Mask(EmbeddingOptions options) => new(
-        string.IsNullOrWhiteSpace(options.Provider) ? null : options.Provider,
-        new OllamaSettingsView(options.Ollama.Endpoint, options.Ollama.Model),
-        new OpenAISettingsView(!string.IsNullOrEmpty(options.OpenAI.ApiKey), options.OpenAI.Model));
-
     private static string? ToStringValueOrNull(JsonElement element) =>
         element.ValueKind == JsonValueKind.Null ? null : element.GetString();
 
@@ -212,19 +215,3 @@ public static class EmbeddingSettingsEndpoints
         return false;
     }
 }
-
-/// <summary>Masked <c>Embedding</c> settings: the OpenAI API key is never echoed, only whether one is set.</summary>
-public sealed record EmbeddingSettingsResponse(
-    [property: JsonPropertyName("provider")] string? Provider,
-    [property: JsonPropertyName("ollama")] OllamaSettingsView Ollama,
-    [property: JsonPropertyName("openai")] OpenAISettingsView OpenAI);
-
-/// <summary>Ollama endpoint/model overrides as reported by GET (both may be null → Aspire fallback).</summary>
-public sealed record OllamaSettingsView(
-    [property: JsonPropertyName("endpoint")] string? Endpoint,
-    [property: JsonPropertyName("model")] string? Model);
-
-/// <summary>OpenAI settings without the secret: only whether a key is set, plus the model.</summary>
-public sealed record OpenAISettingsView(
-    [property: JsonPropertyName("apiKeySet")] bool ApiKeySet,
-    [property: JsonPropertyName("model")] string? Model);

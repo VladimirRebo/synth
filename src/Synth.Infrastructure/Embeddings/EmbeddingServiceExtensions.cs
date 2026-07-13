@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Synth.Application.Cqrs;
 using Synth.Application.Embeddings;
 using Synth.Domain.Embeddings;
 
@@ -53,6 +54,15 @@ public static class EmbeddingServiceExtensions
         // Factory used by PUT /settings/embedding to build a candidate generator for the
         // probe-before-persist check (tests swap this for a fake to control probe success/failure).
         builder.Services.AddSingleton<IEmbeddingGeneratorFactory, EmbeddingGeneratorFactory>();
+
+        // CQRS command handler for the embedding-settings write flow (SYNTH-69, issue #82). PUT
+        // /settings/embedding resolves it by its
+        // ICommandHandler<UpdateEmbeddingSettingsCommand, UpdateEmbeddingSettingsResult> interface; it
+        // consumes IEmbeddingGeneratorFactory + IConfigSectionUpdater + IOptionsMonitor<EmbeddingOptions>,
+        // all singletons.
+        builder.Services.AddSingleton<
+            ICommandHandler<UpdateEmbeddingSettingsCommand, UpdateEmbeddingSettingsResult>,
+            UpdateEmbeddingSettingsCommandHandler>();
 
         // Single, process-lifetime tracker for the Ollama model pull (SYNTH-50), so the client can poll
         // pull progress instead of streaming — same shape as the indexing job tracker.

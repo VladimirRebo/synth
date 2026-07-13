@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Synth.Application.Embeddings;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Embeddings;
 
