@@ -8,15 +8,15 @@ using Synth.Infrastructure.Health;
 
 namespace Synth.Api.Tests;
 
-// Drives GET /health over HTTP. The reachability probes themselves are unit-tested against
-// HealthCheckService directly (see HealthCheckServiceTests); here IHealthCheckService is swapped for a
-// deterministic fake so the endpoint's own responsibility — status-code mapping and JSON shape — is
-// exercised without a live Qdrant/Ollama.
-public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+// Drives GET /health (HealthController) over HTTP. The reachability probes themselves are unit-tested
+// against HealthCheckService directly (see HealthCheckServiceTests); here IHealthCheckService is swapped
+// for a deterministic fake so the controller's own responsibility — status-code mapping and JSON shape —
+// is exercised without a live Qdrant/Ollama.
+public class HealthControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public HealthEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public HealthControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private HttpClient CreateClient(HealthReport report)
     {
