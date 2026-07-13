@@ -35,7 +35,13 @@ public static class VcsServiceExtensions
         // interface. It consumes the chunk/graph stores + registry + IGitRepoService, all singletons.
         builder.Services.AddSingleton<
             ICommandHandler<DeleteCollectionCommand, bool>, DeleteCollectionCommandHandler>();
-        // IHttpClientFactory for VcsSettingsEndpoints' probe-before-persist token check (SYNTH-37).
+        // CQRS command handler for the VCS-settings write flow (SYNTH-68, issue #82). PUT /settings/vcs
+        // resolves it by its ICommandHandler<UpdateVcsSettingsCommand, UpdateVcsSettingsResult>
+        // interface; it consumes IConfigSectionUpdater + IOptionsMonitor<VcsOptions> + IHttpClientFactory,
+        // all singletons.
+        builder.Services.AddSingleton<
+            ICommandHandler<UpdateVcsSettingsCommand, UpdateVcsSettingsResult>, UpdateVcsSettingsCommandHandler>();
+        // IHttpClientFactory for the probe-before-persist token check (SYNTH-37), now in the handler above.
         builder.Services.AddHttpClient();
 
         return builder;

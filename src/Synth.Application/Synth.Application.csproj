@@ -21,6 +21,11 @@
     <!-- ILoggerFactory/ILogger for IndexRepositoryCommandHandler's background-run failure logging
          (SYNTH-61). Abstractions only — the concrete logging pipeline is wired in the host. -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <!-- IOptionsMonitor<VcsOptions> and IHttpClientFactory for UpdateVcsSettingsCommandHandler's
+         probe-before-persist token check (SYNTH-68). Abstractions only — the concrete options/HTTP
+         pipeline is wired in the host. -->
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

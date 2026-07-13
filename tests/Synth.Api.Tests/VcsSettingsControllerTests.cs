@@ -10,15 +10,15 @@ using Synth.Infrastructure.Configuration;
 
 namespace Synth.Api.Tests;
 
-// Drives GET/PUT /settings/vcs over HTTP. A single in-memory IConfigStore is shared between the
-// endpoint (via DI) and an extra configuration layer, so the round trip is hermetic (no Mongo,
-// Docker, or ~/.synth/config.json) AND the store's Changed event genuinely reloads
-// IOptionsMonitor<VcsOptions> — the reload path the endpoint relies on.
-public class VcsSettingsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+// Drives GET/PUT /settings/vcs over HTTP against VcsSettingsController (SYNTH-68). A single in-memory
+// IConfigStore is shared between the controller/command handler (via DI) and an extra configuration
+// layer, so the round trip is hermetic (no Mongo, Docker, or ~/.synth/config.json) AND the store's
+// Changed event genuinely reloads IOptionsMonitor<VcsOptions> — the reload path the handler relies on.
+public class VcsSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public VcsSettingsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public VcsSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(
         string? initialJson = null, FakeHttpClientFactory? probeFactory = null)

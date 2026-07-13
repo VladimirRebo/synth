@@ -2,28 +2,37 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
-using Synth.Domain.Configuration;
+using Synth.Application.Configuration;
+using Synth.Application.Cqrs;
 using Synth.Domain.Vcs;
-using Synth.Infrastructure.Configuration;
 
-namespace Synth.Api.Vcs;
+namespace Synth.Application.Vcs;
 
 /// <summary>
-/// Maps <c>GET</c>/<c>PUT /settings/vcs</c>: the read/write API over the <c>Vcs</c> config
-/// section (<see cref="VcsOptions"/>). Reads report whether a token is set rather than echoing the
-/// secret; writes are partial (an absent field is left unchanged, an explicit empty string clears a
-/// token) and persist through <see cref="ConfigSectionUpdater"/> so the change is picked up live by
-/// <c>IOptionsMonitor&lt;VcsOptions&gt;</c>. No auth/RBAC — Synth is a single local user.
+/// Handles <see cref="UpdateVcsSettingsCommand"/>: the partial write over the <c>Vcs</c> config section
+/// (<see cref="VcsOptions"/>). Writes are partial (an absent field is left unchanged, an explicit empty
+/// string clears a token) and persist through <see cref="IConfigSectionUpdater"/> so the change is
+/// picked up live by <c>IOptionsMonitor&lt;VcsOptions&gt;</c>.
 /// <para>
 /// A newly-set, non-empty GitHub/GitLab token is <b>probed-before-persist</b> (SYNTH-37): a quick
 /// authenticated call against the provider's public API must succeed before the token is saved. A
-/// non-2xx response or a network failure is rejected with 400 and nothing is persisted — the same
-/// contract as the embedding probe, so an invalid/expired token is caught here instead of surfacing
-/// later deep inside a background indexing job. Self-hosted GitLab is out of scope (no configurable
-/// host to probe), so GitLab is validated against <c>gitlab.com</c> only.
+/// non-2xx response or a network failure yields a <see cref="UpdateVcsSettingsResult.ValidationError"/>
+/// (mapped to 400 at the controller) and nothing is persisted — the same contract as the embedding
+/// probe, so an invalid/expired token is caught here instead of surfacing later deep inside a background
+/// indexing job. Self-hosted GitLab is out of scope (no configurable host to probe), so GitLab is
+/// validated against <c>gitlab.com</c> only.
+/// </para>
+/// <para>
+/// SYNTH-68 lifted this out of <c>VcsSettingsEndpoints</c>'s PUT handler unchanged so it lives behind
+/// the CQRS seam (issue #82), following the pattern <c>IndexRepositoryCommandHandler</c> and
+/// <c>DeleteCollectionCommandHandler</c> established: the dependencies it used to take as endpoint
+/// parameters are now constructor-injected, and it depends on the <see cref="IConfigSectionUpdater"/>
+/// port rather than the concrete <c>ConfigSectionUpdater</c> so Application never references
+/// Infrastructure.
 /// </para>
 /// </summary>
-public static class VcsSettingsEndpoints
+public sealed class UpdateVcsSettingsCommandHandler
+    : ICommandHandler<UpdateVcsSettingsCommand, UpdateVcsSettingsResult>
 {
     private const string WorkspaceRootKey = "WorkspaceRoot";
     private const string GitHubKey = "GitHub";
@@ -36,56 +45,58 @@ public static class VcsSettingsEndpoints
     private const string GitLabProbeUrl = "https://gitlab.com/api/v4/user";
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(10);
 
-    public static IEndpointRouteBuilder MapVcsSettingsEndpoints(this IEndpointRouteBuilder endpoints)
+    private readonly IConfigSectionUpdater _updater;
+    private readonly IOptionsMonitor<VcsOptions> _options;
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public UpdateVcsSettingsCommandHandler(
+        IConfigSectionUpdater updater,
+        IOptionsMonitor<VcsOptions> options,
+        IHttpClientFactory httpClientFactory)
     {
-        // GET /settings/vcs — current effective VcsOptions, with tokens masked to a set/not-set flag.
-        endpoints.MapGet("/settings/vcs",
-            (IOptionsMonitor<VcsOptions> options) => Results.Ok(Mask(options.CurrentValue)));
+        _updater = updater;
+        _options = options;
+        _httpClientFactory = httpClientFactory;
+    }
 
-        // PUT /settings/vcs — partial update; returns the same masked shape as GET.
-        endpoints.MapPut("/settings/vcs", async (
-            JsonElement body,
-            ConfigSectionUpdater updater,
-            IOptionsMonitor<VcsOptions> options,
-            IHttpClientFactory httpClientFactory,
-            CancellationToken cancellationToken) =>
+    public async Task<UpdateVcsSettingsResult> HandleAsync(
+        UpdateVcsSettingsCommand command, CancellationToken cancellationToken = default)
+    {
+        var body = command.Body;
+
+        if (body.ValueKind != JsonValueKind.Object)
+            return UpdateVcsSettingsResult.ValidationError("Request body must be a JSON object.");
+
+        // Probe a newly-set, non-empty token before persisting so an invalid/expired token is
+        // rejected here rather than the next time GitRepoService actually uses it. Cleared or
+        // omitted tokens (and workspaceRoot) need no probe — see TryGetNewToken.
+        if (TryGetNewToken(body, "github", out var gitHubToken))
         {
-            if (body.ValueKind != JsonValueKind.Object)
-                return Results.BadRequest(new { error = "Request body must be a JSON object." });
+            var error = await ProbeGitHubAsync(gitHubToken, cancellationToken);
+            if (error is not null)
+                return UpdateVcsSettingsResult.ValidationError(error);
+        }
 
-            // Probe a newly-set, non-empty token before persisting so an invalid/expired token is
-            // rejected here rather than the next time GitRepoService actually uses it. Cleared or
-            // omitted tokens (and workspaceRoot) need no probe — see TryGetNewToken.
-            if (TryGetNewToken(body, "github", out var gitHubToken))
-            {
-                var error = await ProbeGitHubAsync(httpClientFactory, gitHubToken, cancellationToken);
-                if (error is not null)
-                    return Results.BadRequest(new { error });
-            }
+        if (TryGetNewToken(body, "gitlab", out var gitLabToken))
+        {
+            var error = await ProbeGitLabAsync(gitLabToken, cancellationToken);
+            if (error is not null)
+                return UpdateVcsSettingsResult.ValidationError(error);
+        }
 
-            if (TryGetNewToken(body, "gitlab", out var gitLabToken))
-            {
-                var error = await ProbeGitLabAsync(httpClientFactory, gitLabToken, cancellationToken);
-                if (error is not null)
-                    return Results.BadRequest(new { error });
-            }
+        await _updater.UpdateSectionAsync(VcsOptions.SectionName, section =>
+        {
+            // Present & non-null -> set; present & null -> clear; absent -> leave unchanged.
+            if (TryGetPropertyIgnoreCase(body, "workspaceRoot", out var workspaceRoot))
+                section[WorkspaceRootKey] = ToStringValueOrNull(workspaceRoot);
 
-            await updater.UpdateSectionAsync(VcsOptions.SectionName, section =>
-            {
-                // Present & non-null -> set; present & null -> clear; absent -> leave unchanged.
-                if (TryGetPropertyIgnoreCase(body, "workspaceRoot", out var workspaceRoot))
-                    section[WorkspaceRootKey] = ToStringValueOrNull(workspaceRoot);
+            ApplyTokenUpdate(body, "github", section, GitHubKey);
+            ApplyTokenUpdate(body, "gitlab", section, GitLabKey);
+        }, cancellationToken);
 
-                ApplyTokenUpdate(body, "github", section, GitHubKey);
-                ApplyTokenUpdate(body, "gitlab", section, GitLabKey);
-            }, cancellationToken);
-
-            // The store's Changed event has already reloaded IConfiguration synchronously on save,
-            // so CurrentValue reflects the just-persisted values (this is what proves the reload path).
-            return Results.Ok(Mask(options.CurrentValue));
-        });
-
-        return endpoints;
+        // The store's Changed event has already reloaded IConfiguration synchronously on save,
+        // so CurrentValue reflects the just-persisted values (this is what proves the reload path).
+        return UpdateVcsSettingsResult.Ok(VcsSettingsResponse.Mask(_options.CurrentValue));
     }
 
     // Applies the token for one provider block: only touches the section when the block AND its
@@ -136,31 +147,29 @@ public static class VcsSettingsEndpoints
     }
 
     // GitHub: GET /user with a Bearer token and a User-Agent (GitHub's API rejects requests without one).
-    private static Task<string?> ProbeGitHubAsync(
-        IHttpClientFactory httpClientFactory, string token, CancellationToken cancellationToken)
+    private Task<string?> ProbeGitHubAsync(string token, CancellationToken cancellationToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, GitHubProbeUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.UserAgent.ParseAdd("Synth");
-        return ProbeAsync(httpClientFactory, request, "GitHub", cancellationToken);
+        return ProbeAsync(request, "GitHub", cancellationToken);
     }
 
     // GitLab: GET /api/v4/user with a PRIVATE-TOKEN header (gitlab.com only — see class remarks).
-    private static Task<string?> ProbeGitLabAsync(
-        IHttpClientFactory httpClientFactory, string token, CancellationToken cancellationToken)
+    private Task<string?> ProbeGitLabAsync(string token, CancellationToken cancellationToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, GitLabProbeUrl);
         request.Headers.TryAddWithoutValidation("PRIVATE-TOKEN", token);
-        return ProbeAsync(httpClientFactory, request, "GitLab", cancellationToken);
+        return ProbeAsync(request, "GitLab", cancellationToken);
     }
 
     // Sends the authenticated probe under a short timeout. Returns null when the token authenticates
     // (2xx), or a human-readable reason (for a 400) when it doesn't — a non-2xx response (401/403) or
     // any network failure/timeout. Never persists; this runs before the update.
-    private static async Task<string?> ProbeAsync(
-        IHttpClientFactory httpClientFactory, HttpRequestMessage request, string provider, CancellationToken cancellationToken)
+    private async Task<string?> ProbeAsync(
+        HttpRequestMessage request, string provider, CancellationToken cancellationToken)
     {
-        var client = httpClientFactory.CreateClient();
+        var client = _httpClientFactory.CreateClient();
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -186,11 +195,6 @@ public static class VcsSettingsEndpoints
         }
     }
 
-    private static VcsSettingsResponse Mask(VcsOptions options) => new(
-        options.WorkspaceRoot,
-        new ProviderTokenStatus(!string.IsNullOrEmpty(options.GitHub?.Token)),
-        new ProviderTokenStatus(!string.IsNullOrEmpty(options.GitLab?.Token)));
-
     private static string? ToStringValueOrNull(JsonElement element) =>
         element.ValueKind == JsonValueKind.Null ? null : element.GetString();
 
@@ -209,9 +213,3 @@ public static class VcsSettingsEndpoints
         return false;
     }
 }
-
-/// <summary>Masked <c>Vcs</c> settings: the raw tokens are never echoed, only whether one is set.</summary>
-public sealed record VcsSettingsResponse(string? WorkspaceRoot, ProviderTokenStatus Github, ProviderTokenStatus Gitlab);
-
-/// <summary>Per-provider token status without the secret value.</summary>
-public sealed record ProviderTokenStatus(bool TokenSet);

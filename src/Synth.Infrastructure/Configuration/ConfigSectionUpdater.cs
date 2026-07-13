@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Synth.Application.Configuration;
 using Synth.Domain.Configuration;
 
 namespace Synth.Infrastructure.Configuration;
@@ -18,7 +19,7 @@ namespace Synth.Infrastructure.Configuration;
 /// Registered as a singleton and reusable across sections (e.g. the <c>Embedding</c> section in a
 /// later Settings task), not just <c>Vcs</c>.
 /// </summary>
-public sealed class ConfigSectionUpdater(IConfigStore store)
+public sealed class ConfigSectionUpdater(IConfigStore store) : IConfigSectionUpdater
 {
     // SemaphoreSlim rather than `lock`, because the critical section spans awaits (load + save).
     private readonly SemaphoreSlim _gate = new(1, 1);
