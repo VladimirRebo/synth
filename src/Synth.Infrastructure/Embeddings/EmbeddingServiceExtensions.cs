@@ -68,6 +68,18 @@ public static class EmbeddingServiceExtensions
         // pull progress instead of streaming — same shape as the indexing job tracker.
         builder.Services.AddSingleton<IOllamaPullTracker, InMemoryOllamaPullTracker>();
 
+        // Resolves the effective Ollama endpoint for the model-picker/pull the same way the live generator
+        // does — the thin port that lets PullOllamaModelCommandHandler (Application) stay off Infrastructure.
+        builder.Services.AddSingleton<IOllamaEndpointResolver, OllamaEndpointResolver>();
+
+        // CQRS command handler for the Ollama model pull's fire-and-forget dispatch (SYNTH-70, issue #82).
+        // POST /settings/embedding/ollama/pull resolves it by its
+        // ICommandHandler<PullOllamaModelCommand, PullOllamaModelResult> interface; it consumes
+        // IHttpClientFactory + IOllamaEndpointResolver + IOllamaPullTracker + ILoggerFactory.
+        builder.Services.AddSingleton<
+            ICommandHandler<PullOllamaModelCommand, PullOllamaModelResult>,
+            PullOllamaModelCommandHandler>();
+
         // IHttpClientFactory for the Ollama model-list proxy and pull stream (SYNTH-50). AddHttpClient is
         // idempotent, so this is a no-op if AddSynthVcs already registered it for its token probe.
         builder.Services.AddHttpClient();
