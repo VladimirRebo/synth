@@ -115,3 +115,6 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-59 | MERGED | PR #91 merged to main; issue #82 slice 7/many (last Infrastructure slice) — Synth.Infrastructure now holds every concrete implementation |
 - | SYNTH-60 | COMPLETED | validator PASS, committed on fix/SYNTH-60 |
 - | SYNTH-60 | MERGED | PR #92 merged to main; issue #82 slice 8/many — Synth.Core and Synth.Core.Tests retired, old 2-project split now fully replaced by Domain/Application/Infrastructure/Api |
+- | SYNTH-61 | FAILED | validator exit=1 |
+- | SYNTH-62 | COMPLETED | validator PASS, committed on fix/SYNTH-62 |
+- | SYNTH-62 | MERGED | PR #93 merged to main; issue #80 slice 2/many (repository registry -> SQLite) |
