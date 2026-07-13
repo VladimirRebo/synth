@@ -71,6 +71,9 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
             RequestedBranch = branch;
             return Task.FromResult(_checkoutPath);
         }
+
+        // Not exercised by the indexing flow (only DeleteCollectionCommandHandler removes checkouts).
+        public void RemoveCheckout(string slug) { }
     }
 
     private readonly string _root;

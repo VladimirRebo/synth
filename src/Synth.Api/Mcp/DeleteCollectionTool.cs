@@ -1,28 +1,27 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Api.Vcs;
-using Synth.Core;
-using Synth.Domain.Graph;
-using Synth.Domain.Vcs;
-using Synth.Domain;
+using Synth.Application.Cqrs;
+using Synth.Application.Vcs;
 
 namespace Synth.Api.Mcp;
 
 /// <summary>
 /// Transport-agnostic MCP tool that removes an indexed collection completely — the MCP equivalent of
-/// <c>DELETE /repositories/{collection}</c> (SYNTH-34, part of issue #44). A thin wrapper: it drives
-/// the exact same three-step sequence via <see cref="RepositoryEndpoints.DeleteCollectionAsync"/>
-/// (vector-store collection, call-graph edges, registry entry) the REST handler shares, so the two
-/// transports can never drift. Registered via
-/// <c>AddMcpServer().WithTools&lt;DeleteCollectionTool&gt;()</c> over both the HTTP and stdio transports.
+/// <c>DELETE /repositories/{collection}</c> (SYNTH-34, part of issue #44). A thin wrapper: the wrapping
+/// lives here while the actual multi-step removal (vector-store collection, call-graph edges, registry
+/// entry, and a cloned remote's checkout) stays in <see cref="DeleteCollectionCommandHandler"/>, shared
+/// with the REST endpoint, so the two transports can never drift (SYNTH-67 moved that sequence behind
+/// the CQRS seam, mirroring how <c>IndexCodeTool</c> dispatches <c>IndexRepositoryCommand</c>).
+/// Registered via <c>AddMcpServer().WithTools&lt;DeleteCollectionTool&gt;()</c> over both the HTTP and
+/// stdio transports.
 /// </summary>
 [McpServerToolType]
 public sealed class DeleteCollectionTool
 {
     /// <summary>
-    /// Deletes <paramref name="collection"/>'s chunks, call-graph edges and registry entry. The store
-    /// dependencies are injected from DI per invocation; the result mirrors the REST endpoint's
-    /// 204/404 split via <see cref="DeleteCollectionResult.Deleted"/>.
+    /// Deletes <paramref name="collection"/>'s chunks, call-graph edges and registry entry. The command
+    /// handler is resolved from DI per invocation; the result mirrors the REST endpoint's 204/404 split
+    /// via <see cref="DeleteCollectionResult.Deleted"/>.
     /// </summary>
     [McpServerTool(Name = "delete_collection")]
     [Description(
@@ -31,9 +30,7 @@ public sealed class DeleteCollectionTool
         "the collection must be re-indexed to search it again. Reports deleted=false when no such " +
         "collection existed.")]
     public static async Task<DeleteCollectionResult> DeleteCollectionAsync(
-        ICodeChunkStore chunkStore,
-        ICodeGraphStore graphStore,
-        IRepositoryRegistry registry,
+        ICommandHandler<DeleteCollectionCommand, bool> handler,
         [Description("Name of the indexed collection (repository) to remove.")]
         string collection,
         CancellationToken cancellationToken = default)
@@ -41,8 +38,8 @@ public sealed class DeleteCollectionTool
         if (string.IsNullOrWhiteSpace(collection))
             throw new ArgumentException("'collection' is required.");
 
-        var deleted = await RepositoryEndpoints.DeleteCollectionAsync(
-            collection, chunkStore, graphStore, registry, cancellationToken);
+        var deleted = await handler.HandleAsync(
+            new DeleteCollectionCommand(collection), cancellationToken);
 
         return new DeleteCollectionResult(
             deleted,

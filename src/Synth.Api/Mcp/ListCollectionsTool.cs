@@ -7,7 +7,7 @@ namespace Synth.Api.Mcp;
 
 /// <summary>
 /// Transport-agnostic MCP tool that lists the indexed collections and their metadata — the MCP
-/// equivalent of <c>GET /repositories</c> (<see cref="RepositoryEndpoints"/>, part of issue #44).
+/// equivalent of <c>GET /repositories</c> (<see cref="RepositoriesController"/>, part of issue #44).
 /// A thin wrapper: the actual data comes straight from <see cref="IRepositoryRegistry.ListAsync"/>,
 /// the same source the REST endpoint reads, returning <see cref="RepositoryEntry"/> records directly
 /// (already a clean serializable shape). Registered via

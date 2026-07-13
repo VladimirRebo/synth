@@ -8,15 +8,17 @@ using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 
-// Drives DELETE /repositories/{collection} over HTTP. Hermetic: the registry is swapped for a
-// seeded in-memory instance (chunk/graph stores fall back to their in-memory defaults with no
-// Qdrant/Mongo configured), mirroring CallGraphEndpointTests' fake-dependency approach. Proves the
-// deleted collection no longer lists, and that deleting an unknown collection is a 404.
-public class RepositoryEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+// Drives GET /repositories and DELETE /repositories/{collection} over HTTP against RepositoriesController
+// (SYNTH-67's Minimal-API -> Controller conversion). Hermetic: the registry is swapped for a seeded
+// in-memory instance (chunk/graph stores fall back to their in-memory defaults with no Qdrant/Mongo
+// configured), mirroring CallGraphEndpointTests' fake-dependency approach. Proves the two routes behave
+// exactly as before the conversion — pagination/validation on GET, the deleted collection no longer
+// listing, an unknown collection returning 404, and the cloned-remote checkout cleanup.
+public class RepositoriesControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public RepositoryEndpointsTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public RepositoriesControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private HttpClient CreateClient(IRepositoryRegistry registry, string? workspaceRoot = null) =>
         _factory

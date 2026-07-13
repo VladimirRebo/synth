@@ -16,4 +16,15 @@ public interface IGitRepoService
     /// <param name="repoUrl">HTTPS (or <c>file://</c>) git remote URL.</param>
     /// <param name="branch">Branch to check out; the repository's default branch when null/empty.</param>
     Task<string> EnsureRepoAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the on-disk checkout for <paramref name="slug"/> (a cloned-remote collection's name),
+    /// resolving its workspace-root path and deleting it recursively, tolerating an already-gone
+    /// directory. Exposed on the port so <see cref="DeleteCollectionCommandHandler"/> can clean up a
+    /// cloned remote's checkout without referencing the concrete <c>GitRepoService</c> — the same
+    /// resolve-then-delete the <c>DELETE /repositories/{collection}</c> handler did inline before.
+    /// A no-op for a <c>local</c> source, which is never cloned and has no checkout; callers gate on
+    /// <c>SourceType</c> before calling.
+    /// </summary>
+    void RemoveCheckout(string slug);
 }

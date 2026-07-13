@@ -106,9 +106,18 @@ public sealed class GitRepoService : IGitRepoService
     public string ResolveWorkspaceRoot() => ResolveWorkspaceRoot(_options.CurrentValue.WorkspaceRoot);
 
     /// <summary>
+    /// Removes the on-disk checkout for <paramref name="slug"/> (a cloned-remote collection's name):
+    /// resolves its <see cref="ResolveCheckoutPath"/> location under the workspace root and deletes it
+    /// via <see cref="DeleteCheckout"/>. Realizes <see cref="IGitRepoService.RemoveCheckout"/> so the
+    /// Application-layer <c>DeleteCollectionCommandHandler</c> can drive the exact resolve-then-delete
+    /// the <c>DELETE /repositories/{collection}</c> handler did inline, without seeing this concrete type.
+    /// </summary>
+    public void RemoveCheckout(string slug) => DeleteCheckout(ResolveCheckoutPath(slug));
+
+    /// <summary>
     /// Removes an on-disk checkout directory (recursively), tolerating an already-gone directory — the
-    /// checkout may have been deleted out-of-band or never fully cloned. Shared by the
-    /// <c>DELETE /repositories/{collection}</c> handler and the startup orphan sweep
+    /// checkout may have been deleted out-of-band or never fully cloned. Shared by
+    /// <see cref="RemoveCheckout"/> (the collection-delete path) and the startup orphan sweep
     /// (<c>OrphanCheckoutSweeper</c>).
     /// </summary>
     public static void DeleteCheckout(string path)

@@ -126,9 +126,6 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
         : Results.Json(report, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
-// Lists the known collections and their metadata (GET /repositories) from the repository registry.
-app.MapRepositoryEndpoints();
-
 // Settings API for the Vcs config section (GET/PUT /settings/vcs): read/write the workspace
 // root and provider tokens at runtime, masking secrets and live-reloading IOptionsMonitor<VcsOptions>.
 app.MapVcsSettingsEndpoints();
@@ -156,9 +153,11 @@ app.MapCallGraphEndpoints();
 // client can poll the live log — `since` returns only entries newer than the last poll.
 app.MapLogsEndpoints();
 
-// Controller routes (issue #82, slice 10): SearchController (GET /search, GET
-// /repositories/{collection}/files/{*relativePath}) auto-registers its routes here — no per-file
-// mapping call needed. Runs once; later endpoint-file conversions reuse this same call.
+// Controller routes (issue #82): SearchController (GET /search, GET
+// /repositories/{collection}/files/{*relativePath}), IndexingController (POST /index, GET
+// /index/status) and RepositoriesController (GET /repositories, DELETE /repositories/{collection})
+// auto-register their routes here — no per-file mapping call needed. Runs once; later endpoint-file
+// conversions reuse this same call.
 app.MapControllers();
 
 // MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).

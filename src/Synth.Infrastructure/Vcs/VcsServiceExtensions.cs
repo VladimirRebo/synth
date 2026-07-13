@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Synth.Application.Cqrs;
 using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
@@ -28,6 +29,12 @@ public static class VcsServiceExtensions
         builder.Services.AddSingleton<SqliteConnectionFactory>();
         builder.Services.AddSingleton<IRepositoryRegistry>(sp =>
             new SqliteRepositoryRegistry(sp.GetRequiredService<SqliteConnectionFactory>()));
+        // CQRS command handler for the collection-delete flow (SYNTH-67, issue #82). Explicit
+        // one-line registration, no scanning — DELETE /repositories/{collection} and the
+        // delete_collection MCP tool resolve it by its ICommandHandler<DeleteCollectionCommand, bool>
+        // interface. It consumes the chunk/graph stores + registry + IGitRepoService, all singletons.
+        builder.Services.AddSingleton<
+            ICommandHandler<DeleteCollectionCommand, bool>, DeleteCollectionCommandHandler>();
         // IHttpClientFactory for VcsSettingsEndpoints' probe-before-persist token check (SYNTH-37).
         builder.Services.AddHttpClient();
 
