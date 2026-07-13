@@ -193,6 +193,13 @@ public class UpdateVcsSettingsCommandHandlerTests
             mutate(Section);
             return Task.CompletedTask;
         }
+
+        // Raw-document members (used only by the raw-settings handler) are not part of this flow.
+        public Task<string> LoadDocumentAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task ReplaceDocumentAsync(string json, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

@@ -12,17 +12,19 @@ using Synth.Infrastructure.Configuration;
 namespace Synth.Api.Tests;
 
 // Drives GET/PUT /settings/raw over HTTP. As with the section-settings tests, one in-memory
-// IConfigStore backs both the endpoint's writes and a configuration layer, so the round trip is
+// IConfigStore backs both the controller's writes and a configuration layer, so the round trip is
 // hermetic (no Mongo/Docker/~/.synth/config.json) AND the store's Changed event genuinely reloads
-// IOptionsMonitor<VcsOptions>/<EmbeddingOptions> — the reload path the endpoint shares with them.
+// IOptionsMonitor<VcsOptions>/<EmbeddingOptions> — the reload path the controller shares with them.
 //
 // Unlike every other Settings endpoint, /settings/raw is deliberately UNMASKED: these tests assert
 // secrets round-trip verbatim, guarding against someone "fixing" this into masking by copy-paste.
-public class RawSettingsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+// SYNTH-71 converted this from RawSettingsEndpoints to RawSettingsController + the CQRS handler; this
+// is the HTTP counterpart to ReplaceRawSettingsCommandHandlerTests' unit-level warning assertions.
+public class RawSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public RawSettingsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public RawSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(string? initialJson = null)
     {
@@ -115,7 +117,7 @@ public class RawSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var put = await client.PutAsync("/settings/raw", Raw(document));
         put.EnsureSuccessStatusCode();
 
-        Assert.False(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
+        Assert.False(put.Headers.Contains(RawSettingsController.WarningsHeader));
         Assert.Equal(document, store.Current); // still persisted verbatim
     }
 
@@ -135,8 +137,8 @@ public class RawSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         Assert.Equal(document, store.Current);
 
         // ...but a non-blocking warning surfaces, naming the offending key.
-        Assert.True(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
-        var warnings = put.Headers.GetValues(RawSettingsEndpoints.WarningsHeader).Single();
+        Assert.True(put.Headers.Contains(RawSettingsController.WarningsHeader));
+        var warnings = put.Headers.GetValues(RawSettingsController.WarningsHeader).Single();
         Assert.Contains("Typo", warnings);
         Assert.DoesNotContain("Vcs", warnings); // the known section is not flagged
     }
@@ -152,7 +154,7 @@ public class RawSettingsEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var put = await client.PutAsync("/settings/raw", Raw(document));
         put.EnsureSuccessStatusCode();
 
-        Assert.False(put.Headers.Contains(RawSettingsEndpoints.WarningsHeader));
+        Assert.False(put.Headers.Contains(RawSettingsController.WarningsHeader));
     }
 
     [Fact]
