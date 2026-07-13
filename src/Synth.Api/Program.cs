@@ -24,8 +24,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Serilog sink that captures log events onto a bounded channel (SYNTH-28). Constructed once here
 // so it can be attached to Serilog below; the actual persistence happens off the request hot path
-// on LogEntryStoreWriter's background thread, into the ILogEntryStore chosen by AddSynthLogging
-// (Mongo when configured, in-memory otherwise). Emit itself never touches Mongo.
+// on LogEntryStoreWriter's background thread, into the ILogEntryStore wired by AddSynthLogging
+// (the local SQLite store). Emit itself only enqueues, so it never touches the database.
 var logSink = new LogEntryStoreSink();
 
 // Serilog, wired early (before other builder calls that might log) so structured events exist to
@@ -36,10 +36,9 @@ builder.Host.UseSerilog((context, loggerConfig) => loggerConfig
     .WriteTo.Console()
     .WriteTo.Sink(logSink), writeToProviders: true);
 
-// Log persistence: registers the sink as a DI singleton, selects the ILogEntryStore (Mongo when
-// the synthdata connection string is present, in-memory otherwise), and starts the background
-// service that drains the sink's channel into that store. The store builds its own MongoClient from
-// the connection string, like the config/registry/graph stores, so ordering here doesn't matter.
+// Log persistence: registers the sink as a DI singleton, wires the ILogEntryStore to the local
+// SQLite store (shared ~/.synth/synth.db, like the config/registry/graph stores), and starts the
+// background service that drains the sink's channel into that store.
 builder.AddSynthLogging(logSink);
 
 // Aspire service defaults: OpenTelemetry, health checks, and service discovery.
@@ -51,15 +50,8 @@ builder.AddServiceDefaults();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// MongoDB — general-purpose data store (config, repository registry, call-graph, logs).
-// The connection string is supplied by Aspire service discovery via the "synthdata"
-// reference from the AppHost (no hardcoded value). This registers
-// IMongoClient/IMongoDatabase in DI plus a Mongo health check that feeds the app's
-// health-check pipeline.
-builder.AddMongoDBClient("synthdata");
-
 // Config layering: appsettings.json (bootstrap) -> IConfigStore document
-// (File/Mongo, live-reloaded) -> environment variables (always win).
+// (local ~/.synth/config.json, live-reloaded) -> environment variables (always win).
 builder.AddSynthConfigStore();
 
 // Embedding generator (Ollama-backed IEmbeddingGenerator<string, Embedding<float>>).
@@ -77,7 +69,7 @@ builder.AddSynthVectorStore();
 builder.AddSynthIndexing();
 
 // VCS layer: GitRepoService (clone/fetch remote repos) + the repository registry that
-// records what has been indexed. Uses Mongo when configured, an in-memory fallback otherwise.
+// records what has been indexed, backed by the local ~/.synth/synth.db SQLite file.
 builder.AddSynthVcs();
 
 // Startup orphan sweep (SYNTH-45): a one-shot hosted service that GCs workspace-root checkouts with
@@ -86,7 +78,7 @@ builder.AddSynthVcs();
 builder.Services.AddHostedService<OrphanCheckoutSweeper>();
 
 // Call-graph storage: registers ICodeGraphStore for structural "who calls X / what does X call"
-// edges (issue #33). Mongo when configured, an in-memory fallback otherwise. Registration only —
+// edges (issue #33), backed by the local ~/.synth/synth.db SQLite file. Registration only —
 // extraction (SYNTH-26) and query tools (SYNTH-27) build on top of it later.
 builder.AddSynthCodeGraph();
 
