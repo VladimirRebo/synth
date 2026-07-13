@@ -141,7 +141,7 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
 // Advanced Settings escape hatch (GET/PUT /settings/raw): read/replace the whole config document as
 // plain JSON, secrets unmasked, no probe — a deliberate power-user path that trusts the caller and
 // validates only that the body is a well-formed JSON object. Shares the section endpoints' reload path.
-app.MapRawSettingsEndpoints();
+// Served by RawSettingsController, mapped by app.MapControllers() below (SYNTH-71).
 
 // Plain REST call-graph queries (GET /callers?symbol=..., GET /callees?symbol=...) — the
 // human-facing equivalent of the find_callers/find_callees MCP tools over ICodeGraphStore.
