@@ -113,17 +113,10 @@ var app = builder.Build();
 // ownership of the readiness endpoint at /health below.
 app.MapDefaultEndpoints();
 
-// Readiness check: unlike the old always-"ok" stub, this actually probes Qdrant and the configured
-// embedding provider (cached briefly by the service so polling doesn't hammer either). A fully healthy
-// system still returns 200 so nothing checking only status-code-200 regresses; if a component is down
-// the body reports which and the status code is 503.
-app.MapGet("/health", async (IHealthCheckService health, CancellationToken cancellationToken) =>
-{
-    var report = await health.CheckAsync(cancellationToken);
-    return report.Healthy
-        ? Results.Ok(report)
-        : Results.Json(report, statusCode: StatusCodes.Status503ServiceUnavailable);
-});
+// Readiness check (GET /health): probes Qdrant and the configured embedding provider (cached briefly
+// by the service so polling doesn't hammer either). A fully healthy system still returns 200 so nothing
+// checking only status-code-200 regresses; if a component is down the body reports which and the status
+// code is 503. Served by HealthController, mapped by app.MapControllers() below (SYNTH-74).
 
 // GET/PUT /settings/vcs (read/write the workspace root and provider tokens at runtime, masking
 // secrets and live-reloading IOptionsMonitor<VcsOptions>) is a Controller — VcsSettingsController,
