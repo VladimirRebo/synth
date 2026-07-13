@@ -128,3 +128,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-65 | MERGED | PR #97 merged to main; issue #82 slice 10/many — first Controller (SearchController), Controllers support set up in Program.cs |
 - | SYNTH-66 | COMPLETED | validator PASS, committed on fix/SYNTH-66 |
 - | SYNTH-66 | MERGED | PR #98 merged to main; issue #82 slice 11/many (IndexingController) |
+- | SYNTH-67 | COMPLETED | validator PASS, committed on fix/SYNTH-67 |
+- | SYNTH-67 | MERGED | PR #99 merged to main; issue #82 slice 12/many (RepositoriesController + DeleteCollectionCommand) |
