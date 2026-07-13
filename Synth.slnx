@@ -1,13 +1,13 @@
 <Solution>
   <Folder Name="/Api/">
+    <Project Path="src/Synth.Domain/Synth.Domain.csproj" />
+    <Project Path="src/Synth.Infrastructure/Synth.Infrastructure.csproj" />
+    <Project Path="src/Synth.Application/Synth.Application.csproj" />
     <Project Path="src/Synth.Api/Synth.Api.csproj" />
   </Folder>
   <Project Path="src/Synth.AppHost/Synth.AppHost.csproj" />
-  <Project Path="src/Synth.Application/Synth.Application.csproj" />
   <Project Path="src/Synth.Chunkers.CSharp/Synth.Chunkers.CSharp.csproj" />
   <Project Path="src/Synth.Chunkers.TsVue/Synth.Chunkers.TsVue.csproj" />
-  <Project Path="src/Synth.Domain/Synth.Domain.csproj" />
-  <Project Path="src/Synth.Infrastructure/Synth.Infrastructure.csproj" />
   <Project Path="src/Synth.Mcp.Stdio/Synth.Mcp.Stdio.csproj" />
   <Project Path="src/Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
   <Folder Name="/Tests/">
