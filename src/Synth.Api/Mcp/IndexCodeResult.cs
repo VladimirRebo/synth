@@ -1,4 +1,4 @@
-using Synth.Api.Indexing;
+using Synth.Application.Indexing;
 
 namespace Synth.Api.Mcp;
 

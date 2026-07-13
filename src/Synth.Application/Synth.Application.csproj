@@ -18,6 +18,9 @@
     <!-- IEmbeddingGenerator<string, Embedding<float>> abstraction used by IndexingPipeline and
          CodeSearchService. -->
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
+    <!-- ILoggerFactory/ILogger for IndexRepositoryCommandHandler's background-run failure logging
+         (SYNTH-61). Abstractions only — the concrete logging pipeline is wired in the host. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

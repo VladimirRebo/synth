@@ -1,20 +1,16 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
-using Synth.Api.Indexing;
 using Synth.Api.Mcp;
-using Synth.Application;
+using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
-using Synth.Domain.Vcs;
-using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Tests;
 
 // Proves SYNTH-36: the `index_code` MCP tool triggers indexing through the same shared flow
-// (IndexingEndpoints.StartIndexing) that POST /index uses, with the same validation/conflict rules,
+// (IndexRepositoryCommandHandler) that POST /index uses, with the same validation/conflict rules,
 // and — like the REST endpoint — returns immediately (fire-and-forget) rather than blocking until
 // indexing finishes. Runs offline: the real Ollama-backed embedding generator is swapped for a
 // deterministic fake (mirroring IndexingEndpointTests), so no live Ollama/Qdrant/git is needed.
@@ -43,19 +39,14 @@ public class IndexCodeMcpToolTests : IClassFixture<WebApplicationFactory<Program
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));
 
-    // Invokes the tool with the real DI-resolved dependencies, exactly as the MCP runtime would.
+    // Invokes the tool with the real DI-resolved command handler, exactly as the MCP runtime would.
+    // The handler's HandleAsync completes synchronously (validation + fire-and-forget dispatch), so
+    // blocking on the returned task here is safe and keeps the sync tests below unchanged.
     private IndexCodeResult Invoke(string? path = null, string? repoUrl = null, string? branch = null)
     {
-        var services = _factory.Services;
-        return IndexCodeTool.IndexCode(
-            services.GetRequiredService<IndexingPipeline>(),
-            services.GetRequiredService<GitRepoService>(),
-            services.GetRequiredService<IRepositoryRegistry>(),
-            services.GetRequiredService<IIndexJobTracker>(),
-            services.GetRequiredService<ILoggerFactory>(),
-            path,
-            repoUrl,
-            branch);
+        var handler = _factory.Services
+            .GetRequiredService<ICommandHandler<IndexRepositoryCommand, IndexStartOutcome>>();
+        return IndexCodeTool.IndexCode(handler, path, repoUrl, branch).GetAwaiter().GetResult();
     }
 
     private async Task WaitForTerminalAsync(TimeSpan? timeout = null)

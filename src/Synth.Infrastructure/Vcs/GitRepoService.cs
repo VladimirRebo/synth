@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Options;
+using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
 namespace Synth.Infrastructure.Vcs;
@@ -12,7 +13,7 @@ namespace Synth.Infrastructure.Vcs;
 /// passed to git via an in-memory <c>http.extraHeader</c>, so they never land on disk or in the
 /// stored remote URL.
 /// </summary>
-public sealed class GitRepoService
+public sealed class GitRepoService : IGitRepoService
 {
     private readonly IOptionsMonitor<VcsOptions> _options;
 
@@ -85,7 +86,7 @@ public sealed class GitRepoService
     /// Resolves the on-disk checkout directory for a repoUrl-indexed collection without cloning or
     /// fetching: it is <c>{WorkspaceRoot}/{slug}</c>, the same location <see cref="EnsureRepoAsync"/>
     /// checks the repository out into (and <paramref name="slug"/> equals the collection name — see
-    /// <c>IndexingEndpoints.StartIndexing</c>). Reuses the same <see cref="ResolveWorkspaceRoot"/>
+    /// <c>IndexRepositoryCommandHandler</c>). Reuses the same <see cref="ResolveWorkspaceRoot"/>
     /// default-path/env-expansion logic as the clone path, so the two never drift. Used by the
     /// <c>get_file</c> MCP tool to read a file out of an already-indexed remote checkout.
     /// </summary>

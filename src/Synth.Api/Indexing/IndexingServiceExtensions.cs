@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Synth.Application;
+using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
 using Synth.Core;
 using Synth.Domain;
@@ -27,6 +28,12 @@ public static class IndexingServiceExtensions
 
         // Single, process-lifetime job tracker so a client can poll indexing progress (issue #39).
         builder.Services.AddSingleton<IIndexJobTracker, InMemoryIndexJobTracker>();
+
+        // CQRS command handler for the indexing flow (SYNTH-61, issue #82). Explicit one-line
+        // registration, no scanning — POST /index and the index_code MCP tool resolve it by its
+        // ICommandHandler<IndexRepositoryCommand, IndexStartOutcome> interface.
+        builder.Services.AddSingleton<
+            ICommandHandler<IndexRepositoryCommand, IndexStartOutcome>, IndexRepositoryCommandHandler>();
 
         return builder;
     }
