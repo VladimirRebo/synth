@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using Serilog;
 using Synth.Api.Agents;
 using Synth.Api.Configuration;
-using Synth.Api.Embeddings;
 using Synth.Api.Graph;
 using Synth.Api.Indexing;
 using Synth.Api.Logging;
@@ -134,10 +133,10 @@ app.MapGet("/health", async (IHealthCheckService health, CancellationToken cance
 // and probing a candidate config before it is persisted so a broken provider is never saved) is a
 // Controller — EmbeddingSettingsController, mapped by app.MapControllers() below (SYNTH-69).
 
-// Ollama model picker for the Embedding settings (SYNTH-50): list locally-available models
-// (GET /settings/embedding/ollama/models) and pull a new one (POST .../pull) with polled progress
-// (GET .../pull/status). Fire-and-forget + polling, matching the indexing job pattern — no SSE.
-app.MapOllamaModelEndpoints();
+// Ollama model picker for the Embedding settings (SYNTH-50) — list locally-available models
+// (GET /settings/embedding/ollama/models), pull a new one (POST .../pull) with polled progress
+// (GET .../pull/status) — is served by EmbeddingSettingsController, mapped by app.MapControllers()
+// below (SYNTH-70). Fire-and-forget + polling, matching the indexing job pattern — no SSE.
 
 // Advanced Settings escape hatch (GET/PUT /settings/raw): read/replace the whole config document as
 // plain JSON, secrets unmasked, no probe — a deliberate power-user path that trusts the caller and
