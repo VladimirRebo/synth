@@ -122,3 +122,5 @@ _(nothing yet — run `./scripts/loop.sh` to start)_
 - | SYNTH-61 | MERGED | PR #94 merged to main, rebased onto post-SYNTH-62 main by hand (conflict in VcsServiceExtensions.cs, resolved); issue #82 slice 9/many (CQRS scaffolding + first command) |
 - | SYNTH-63 | COMPLETED | validator PASS, committed on fix/SYNTH-63 |
 - | SYNTH-63 | MERGED | PR #95 merged to main; issue #80 slice 3/many (call-graph store -> SQLite) |
+- | SYNTH-64 | COMPLETED | validator PASS, committed on fix/SYNTH-64 |
+- | SYNTH-64 | MERGED | PR #96 merged to main; issue #80 slice 4/4 (last) — closes #80; Mongo fully removed except Synth.AppHost's local-dev resource (follow-up) |
