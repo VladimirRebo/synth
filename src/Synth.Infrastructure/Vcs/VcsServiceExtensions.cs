@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
 namespace Synth.Infrastructure.Vcs;
@@ -20,6 +21,10 @@ public static class VcsServiceExtensions
     {
         builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
         builder.Services.AddSingleton<GitRepoService>();
+        // Expose the same singleton behind the Application-layer port so command handlers there
+        // (IndexRepositoryCommandHandler) can depend on IGitRepoService without seeing this concrete
+        // Infrastructure type; existing consumers keep using GitRepoService directly.
+        builder.Services.AddSingleton<IGitRepoService>(sp => sp.GetRequiredService<GitRepoService>());
         builder.Services.AddSingleton<SqliteConnectionFactory>();
         builder.Services.AddSingleton<IRepositoryRegistry>(sp =>
             new SqliteRepositoryRegistry(sp.GetRequiredService<SqliteConnectionFactory>()));

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Application;
+using Synth.Application.Vcs;
 using Synth.Infrastructure.Embeddings;
 using Synth.Api.Graph;
 using Synth.Infrastructure.Health;
@@ -59,6 +60,8 @@ public static class StdioMcpHost
         builder.AddSynthIndexing();
         builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
         builder.Services.AddSingleton<GitRepoService>();
+        // Same singleton behind the Application-layer port the index_code command handler depends on.
+        builder.Services.AddSingleton<IGitRepoService>(sp => sp.GetRequiredService<GitRepoService>());
         builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
 
         // Health checks so the `health_check` tool (SYNTH-43) resolves IHealthCheckService over stdio
