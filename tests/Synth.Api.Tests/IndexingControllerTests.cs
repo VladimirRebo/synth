@@ -14,10 +14,11 @@ namespace Synth.Api.Tests;
 
 // Proves POST /index drives IndexingPipeline end to end over HTTP. Since SYNTH-31 the work is
 // detached: POST returns 202 immediately and the run is observed through GET /index/status rather
-// than the response body. The real Ollama-backed embedding generator is swapped for a deterministic
-// fake so this runs without a live Ollama/Docker, mirroring the fake used in Synth.Core.Tests'
-// IndexingPipelineTests.
-public class IndexingEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+// than the response body. SYNTH-66 moved these routes from a Minimal API to IndexingController; the
+// HTTP-level contract (routes, status codes) is unchanged, so these assertions hold as-is. The real
+// Ollama-backed embedding generator is swapped for a deterministic fake so this runs without a live
+// Ollama/Docker, mirroring the fake used in Synth.Core.Tests' IndexingPipelineTests.
+public class IndexingControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
     {
@@ -45,7 +46,7 @@ public class IndexingEndpointTests : IClassFixture<WebApplicationFactory<Program
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public IndexingEndpointTests(WebApplicationFactory<Program> factory) =>
+    public IndexingControllerTests(WebApplicationFactory<Program> factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));
