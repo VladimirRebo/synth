@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Synth.Application.Configuration;
 using Synth.Application.Cqrs;
 using Synth.Domain.Embeddings;
+using static Synth.Application.Configuration.JsonElementHelpers;
 
 namespace Synth.Application.Embeddings;
 
@@ -197,21 +198,4 @@ public sealed class UpdateEmbeddingSettingsCommandHandler
         return created;
     }
 
-    private static string? ToStringValueOrNull(JsonElement element) =>
-        element.ValueKind == JsonValueKind.Null ? null : element.GetString();
-
-    private static bool TryGetPropertyIgnoreCase(JsonElement element, string name, out JsonElement value)
-    {
-        foreach (var property in element.EnumerateObject())
-        {
-            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = property.Value;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
 }
