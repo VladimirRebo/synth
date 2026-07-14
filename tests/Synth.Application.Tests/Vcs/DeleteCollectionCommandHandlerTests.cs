@@ -26,6 +26,8 @@ public class DeleteCollectionCommandHandlerTests
             Task.FromResult(string.Empty);
 
         public void RemoveCheckout(string slug) => RemovedCheckoutSlug = slug;
+
+        public string ResolveCheckoutPath(string slug) => slug;
     }
 
     private static async Task<InMemoryRepositoryRegistry> SeededRegistry(

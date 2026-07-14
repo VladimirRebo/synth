@@ -27,4 +27,12 @@ public interface IGitRepoService
     /// <c>SourceType</c> before calling.
     /// </summary>
     void RemoveCheckout(string slug);
+
+    /// <summary>
+    /// Resolves the on-disk checkout directory for a repoUrl-indexed collection without cloning or
+    /// fetching (<paramref name="slug"/> equals the collection name). Exposed on the port so
+    /// <c>GetFileTool</c> can read a file out of an already-indexed remote checkout without
+    /// referencing the concrete <c>GitRepoService</c>.
+    /// </summary>
+    string ResolveCheckoutPath(string slug);
 }

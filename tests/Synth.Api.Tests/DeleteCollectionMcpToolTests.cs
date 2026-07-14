@@ -29,6 +29,8 @@ public class DeleteCollectionMcpToolTests
             Task.FromResult(string.Empty);
 
         public void RemoveCheckout(string slug) { }
+
+        public string ResolveCheckoutPath(string slug) => slug;
     }
 
     private static DeleteCollectionCommandHandler CreateHandler(

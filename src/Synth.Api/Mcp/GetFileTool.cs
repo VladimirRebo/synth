@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Core;
+using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
-using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Mcp;
@@ -12,7 +11,7 @@ namespace Synth.Api.Mcp;
 /// issue #44). Complements <see cref="CodeSearchTool"/>/<see cref="GetSymbolTool"/>: once an agent has
 /// found a relevant chunk it can pull the whole file for context. Resolves the collection's on-disk
 /// root via the <see cref="IRepositoryRegistry"/> — the indexed path directly for a <c>local</c>
-/// source, or <see cref="GitRepoService.ResolveCheckoutPath"/> for a cloned remote — then guards
+/// source, or <see cref="IGitRepoService.ResolveCheckoutPath"/> for a cloned remote — then guards
 /// against path traversal and a size ceiling before reading. Registered via
 /// <c>AddMcpServer().WithTools&lt;GetFileTool&gt;()</c> over both the HTTP and stdio transports.
 /// </summary>
@@ -33,7 +32,7 @@ public sealed class GetFileTool
         "context. Rejects paths that escape the repository root and files larger than 10 MB.")]
     public static async Task<string> GetFileAsync(
         IRepositoryRegistry registry,
-        GitRepoService gitRepoService,
+        IGitRepoService gitRepoService,
         [Description("Repository-relative path of the file to read, e.g. \"src/Foo/Bar.cs\".")]
         string relativePath,
         [Description(

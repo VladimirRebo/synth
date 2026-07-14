@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Synth.Application;
 using Synth.Application.Indexing;
 using Synth.Application.Vcs;
-using Synth.Core;
+using Synth.Chunkers.CSharp;
 using Synth.Domain;
 using Synth.Domain.Graph;
 using Synth.Domain.Vcs;
@@ -74,6 +74,8 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
 
         // Not exercised by the indexing flow (only DeleteCollectionCommandHandler removes checkouts).
         public void RemoveCheckout(string slug) { }
+
+        public string ResolveCheckoutPath(string slug) => slug;
     }
 
     private readonly string _root;
