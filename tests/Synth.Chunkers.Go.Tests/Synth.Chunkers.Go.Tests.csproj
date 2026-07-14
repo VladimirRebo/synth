@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Synth.Domain\Synth.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Synth.Chunkers.Go\Synth.Chunkers.Go.csproj" />
+    <ProjectReference Include="..\..\src\chunkers\Synth.Chunkers.Go\Synth.Chunkers.Go.csproj" />
   </ItemGroup>
 
 </Project>
