@@ -2,15 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Synth.Application;
-using Synth.Application.Cqrs;
-using Synth.Application.Vcs;
+using Synth.Infrastructure.Configuration;
 using Synth.Infrastructure.Embeddings;
 using Synth.Api.Graph;
 using Synth.Infrastructure.Health;
 using Synth.Api.Indexing;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
-using Synth.Domain.Vcs;
 using Synth.Infrastructure.Graph;
 using Synth.Infrastructure.Storage;
 using Synth.Infrastructure.Vcs;
@@ -43,34 +41,34 @@ public static class StdioMcpHost
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
+        // Same layered config store as Synth.Api (~/.synth/config.json over IConfiguration) so
+        // settings written via the REST API (VCS tokens, embedding config) are picked up here too,
+        // instead of this process only ever seeing appsettings/env defaults.
+        builder.AddSynthConfigStore();
+
         // Same search stack as Synth.Api: Ollama-backed embeddings, Qdrant-or-Local vector
         // store, and the rerank/dedup CodeSearchService the tool resolves per invocation.
         builder.AddSynthEmbeddings();
         builder.AddSynthVectorStore();
         builder.AddSynthSearch();
 
+        // Same VCS stack as Synth.Api: GitRepoService/IGitRepoService, VcsOptions binding, and the
+        // SQLite-backed IRepositoryRegistry (shared ~/.synth/synth.db) — so list_collections and
+        // delete_collection see exactly the repositories Synth.Api's own indexing has recorded,
+        // instead of an empty in-memory registry private to this process.
+        builder.AddSynthVcs();
+
         // Same call-graph store as Synth.Api (SQLite-backed, shared ~/.synth/synth.db) so the
         // find_callers/find_callees tools resolve ICodeGraphStore over stdio just as they do over
-        // HTTP; AddSynthCodeGraph registers its own SqliteConnectionFactory (this host does not call
-        // AddSynthVcs).
+        // HTTP. AddSynthCodeGraph's SqliteConnectionFactory registration is idempotent with
+        // AddSynthVcs's (TryAddSingleton on both sides), so call order doesn't matter.
         builder.AddSynthCodeGraph();
 
         // Indexing stack so the `index_code` tool (SYNTH-36) can resolve its dependencies over stdio
         // the same way it does over HTTP: the pipeline + the single job tracker come from
-        // AddSynthIndexing; GitRepoService and the repository registry are wired inline here rather
-        // than via AddSynthVcs so the stdio host always pins the in-memory registry. No Mongo is
-        // configured for the stdio process, so the in-memory registry is the right fallback.
+        // AddSynthIndexing; GitRepoService/IGitRepoService and the repository registry now come from
+        // AddSynthVcs above, and the delete_collection command handler is registered there too.
         builder.AddSynthIndexing();
-        builder.Services.Configure<VcsOptions>(builder.Configuration.GetSection(VcsOptions.SectionName));
-        builder.Services.AddSingleton<GitRepoService>();
-        // Same singleton behind the Application-layer port the index_code command handler depends on.
-        builder.Services.AddSingleton<IGitRepoService>(sp => sp.GetRequiredService<GitRepoService>());
-        builder.Services.AddSingleton<IRepositoryRegistry, InMemoryRepositoryRegistry>();
-        // Same delete-collection command handler AddSynthVcs registers for Synth.Api, wired inline
-        // here (this host doesn't call AddSynthVcs) so the delete_collection tool resolves it over
-        // stdio just as it does over HTTP.
-        builder.Services.AddSingleton<
-            ICommandHandler<DeleteCollectionCommand, bool>, DeleteCollectionCommandHandler>();
 
         // Health checks so the `health_check` tool (SYNTH-43) resolves IHealthCheckService over stdio
         // just as it does over HTTP. Its Qdrant probe seam resolves QdrantClient lazily via GetService

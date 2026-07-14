@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Synth.Application.Cqrs;
 using Synth.Application.Vcs;
@@ -26,7 +27,9 @@ public static class VcsServiceExtensions
         // (IndexRepositoryCommandHandler) can depend on IGitRepoService without seeing this concrete
         // Infrastructure type; existing consumers keep using GitRepoService directly.
         builder.Services.AddSingleton<IGitRepoService>(sp => sp.GetRequiredService<GitRepoService>());
-        builder.Services.AddSingleton<SqliteConnectionFactory>();
+        // Idempotent so this composes with AddSynthCodeGraph regardless of call order — whichever
+        // runs first wins, and both resolve the same single db file.
+        builder.Services.TryAddSingleton<SqliteConnectionFactory>();
         builder.Services.AddSingleton<IRepositoryRegistry>(sp =>
             new SqliteRepositoryRegistry(sp.GetRequiredService<SqliteConnectionFactory>()));
         // CQRS command handler for the collection-delete flow (SYNTH-67, issue #82). Explicit
