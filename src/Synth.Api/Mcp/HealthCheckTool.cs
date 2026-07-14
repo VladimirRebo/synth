@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Infrastructure.Health;
+using Synth.Application.Health;
 
 namespace Synth.Api.Mcp;
 

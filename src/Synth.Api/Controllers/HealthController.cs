@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Synth.Infrastructure.Health;
+using Synth.Application.Health;
 
 namespace Synth.Api.Controllers;
 

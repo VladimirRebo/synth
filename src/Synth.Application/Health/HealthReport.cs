@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Synth.Infrastructure.Health;
+namespace Synth.Application.Health;
 
 /// <summary>
 /// The result of a <see cref="IHealthCheckService"/> probe: an overall verdict plus per-component

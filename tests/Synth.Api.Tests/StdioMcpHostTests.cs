@@ -70,7 +70,7 @@ public class StdioMcpHostTests
         // probe, so the service resolves without a backend — mirroring SYNTH-35's "not configured" path.
         using var host = StdioMcpHost.CreateBuilder([]).Build();
 
-        var health = host.Services.GetService<Synth.Infrastructure.Health.IHealthCheckService>();
+        var health = host.Services.GetService<Synth.Application.Health.IHealthCheckService>();
 
         Assert.NotNull(health);
     }

@@ -1,16 +1,10 @@
 using Microsoft.Extensions.Options;
 using Synth.Application.Embeddings;
+using Synth.Application.Health;
 using Synth.Domain.Embeddings;
 using Synth.Infrastructure.Embeddings;
 
 namespace Synth.Infrastructure.Health;
-
-/// <summary>Real reachability check for Synth's live dependencies, backing <c>GET /health</c>.</summary>
-public interface IHealthCheckService
-{
-    /// <summary>Probes Qdrant and the embedding provider (result cached briefly) and reports per-component status.</summary>
-    Task<HealthReport> CheckAsync(CancellationToken cancellationToken);
-}
 
 /// <summary>
 /// Actually checks whether Qdrant and the configured embedding provider are reachable, instead of the

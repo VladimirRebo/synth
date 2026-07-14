@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Qdrant.Client;
+using Synth.Application.Health;
 
 namespace Synth.Infrastructure.Health;
 
