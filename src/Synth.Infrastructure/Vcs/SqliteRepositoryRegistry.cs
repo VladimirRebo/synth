@@ -15,6 +15,8 @@ namespace Synth.Infrastructure.Vcs;
 public sealed class SqliteRepositoryRegistry : IRepositoryRegistry
 {
     private readonly SqliteConnectionFactory _connectionFactory;
+    private readonly SemaphoreSlim _schemaGate = new(1, 1);
+    private volatile bool _schemaEnsured;
 
     public SqliteRepositoryRegistry(SqliteConnectionFactory connectionFactory) =>
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -84,24 +86,43 @@ public sealed class SqliteRepositoryRegistry : IRepositoryRegistry
         return entries;
     }
 
+    // Runs CREATE TABLE IF NOT EXISTS once per store instance (this class is a DI singleton, so once
+    // per process) rather than on every call — double-checked locking so concurrent first callers
+    // don't race to issue the same schema statement.
     private async Task<SqliteConnection> OpenAndEnsureSchemaAsync(CancellationToken cancellationToken)
     {
         var connection = _connectionFactory.OpenConnection();
         try
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                CREATE TABLE IF NOT EXISTS repositories (
-                    Collection    TEXT NOT NULL PRIMARY KEY,
-                    SourceType    TEXT NOT NULL,
-                    Source        TEXT NOT NULL,
-                    Branch        TEXT NULL,
-                    LastIndexedAt TEXT NOT NULL,
-                    ChunkCount    INTEGER NOT NULL
-                );
-                """;
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            if (!_schemaEnsured)
+            {
+                await _schemaGate.WaitAsync(cancellationToken);
+                try
+                {
+                    if (!_schemaEnsured)
+                    {
+                        await using var command = connection.CreateCommand();
+                        command.CommandText =
+                            """
+                            CREATE TABLE IF NOT EXISTS repositories (
+                                Collection    TEXT NOT NULL PRIMARY KEY,
+                                SourceType    TEXT NOT NULL,
+                                Source        TEXT NOT NULL,
+                                Branch        TEXT NULL,
+                                LastIndexedAt TEXT NOT NULL,
+                                ChunkCount    INTEGER NOT NULL
+                            );
+                            """;
+                        await command.ExecuteNonQueryAsync(cancellationToken);
+                        _schemaEnsured = true;
+                    }
+                }
+                finally
+                {
+                    _schemaGate.Release();
+                }
+            }
+
             return connection;
         }
         catch

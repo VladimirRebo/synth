@@ -42,6 +42,9 @@ public sealed class SqliteLogEntryStore : ILogEntryStore
     private int _insertsSinceEviction;
     private readonly object _evictionGate = new();
 
+    private readonly SemaphoreSlim _schemaGate = new(1, 1);
+    private volatile bool _schemaEnsured;
+
     /// <param name="connectionFactory">Shared factory for the ~/.synth/synth.db file.</param>
     /// <param name="maxDocuments">Row cap before the oldest entries are evicted. Defaults to the
     /// production bound; tests pass a small value to exercise eviction without inserting 20k rows.</param>
@@ -133,23 +136,42 @@ public sealed class SqliteLogEntryStore : ILogEntryStore
         await command.ExecuteNonQueryAsync(ct);
     }
 
+    // Runs CREATE TABLE IF NOT EXISTS once per store instance (this class is a DI singleton, so once
+    // per process) rather than on every call — double-checked locking so concurrent first callers
+    // don't race to issue the same schema statement.
     private async Task<SqliteConnection> OpenAndEnsureSchemaAsync(CancellationToken ct)
     {
         var connection = _connectionFactory.OpenConnection();
         try
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                CREATE TABLE IF NOT EXISTS logs (
-                    Id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Timestamp TEXT NOT NULL,
-                    Level     TEXT NOT NULL,
-                    Message   TEXT NOT NULL,
-                    Exception TEXT NULL
-                );
-                """;
-            await command.ExecuteNonQueryAsync(ct);
+            if (!_schemaEnsured)
+            {
+                await _schemaGate.WaitAsync(ct);
+                try
+                {
+                    if (!_schemaEnsured)
+                    {
+                        await using var command = connection.CreateCommand();
+                        command.CommandText =
+                            """
+                            CREATE TABLE IF NOT EXISTS logs (
+                                Id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                                Timestamp TEXT NOT NULL,
+                                Level     TEXT NOT NULL,
+                                Message   TEXT NOT NULL,
+                                Exception TEXT NULL
+                            );
+                            """;
+                        await command.ExecuteNonQueryAsync(ct);
+                        _schemaEnsured = true;
+                    }
+                }
+                finally
+                {
+                    _schemaGate.Release();
+                }
+            }
+
             return connection;
         }
         catch

@@ -16,6 +16,8 @@ namespace Synth.Infrastructure.Graph;
 public sealed class SqliteCodeGraphStore : ICodeGraphStore
 {
     private readonly SqliteConnectionFactory _connectionFactory;
+    private readonly SemaphoreSlim _schemaGate = new(1, 1);
+    private volatile bool _schemaEnsured;
 
     public SqliteCodeGraphStore(SqliteConnectionFactory connectionFactory) =>
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -106,26 +108,45 @@ public sealed class SqliteCodeGraphStore : ICodeGraphStore
         return edges;
     }
 
+    // Runs CREATE TABLE/INDEX IF NOT EXISTS once per store instance (this class is a DI singleton, so
+    // once per process) rather than on every call — double-checked locking so concurrent first
+    // callers don't race to issue the same schema statement.
     private async Task<SqliteConnection> OpenAndEnsureSchemaAsync(CancellationToken ct)
     {
         var connection = _connectionFactory.OpenConnection();
         try
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                CREATE TABLE IF NOT EXISTS call_edges (
-                    Id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Collection TEXT NOT NULL,
-                    Caller     TEXT NOT NULL,
-                    Callee     TEXT NOT NULL,
-                    SourceFile TEXT NOT NULL,
-                    Line       INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_call_edges_caller ON call_edges(Collection, Callee);
-                CREATE INDEX IF NOT EXISTS idx_call_edges_callee ON call_edges(Collection, Caller);
-                """;
-            await command.ExecuteNonQueryAsync(ct);
+            if (!_schemaEnsured)
+            {
+                await _schemaGate.WaitAsync(ct);
+                try
+                {
+                    if (!_schemaEnsured)
+                    {
+                        await using var command = connection.CreateCommand();
+                        command.CommandText =
+                            """
+                            CREATE TABLE IF NOT EXISTS call_edges (
+                                Id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                                Collection TEXT NOT NULL,
+                                Caller     TEXT NOT NULL,
+                                Callee     TEXT NOT NULL,
+                                SourceFile TEXT NOT NULL,
+                                Line       INTEGER NOT NULL
+                            );
+                            CREATE INDEX IF NOT EXISTS idx_call_edges_callee ON call_edges(Collection, Callee);
+                            CREATE INDEX IF NOT EXISTS idx_call_edges_caller ON call_edges(Collection, Caller);
+                            """;
+                        await command.ExecuteNonQueryAsync(ct);
+                        _schemaEnsured = true;
+                    }
+                }
+                finally
+                {
+                    _schemaGate.Release();
+                }
+            }
+
             return connection;
         }
         catch
