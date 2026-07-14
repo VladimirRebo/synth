@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using Synth.Core;
 using Synth.Domain.Graph;
 using Synth.Domain;
 
@@ -32,7 +31,7 @@ public sealed class CallGraphTool
         ICodeGraphStore store,
         [Description(
             "Qualified name of the symbol whose callers to find, in the extractor's " +
-            "Namespace.ClassName.MethodName form (e.g. \"Synth.Core.CodeSearchService.SearchAsync\").")]
+            "Namespace.ClassName.MethodName form (e.g. \"Synth.Application.CodeSearchService.SearchAsync\").")]
         string symbol,
         [Description(
             "Name of the indexed collection (repository) to search. Leave unset to search the " +
@@ -58,7 +57,7 @@ public sealed class CallGraphTool
         ICodeGraphStore store,
         [Description(
             "Qualified name of the symbol whose callees to find, in the extractor's " +
-            "Namespace.ClassName.MethodName form (e.g. \"Synth.Core.CodeSearchService.SearchAsync\").")]
+            "Namespace.ClassName.MethodName form (e.g. \"Synth.Application.CodeSearchService.SearchAsync\").")]
         string symbol,
         [Description(
             "Name of the indexed collection (repository) to search. Leave unset to search the " +

@@ -1,7 +1,7 @@
-using Synth.Core;
+using Synth.Chunkers.TsVue;
 using Synth.Domain;
 
-namespace Synth.Core.Tests;
+namespace Synth.Chunkers.TsVue.Tests;
 
 public class TsVueChunkerTests
 {

@@ -1,12 +1,14 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Synth.Application;
+using Synth.Chunkers.CSharp;
+using Synth.Chunkers.TsVue;
 using Synth.Domain.Graph;
 using Synth.Domain.Vcs;
 using Synth.Domain;
 using Synth.Infrastructure.Storage;
 
-namespace Synth.Core.Tests;
+namespace Synth.Application.Tests;
 
 // Proves SYNTH-10: IndexingPipeline walks a directory, chunks each *.cs file with the
 // CSharpRoslynChunker, embeds every chunk via a deterministic fake generator (no live

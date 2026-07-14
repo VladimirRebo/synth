@@ -1,8 +1,8 @@
-using Synth.Core;
+using Synth.Chunkers.CSharp;
 using Synth.Domain.Graph;
 using Synth.Domain;
 
-namespace Synth.Core.Tests;
+namespace Synth.Chunkers.CSharp.Tests;
 
 public class CSharpRoslynChunkerTests
 {

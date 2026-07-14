@@ -3,7 +3,8 @@ using Microsoft.Extensions.Hosting;
 using Synth.Application;
 using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
-using Synth.Core;
+using Synth.Chunkers.CSharp;
+using Synth.Chunkers.TsVue;
 using Synth.Domain;
 
 namespace Synth.Api.Indexing;

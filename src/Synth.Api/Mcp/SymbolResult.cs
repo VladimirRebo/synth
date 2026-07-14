@@ -1,4 +1,3 @@
-using Synth.Core;
 using Synth.Domain;
 
 namespace Synth.Api.Mcp;

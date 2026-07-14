@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Synth.Domain;
 
-namespace Synth.Core;
+namespace Synth.Chunkers.TsVue;
 
 /// <summary>
 /// Chunks TypeScript (<c>.ts</c>/<c>.tsx</c>) and Vue Single File Component (<c>.vue</c>) files with a

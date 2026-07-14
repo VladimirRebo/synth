@@ -17,7 +17,7 @@ namespace Synth.Api.Tests;
 // than the response body. SYNTH-66 moved these routes from a Minimal API to IndexingController; the
 // HTTP-level contract (routes, status codes) is unchanged, so these assertions hold as-is. The real
 // Ollama-backed embedding generator is swapped for a deterministic fake so this runs without a live
-// Ollama/Docker, mirroring the fake used in Synth.Core.Tests' IndexingPipelineTests.
+// Ollama/Docker, mirroring the fake used in Synth.Application.Tests' IndexingPipelineTests.
 public class IndexingControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>

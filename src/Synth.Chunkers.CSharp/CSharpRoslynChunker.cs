@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Synth.Domain.Graph;
 using Synth.Domain;
 
-namespace Synth.Core;
+namespace Synth.Chunkers.CSharp;
 
 /// <summary>
 /// Chunks C# source files using a real Roslyn syntax-tree walk (namespace → type →
