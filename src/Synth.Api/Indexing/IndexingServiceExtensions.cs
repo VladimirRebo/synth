@@ -4,6 +4,9 @@ using Synth.Application;
 using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
 using Synth.Chunkers.CSharp;
+using Synth.Chunkers.Docs;
+using Synth.Chunkers.Go;
+using Synth.Chunkers.Python;
 using Synth.Chunkers.TsVue;
 using Synth.Domain;
 
@@ -22,9 +25,13 @@ public static class IndexingServiceExtensions
     public static IHostApplicationBuilder AddSynthIndexing(this IHostApplicationBuilder builder)
     {
         // The pipeline picks the first chunker whose CanHandle matches; each owns disjoint
-        // extensions (.cs vs .ts/.tsx/.vue), so registration order doesn't matter here.
+        // extensions (.cs vs .ts/.tsx/.vue vs .py vs .go vs .md/.yml/.yaml/.json), so registration
+        // order doesn't matter here.
         builder.Services.AddSingleton<IFileChunker, CSharpRoslynChunker>();
         builder.Services.AddSingleton<IFileChunker, TsVueChunker>();
+        builder.Services.AddSingleton<IFileChunker, PythonChunker>();
+        builder.Services.AddSingleton<IFileChunker, GoChunker>();
+        builder.Services.AddSingleton<IFileChunker, DocsChunker>();
         builder.Services.AddSingleton<IndexingPipeline>();
 
         // Single, process-lifetime job tracker so a client can poll indexing progress (issue #39).

@@ -37,6 +37,9 @@
          its own project so only C#-parsing consumers pull in Roslyn. -->
     <ProjectReference Include="../Synth.Chunkers.CSharp/Synth.Chunkers.CSharp.csproj" />
     <ProjectReference Include="../Synth.Chunkers.TsVue/Synth.Chunkers.TsVue.csproj" />
+    <ProjectReference Include="../Synth.Chunkers.Python/Synth.Chunkers.Python.csproj" />
+    <ProjectReference Include="../Synth.Chunkers.Go/Synth.Chunkers.Go.csproj" />
+    <ProjectReference Include="../Synth.Chunkers.Docs/Synth.Chunkers.Docs.csproj" />
   </ItemGroup>
 
 </Project>

@@ -7,6 +7,9 @@
   </Folder>
   <Project Path="src/Synth.AppHost/Synth.AppHost.csproj" />
   <Project Path="src/Synth.Chunkers.CSharp/Synth.Chunkers.CSharp.csproj" />
+  <Project Path="src/Synth.Chunkers.Docs/Synth.Chunkers.Docs.csproj" />
+  <Project Path="src/Synth.Chunkers.Go/Synth.Chunkers.Go.csproj" />
+  <Project Path="src/Synth.Chunkers.Python/Synth.Chunkers.Python.csproj" />
   <Project Path="src/Synth.Chunkers.TsVue/Synth.Chunkers.TsVue.csproj" />
   <Project Path="src/Synth.Mcp.Stdio/Synth.Mcp.Stdio.csproj" />
   <Project Path="src/Synth.ServiceDefaults/Synth.ServiceDefaults.csproj" />
@@ -14,6 +17,9 @@
     <Project Path="tests/Synth.Api.Tests/Synth.Api.Tests.csproj" />
     <Project Path="tests/Synth.Application.Tests/Synth.Application.Tests.csproj" />
     <Project Path="tests/Synth.Chunkers.CSharp.Tests/Synth.Chunkers.CSharp.Tests.csproj" />
+    <Project Path="tests/Synth.Chunkers.Docs.Tests/Synth.Chunkers.Docs.Tests.csproj" />
+    <Project Path="tests/Synth.Chunkers.Go.Tests/Synth.Chunkers.Go.Tests.csproj" />
+    <Project Path="tests/Synth.Chunkers.Python.Tests/Synth.Chunkers.Python.Tests.csproj" />
     <Project Path="tests/Synth.Chunkers.TsVue.Tests/Synth.Chunkers.TsVue.Tests.csproj" />
     <Project Path="tests/Synth.Domain.Tests/Synth.Domain.Tests.csproj" />
     <Project Path="tests/Synth.Infrastructure.Tests/Synth.Infrastructure.Tests.csproj" />
