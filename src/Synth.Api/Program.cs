@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Diagnostics;
 using Serilog;
 using Synth.Api.Agents;
 using Synth.Api.Indexing;
@@ -104,6 +105,20 @@ builder.Services.AddSynthAgents();
 builder.AddSynthMcp();
 
 var app = builder.Build();
+
+// Catch anything an endpoint doesn't handle itself (e.g. a SQLite failure propagating up from one
+// of the stores, per their deliberate "let it propagate" design) and turn it into a clean JSON 500
+// instead of ASP.NET's default HTML error page, which no API client here expects to parse.
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    if (exception is not null)
+        app.Logger.LogError(exception, "Unhandled exception while processing {Path}", context.Request.Path);
+
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
+}));
 
 // Aspire default endpoints (liveness at /alive in development). Synth.Api keeps
 // ownership of the readiness endpoint at /health below.

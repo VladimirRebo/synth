@@ -28,12 +28,20 @@ public sealed class SqliteConnectionFactory
 
     /// <summary>
     /// Opens a connection to the shared database file, creating the file if it does not yet exist
-    /// (SQLite does this automatically). The caller owns and disposes the connection.
+    /// (SQLite does this automatically). The caller owns and disposes the connection. Sets a busy
+    /// timeout and WAL journal mode, since Synth.Api and Synth.Mcp.Stdio can both hold connections to
+    /// this same file concurrently — without these, a writer in one process can make a reader in the
+    /// other fail immediately with "database is locked" instead of just waiting briefly.
     /// </summary>
     public SqliteConnection OpenConnection()
     {
         var connection = new SqliteConnection(_connectionString);
         connection.Open();
+
+        using var pragma = connection.CreateCommand();
+        pragma.CommandText = "PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;";
+        pragma.ExecuteNonQuery();
+
         return connection;
     }
 
