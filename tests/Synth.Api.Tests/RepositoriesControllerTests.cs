@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Synth.Application.Vcs;
 using Synth.Infrastructure.Vcs;
 using Synth.Domain.Vcs;
 
@@ -199,5 +201,43 @@ public class RepositoriesControllerTests : IClassFixture<WebApplicationFactory<P
         {
             workspaceRoot.Delete(recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Poll_with_only_local_sources_reports_zero_triggered_and_touches_no_network()
+    {
+        // A local-path collection has no remote to poll — RepositoryPollingService skips it entirely,
+        // so this exercises the real IRepositoryPoller wiring without any git/network dependency.
+        var registry = await SeededRegistry("local-repo");
+        var client = CreateClient(registry);
+
+        var response = await client.PostAsync("/repositories/poll", content: null);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(0, body.GetProperty("triggered").GetInt32());
+    }
+
+    [Fact]
+    public async Task Poll_reports_the_pollers_triggered_count()
+    {
+        var client = _factory
+            .WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IRepositoryPoller>();
+                services.AddSingleton<IRepositoryPoller>(new FakePoller(3));
+            }))
+            .CreateClient();
+
+        var response = await client.PostAsync("/repositories/poll", content: null);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(3, body.GetProperty("triggered").GetInt32());
+    }
+
+    private sealed class FakePoller(int triggered) : IRepositoryPoller
+    {
+        public Task<int> PollOnceAsync(CancellationToken cancellationToken = default) => Task.FromResult(triggered);
     }
 }

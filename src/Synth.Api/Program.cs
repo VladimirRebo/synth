@@ -8,6 +8,7 @@ using Synth.Infrastructure.Health;
 using Synth.Infrastructure.Logging;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
+using Synth.Application.Vcs;
 using Synth.Domain.Configuration;
 using Synth.Domain.Logging;
 using Synth.Domain.Vcs;
@@ -54,8 +55,13 @@ builder.Services.AddHostedService<OrphanCheckoutSweeper>();
 
 // Periodic background loop: checks every repoUrl-indexed collection's remote for a new commit and
 // reindexes on change. Api-host-only (like the sweeper above) — not run by Synth.Mcp.Stdio, so only
-// one process ever owns this loop.
-builder.Services.AddHostedService<RepositoryPollingService>();
+// one process ever owns this loop. Registered as its own singleton first, then exposed as both
+// IHostedService and IRepositoryPoller via forwarding factories, so POST /repositories/poll (which
+// depends on IRepositoryPoller) triggers a tick on the exact same instance the background loop runs
+// on — not a second, independently-scheduled one.
+builder.Services.AddSingleton<RepositoryPollingService>();
+builder.Services.AddHostedService<RepositoryPollingService>(sp => sp.GetRequiredService<RepositoryPollingService>());
+builder.Services.AddSingleton<IRepositoryPoller>(sp => sp.GetRequiredService<RepositoryPollingService>());
 
 builder.AddSynthCodeGraph();
 

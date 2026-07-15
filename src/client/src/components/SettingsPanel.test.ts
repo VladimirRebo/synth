@@ -7,6 +7,7 @@ vi.mock('../api')
 
 const mockedGetVcs = vi.mocked(api.getVcsSettings)
 const mockedUpdateVcs = vi.mocked(api.updateVcsSettings)
+const mockedPollNow = vi.mocked(api.pollRepositoriesNow)
 const mockedGetEmbedding = vi.mocked(api.getEmbeddingSettings)
 const mockedUpdateEmbedding = vi.mocked(api.updateEmbeddingSettings)
 const mockedGetOllamaModels = vi.mocked(api.getOllamaModels)
@@ -14,6 +15,14 @@ const mockedPullOllamaModel = vi.mocked(api.pullOllamaModel)
 const mockedGetOllamaPullStatus = vi.mocked(api.getOllamaPullStatus)
 const mockedGetRaw = vi.mocked(api.getRawSettings)
 const mockedUpdateRaw = vi.mocked(api.updateRawSettings)
+
+// Index-based `.save-row button` lookups are fragile (a new button anywhere before the target shifts
+// every later index) — used only where an existing test already relied on it; new tests find by text.
+function findButtonByText(wrapper: ReturnType<typeof mount>, text: string) {
+  const button = wrapper.findAll('.save-row button').find((b) => b.text() === text)
+  if (!button) throw new Error(`No .save-row button with text "${text}"`)
+  return button
+}
 
 function pullStatus(overrides: Partial<api.OllamaPullStatus> = {}): api.OllamaPullStatus {
   return { state: 'Idle', model: '', status: '', error: null, ...overrides }
@@ -41,6 +50,7 @@ function embedding(overrides: Partial<api.EmbeddingSettings> = {}): api.Embeddin
 beforeEach(() => {
   mockedGetVcs.mockReset()
   mockedUpdateVcs.mockReset()
+  mockedPollNow.mockReset()
   mockedGetEmbedding.mockReset()
   mockedUpdateEmbedding.mockReset()
   mockedGetOllamaModels.mockReset()
@@ -98,6 +108,31 @@ describe('SettingsPanel', () => {
     expect(mockedUpdateVcs).toHaveBeenCalledWith({ pollIntervalMinutes: 15 })
   })
 
+  it('checking for updates now reports how many repositories are reindexing', async () => {
+    mockedPollNow.mockResolvedValue({ triggered: 2 })
+
+    const wrapper = mount(SettingsPanel)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Check for updates now').trigger('click')
+    await flushPromises()
+
+    expect(mockedPollNow).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('Reindexing 2 repositories.')
+  })
+
+  it('checking for updates now reports no changes found', async () => {
+    mockedPollNow.mockResolvedValue({ triggered: 0 })
+
+    const wrapper = mount(SettingsPanel)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Check for updates now').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('No changes found.')
+  })
+
   it('clearing a set token sends an empty string', async () => {
     mockedGetVcs.mockResolvedValue(vcs({ github: { tokenSet: true } }))
     mockedUpdateVcs.mockResolvedValue(vcs())
@@ -127,8 +162,9 @@ describe('SettingsPanel', () => {
     await passwordInputs[passwordInputs.length - 1].setValue('sk-test')
     await wrapper.get('input[placeholder="text-embedding-3-small"]').setValue('text-embedding-3-small')
 
+    // Index 2: VCS Save (0), Check for updates now (1), Embedding Save (2).
     const saveButtons = wrapper.findAll('.save-row button')
-    await saveButtons[1].trigger('click')
+    await saveButtons[2].trigger('click')
     await flushPromises()
 
     expect(mockedUpdateEmbedding).toHaveBeenCalledWith({
@@ -145,8 +181,9 @@ describe('SettingsPanel', () => {
     await flushPromises()
 
     await wrapper.get('select[aria-label="Embedding provider"]').setValue('Ollama')
+    // Index 2: VCS Save (0), Check for updates now (1), Embedding Save (2).
     const saveButtons = wrapper.findAll('.save-row button')
-    await saveButtons[1].trigger('click')
+    await saveButtons[2].trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('the embedding probe failed: connection refused')

@@ -224,6 +224,19 @@ export async function deleteRepository(collection: string): Promise<void> {
   }
 }
 
+// Runs one repository-poll check immediately instead of waiting for the scheduled interval. Returns
+// how many collections had a new commit and got a reindex dispatched (reindexing itself stays
+// fire-and-forget — poll it via GET /index/status the same way a manual POST /index would).
+export async function pollRepositoriesNow(): Promise<{ triggered: number }> {
+  const response = await fetch('/api/repositories/poll', { method: 'POST' })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, `Checking for updates failed (${response.status})`))
+  }
+
+  return (await response.json()) as { triggered: number }
+}
+
 export async function getVcsSettings(): Promise<VcsSettings> {
   const response = await fetch('/api/settings/vcs')
 

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   getVcsSettings,
   updateVcsSettings,
+  pollRepositoriesNow,
   getEmbeddingSettings,
   updateEmbeddingSettings,
   getOllamaModels,
@@ -32,6 +33,9 @@ const gitlabToken = ref('')
 const gitlabClear = ref(false)
 const vcsStatus = ref<SaveStatus>('idle')
 const vcsError = ref('')
+
+const pollNowStatus = ref<'idle' | 'checking' | 'done' | 'error'>('idle')
+const pollNowMessage = ref('')
 
 const embedding = ref<EmbeddingSettings | null>(null)
 const provider = ref<'' | 'Ollama' | 'OpenAI'>('')
@@ -231,6 +235,22 @@ async function saveVcs() {
   }
 }
 
+async function pollNow() {
+  pollNowStatus.value = 'checking'
+  pollNowMessage.value = ''
+  try {
+    const { triggered } = await pollRepositoriesNow()
+    pollNowStatus.value = 'done'
+    pollNowMessage.value =
+      triggered === 0
+        ? 'No changes found.'
+        : `Reindexing ${triggered} ${triggered === 1 ? 'repository' : 'repositories'}.`
+  } catch (err) {
+    pollNowStatus.value = 'error'
+    pollNowMessage.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
 async function saveEmbedding() {
   if (!embedding.value) return
 
@@ -360,6 +380,14 @@ const providerLabel = computed(() =>
             <span class="status" :class="vcsStatus">
               <template v-if="vcsStatus === 'saved'">Saved</template>
               <template v-else-if="vcsStatus === 'error'">{{ vcsError }}</template>
+            </span>
+          </div>
+          <div class="save-row">
+            <button type="button" :disabled="pollNowStatus === 'checking'" @click="pollNow">
+              {{ pollNowStatus === 'checking' ? 'Checking…' : 'Check for updates now' }}
+            </button>
+            <span class="status" :class="pollNowStatus === 'error' ? 'error' : 'saved'">
+              <template v-if="pollNowStatus === 'done' || pollNowStatus === 'error'">{{ pollNowMessage }}</template>
             </span>
           </div>
         </section>

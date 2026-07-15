@@ -27,7 +27,7 @@ namespace Synth.Infrastructure.Vcs;
 /// is simply reported <see cref="IndexStartOutcome.Kind.AlreadyRunning"/> and dropped — the next tick
 /// (or a manual reindex) catches up, mirroring the same tradeoff the earlier webhook design made.
 /// </remarks>
-public sealed class RepositoryPollingService : BackgroundService
+public sealed class RepositoryPollingService : BackgroundService, IRepositoryPoller
 {
     private static readonly TimeSpan DisabledRecheckInterval = TimeSpan.FromMinutes(1);
 
@@ -88,13 +88,15 @@ public sealed class RepositoryPollingService : BackgroundService
     }
 
     /// <summary>
-    /// Runs one poll tick over every currently-registered collection. Public so it can be driven
-    /// synchronously in tests without hosting the background loop; <see cref="ExecuteAsync"/> just
-    /// calls it on a timer.
+    /// Runs one poll tick over every currently-registered collection. Public — and the
+    /// <see cref="IRepositoryPoller"/> port — so it can be driven synchronously in tests, or on demand
+    /// via <c>POST /repositories/poll</c>, without waiting for <see cref="ExecuteAsync"/>'s own timer.
     /// </summary>
-    public async Task PollOnceAsync(CancellationToken cancellationToken)
+    /// <returns>How many collections had a new commit and got a reindex dispatched.</returns>
+    public async Task<int> PollOnceAsync(CancellationToken cancellationToken = default)
     {
         var entries = await _registry.ListAsync(cancellationToken);
+        var triggered = 0;
         foreach (var entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -103,11 +105,15 @@ public sealed class RepositoryPollingService : BackgroundService
             if (string.Equals(entry.SourceType, "local", StringComparison.Ordinal))
                 continue;
 
-            await PollEntryAsync(entry, cancellationToken);
+            if (await PollEntryAsync(entry, cancellationToken))
+                triggered++;
         }
+
+        return triggered;
     }
 
-    private async Task PollEntryAsync(RepositoryEntry entry, CancellationToken cancellationToken)
+    // Returns true iff a reindex was actually dispatched for this entry.
+    private async Task<bool> PollEntryAsync(RepositoryEntry entry, CancellationToken cancellationToken)
     {
         string? remoteSha;
         try
@@ -118,15 +124,15 @@ public sealed class RepositoryPollingService : BackgroundService
         {
             // One unreachable/renamed repo must not stop the rest of this tick from running.
             _logger.LogWarning(ex, "Could not check '{Collection}' for updates.", entry.Collection);
-            return;
+            return false;
         }
 
         if (remoteSha is null)
-            return; // branch/ref not found upstream — nothing sensible to compare against
+            return false; // branch/ref not found upstream — nothing sensible to compare against
 
         var lastKnown = await _pollState.GetLastKnownShaAsync(entry.Collection, cancellationToken);
         if (string.Equals(lastKnown, remoteSha, StringComparison.Ordinal))
-            return; // unchanged since the last tick
+            return false; // unchanged since the last tick
 
         await _pollState.SetLastKnownShaAsync(entry.Collection, remoteSha, cancellationToken);
 
@@ -135,7 +141,7 @@ public sealed class RepositoryPollingService : BackgroundService
         // already matches this SHA, so record the baseline without reindexing — only a *change* from
         // a previously observed SHA is a real reason to reindex.
         if (lastKnown is null)
-            return;
+            return false;
 
         _logger.LogInformation(
             "Detected a new commit on '{Collection}' ({Old} -> {New}); reindexing.",
@@ -148,7 +154,10 @@ public sealed class RepositoryPollingService : BackgroundService
         {
             _logger.LogInformation(
                 "Skipped reindexing '{Collection}': another job is already running.", entry.Collection);
+            return false;
         }
+
+        return true;
     }
 
     private async Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)

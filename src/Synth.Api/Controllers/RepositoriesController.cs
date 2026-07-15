@@ -7,14 +7,14 @@ namespace Synth.Api.Controllers;
 
 /// <summary>
 /// The repository-registry endpoints: <c>GET /repositories</c> (list the known collections and their
-/// metadata — backing the Vue collection picker from SYNTH-20 and any caller that needs a valid
-/// collection name) and <c>DELETE /repositories/{collection}</c> (remove an indexed collection
-/// entirely). The read stays a thin action over <see cref="IRepositoryRegistry"/> — no Query wrapper,
-/// same judgment call as <see cref="SearchController"/>'s reads — while the delete's
-/// real multi-step logic lives behind the CQRS seam in
-/// <see cref="DeleteCollectionCommandHandler"/> (issue #82), shared with the <c>delete_collection</c>
-/// MCP tool. SYNTH-67 converted this from the Minimal-API <c>RepositoryEndpoints</c> to a Controller
-/// (issue #82, slice 12).
+/// metadata — backing the Vue collection picker and any caller that needs a valid collection name),
+/// <c>DELETE /repositories/{collection}</c> (remove an indexed collection entirely), and
+/// <c>POST /repositories/poll</c> (run one repository-poll check immediately). The read stays a thin
+/// action over <see cref="IRepositoryRegistry"/> — no Query wrapper, same judgment call as
+/// <see cref="SearchController"/>'s reads — while the delete's real multi-step logic lives behind the
+/// CQRS seam in <see cref="DeleteCollectionCommandHandler"/>, shared with the <c>delete_collection</c>
+/// MCP tool, and the poll trigger delegates to the <see cref="IRepositoryPoller"/> port so it runs on
+/// the exact same <c>RepositoryPollingService</c> instance the background loop uses.
 /// </summary>
 /// <remarks>
 /// Routes stay bare (no <c>/api</c> prefix, no class-level <c>[Route]</c>) — each action carries its
@@ -24,10 +24,12 @@ namespace Synth.Api.Controllers;
 public class RepositoriesController : ControllerBase
 {
     private readonly ICommandHandler<DeleteCollectionCommand, bool> _deleteHandler;
+    private readonly IRepositoryPoller _poller;
 
-    public RepositoriesController(ICommandHandler<DeleteCollectionCommand, bool> deleteHandler)
+    public RepositoriesController(ICommandHandler<DeleteCollectionCommand, bool> deleteHandler, IRepositoryPoller poller)
     {
         _deleteHandler = deleteHandler;
+        _poller = poller;
     }
 
     /// <summary>
@@ -75,5 +77,21 @@ public class RepositoriesController : ControllerBase
             new DeleteCollectionCommand(collection), cancellationToken);
 
         return removed ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Runs one repository-poll check immediately instead of waiting for
+    /// <c>RepositoryPollingService</c>'s own timer — useful right after a known push, or after
+    /// lowering <c>Vcs:PollIntervalMinutes</c> and wanting the new setting's effect without waiting out
+    /// the old interval. Awaited synchronously: the check itself (a <c>git ls-remote</c> per collection)
+    /// is fast, and any reindex it dispatches stays fire-and-forget exactly like a manual
+    /// <c>POST /index</c>, so this returns in roughly the time of one round trip per indexed repository,
+    /// not the time any triggered reindex takes to finish.
+    /// </summary>
+    [HttpPost("/repositories/poll")]
+    public async Task<IActionResult> Poll(CancellationToken cancellationToken)
+    {
+        var triggered = await _poller.PollOnceAsync(cancellationToken);
+        return Ok(new { triggered });
     }
 }
