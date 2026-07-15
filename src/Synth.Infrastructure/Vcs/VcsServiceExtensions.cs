@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Synth.Application.Cqrs;
-using Synth.Application.Indexing;
 using Synth.Application.Vcs;
 using Synth.Domain.Vcs;
 
@@ -47,13 +46,6 @@ public static class VcsServiceExtensions
             ICommandHandler<UpdateVcsSettingsCommand, UpdateVcsSettingsResult>, UpdateVcsSettingsCommandHandler>();
         // IHttpClientFactory for the probe-before-persist token check (SYNTH-37), now in the handler above.
         builder.Services.AddHttpClient();
-        // CQRS command handler for POST /webhooks/github: verifies the delivery's signature, resolves
-        // the matching collection, and dispatches the same ICommandHandler<IndexRepositoryCommand,...>
-        // AddSynthIndexing registers — resolved lazily, so it doesn't matter whether AddSynthIndexing
-        // or AddSynthVcs runs first in Program.cs/StdioMcpHost.cs.
-        builder.Services.AddSingleton<
-            ICommandHandler<ProcessGitHubWebhookCommand, ProcessGitHubWebhookResult>,
-            ProcessGitHubWebhookCommandHandler>();
 
         return builder;
     }
