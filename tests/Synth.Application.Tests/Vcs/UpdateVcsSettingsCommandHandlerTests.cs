@@ -112,37 +112,6 @@ public class UpdateVcsSettingsCommandHandlerTests
     }
 
     [Fact]
-    public async Task Github_webhook_secret_is_persisted_without_a_probe()
-    {
-        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
-        var updater = new RecordingUpdater();
-        var handler = CreateHandler(updater, probe);
-
-        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
-            Body(new { github = new { webhookSecret = "whsec_123" } })));
-
-        Assert.True(result.Success);
-        Assert.Equal(0, probe.SendCount); // nothing to authenticate against — never probed
-        Assert.Equal("whsec_123", updater.Section["GitHub"]!["WebhookSecret"]!.GetValue<string>());
-    }
-
-    [Fact]
-    public async Task Clearing_the_github_webhook_secret_stores_null_and_leaves_the_token_untouched()
-    {
-        var updater = new RecordingUpdater(Seed("""{ "GitHub": { "Token": "ghp_keep", "WebhookSecret": "whsec_old" } }"""));
-        var handler = CreateHandler(updater, FakeHttpClientFactory.Responding(HttpStatusCode.OK));
-
-        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
-            Body(new { github = new { webhookSecret = "" } })));
-
-        Assert.True(result.Success);
-        var gitHub = updater.Section["GitHub"]!.AsObject();
-        Assert.True(gitHub.ContainsKey("WebhookSecret"));
-        Assert.Null(gitHub["WebhookSecret"]);
-        Assert.Equal("ghp_keep", gitHub["Token"]!.GetValue<string>());
-    }
-
-    [Fact]
     public async Task Partial_update_leaves_the_other_provider_token_untouched()
     {
         var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
@@ -180,7 +149,7 @@ public class UpdateVcsSettingsCommandHandlerTests
         var options = new StaticOptionsMonitor<VcsOptions>(new VcsOptions
         {
             WorkspaceRoot = "/w",
-            GitHub = new VcsOptions.GitHubAuth { Token = "ghp_secret", WebhookSecret = "whsec_secret" },
+            GitHub = new VcsOptions.ProviderAuth { Token = "ghp_secret" },
             GitLab = new VcsOptions.ProviderAuth { Token = null },
         });
         var handler = CreateHandler(new RecordingUpdater(), FakeHttpClientFactory.Responding(HttpStatusCode.OK), options);
@@ -191,12 +160,9 @@ public class UpdateVcsSettingsCommandHandlerTests
         Assert.True(result.Success);
         Assert.Equal("/w", result.Response!.WorkspaceRoot);
         Assert.True(result.Response.Github.TokenSet);
-        Assert.True(result.Response.Github.WebhookSecretSet);
         Assert.False(result.Response.Gitlab.TokenSet);
-        // The masked shape carries only flags — the raw token/secret values are never present.
-        var json = JsonSerializer.Serialize(result.Response);
-        Assert.DoesNotContain("ghp_secret", json);
-        Assert.DoesNotContain("whsec_secret", json);
+        // The masked shape carries only flags — the raw token value is never present.
+        Assert.DoesNotContain("ghp_secret", JsonSerializer.Serialize(result.Response));
     }
 
     private static UpdateVcsSettingsCommandHandler CreateHandler(

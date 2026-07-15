@@ -18,34 +18,16 @@ public sealed class VcsOptions
     /// </summary>
     public string? WorkspaceRoot { get; set; }
 
-    /// <summary>Auth for GitHub remotes (<c>Vcs:GitHub:Token</c>), plus the inbound webhook secret.</summary>
-    public GitHubAuth GitHub { get; set; } = new();
+    /// <summary>Auth for GitHub remotes (<c>Vcs:GitHub:Token</c>).</summary>
+    public ProviderAuth GitHub { get; set; } = new();
 
     /// <summary>Auth for GitLab remotes (<c>Vcs:GitLab:Token</c>).</summary>
     public ProviderAuth GitLab { get; set; } = new();
 
     /// <summary>Per-provider access token. Never written to disk — passed to git via an in-memory header.</summary>
-    public class ProviderAuth
+    public sealed class ProviderAuth
     {
         /// <summary>Personal/access token, or null for anonymous access.</summary>
         public string? Token { get; set; }
-    }
-
-    /// <summary>
-    /// GitHub-specific auth: the outbound clone/fetch <see cref="ProviderAuth.Token"/> plus the
-    /// inbound <see cref="WebhookSecret"/> used to verify <c>X-Hub-Signature-256</c> on
-    /// <c>POST /webhooks/github</c> — two unrelated secrets that happen to share a provider block.
-    /// GitLab has no webhook consumer yet, so this stays GitHub-only rather than adding an unused
-    /// field to the shared <see cref="ProviderAuth"/>.
-    /// </summary>
-    public sealed class GitHubAuth : ProviderAuth
-    {
-        /// <summary>
-        /// Shared secret configured in the GitHub repo's Settings → Webhooks → Secret, used to verify
-        /// the <c>X-Hub-Signature-256</c> header via constant-time HMAC-SHA256 comparison. Null/empty
-        /// means webhook delivery is rejected outright — there is no legitimate "unauthenticated
-        /// webhook" mode.
-        /// </summary>
-        public string? WebhookSecret { get; set; }
     }
 }

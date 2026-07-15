@@ -22,7 +22,7 @@ function pullStatus(overrides: Partial<api.OllamaPullStatus> = {}): api.OllamaPu
 function vcs(overrides: Partial<api.VcsSettings> = {}): api.VcsSettings {
   return {
     workspaceRoot: null,
-    github: { tokenSet: false, webhookSecretSet: false },
+    github: { tokenSet: false },
     gitlab: { tokenSet: false },
     ...overrides,
   }
@@ -97,28 +97,6 @@ describe('SettingsPanel', () => {
     await flushPromises()
 
     expect(mockedUpdateVcs).toHaveBeenCalledWith({ github: { token: '' } })
-  })
-
-  it('sends a new github webhook secret alongside an unrelated token clear', async () => {
-    mockedGetVcs.mockResolvedValue(vcs({ github: { tokenSet: true, webhookSecretSet: false } }))
-    mockedUpdateVcs.mockResolvedValue(vcs())
-
-    const wrapper = mount(SettingsPanel)
-    await flushPromises()
-
-    const clearCheckboxes = wrapper.findAll('.clear-toggle input[type="checkbox"]')
-    await clearCheckboxes[0].setValue(true) // clear the token
-
-    // Locate by label text, not placeholder — several fields share the "not set" placeholder.
-    const webhookField = wrapper.findAll('.field').find((f) => f.text().includes('GitHub webhook secret'))!
-    await webhookField.get('input').setValue('whsec_123')
-
-    const saveButtons = wrapper.findAll('.save-row button')
-    await saveButtons[0].trigger('click')
-    await flushPromises()
-
-    // Both fields merge into the same github patch object, not two separate PUTs.
-    expect(mockedUpdateVcs).toHaveBeenCalledWith({ github: { token: '', webhookSecret: 'whsec_123' } })
   })
 
   it('switches embedding provider to OpenAI and saves the model + key', async () => {
