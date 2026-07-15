@@ -18,6 +18,15 @@ public sealed class VcsOptions
     /// </summary>
     public string? WorkspaceRoot { get; set; }
 
+    /// <summary>
+    /// How often <c>RepositoryPollingService</c> checks each repoUrl-indexed collection's remote for a
+    /// new commit (via <c>git ls-remote</c>, no clone/fetch) and reindexes on a genuine change. Re-read
+    /// on every tick, so a change here takes effect without a restart. <c>0</c> (or negative) disables
+    /// polling entirely — the service keeps running but just re-checks this value once a minute instead
+    /// of ever polling a repository, so re-enabling it later still needs no restart.
+    /// </summary>
+    public int PollIntervalMinutes { get; set; } = 5;
+
     /// <summary>Auth for GitHub remotes (<c>Vcs:GitHub:Token</c>).</summary>
     public ProviderAuth GitHub { get; set; } = new();
 

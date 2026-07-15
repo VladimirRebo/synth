@@ -36,6 +36,7 @@ public sealed class UpdateVcsSettingsCommandHandler
     : ICommandHandler<UpdateVcsSettingsCommand, UpdateVcsSettingsResult>
 {
     private const string WorkspaceRootKey = "WorkspaceRoot";
+    private const string PollIntervalMinutesKey = "PollIntervalMinutes";
     private const string GitHubKey = "GitHub";
     private const string GitLabKey = "GitLab";
     private const string TokenKey = "Token";
@@ -68,6 +69,16 @@ public sealed class UpdateVcsSettingsCommandHandler
         if (body.ValueKind != JsonValueKind.Object)
             return UpdateVcsSettingsResult.ValidationError("Request body must be a JSON object.");
 
+        // Validated up front, alongside the token probes below, so an invalid value never reaches
+        // UpdateSectionAsync — the same "nothing persists on a validation failure" contract as tokens.
+        if (TryGetPropertyIgnoreCase(body, "pollIntervalMinutes", out var pollIntervalElement))
+        {
+            if (pollIntervalElement.ValueKind != JsonValueKind.Number || !pollIntervalElement.TryGetInt32(out var minutes))
+                return UpdateVcsSettingsResult.ValidationError("'pollIntervalMinutes' must be an integer.");
+            if (minutes < 0)
+                return UpdateVcsSettingsResult.ValidationError("'pollIntervalMinutes' must not be negative.");
+        }
+
         // Probe a newly-set, non-empty token before persisting so an invalid/expired token is
         // rejected here rather than the next time GitRepoService actually uses it. Cleared or
         // omitted tokens (and workspaceRoot) need no probe — see TryGetNewToken.
@@ -90,6 +101,13 @@ public sealed class UpdateVcsSettingsCommandHandler
             // Present & non-null -> set; present & null -> clear; absent -> leave unchanged.
             if (TryGetPropertyIgnoreCase(body, "workspaceRoot", out var workspaceRoot))
                 section[WorkspaceRootKey] = ToStringValueOrNull(workspaceRoot);
+
+            // Already validated above; TryGetInt32 succeeding here is guaranteed.
+            if (TryGetPropertyIgnoreCase(body, "pollIntervalMinutes", out var pollInterval) &&
+                pollInterval.TryGetInt32(out var pollIntervalMinutes))
+            {
+                section[PollIntervalMinutesKey] = JsonValue.Create(pollIntervalMinutes);
+            }
 
             ApplyTokenUpdate(body, "github", section, GitHubKey);
             ApplyTokenUpdate(body, "gitlab", section, GitLabKey);

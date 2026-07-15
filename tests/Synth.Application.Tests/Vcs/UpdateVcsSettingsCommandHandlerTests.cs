@@ -143,12 +143,67 @@ public class UpdateVcsSettingsCommandHandlerTests
     }
 
     [Fact]
+    public async Task Poll_interval_is_persisted_without_a_probe()
+    {
+        var probe = FakeHttpClientFactory.Responding(HttpStatusCode.OK);
+        var updater = new RecordingUpdater();
+        var handler = CreateHandler(updater, probe);
+
+        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
+            Body(new { pollIntervalMinutes = 15 })));
+
+        Assert.True(result.Success);
+        Assert.Equal(0, probe.SendCount);
+        Assert.Equal(15, updater.Section["PollIntervalMinutes"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Zero_poll_interval_is_accepted_it_means_disabled()
+    {
+        var updater = new RecordingUpdater();
+        var handler = CreateHandler(updater);
+
+        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
+            Body(new { pollIntervalMinutes = 0 })));
+
+        Assert.True(result.Success);
+        Assert.Equal(0, updater.Section["PollIntervalMinutes"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Negative_poll_interval_is_a_validation_error_and_persists_nothing()
+    {
+        var updater = new RecordingUpdater();
+        var handler = CreateHandler(updater);
+
+        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
+            Body(new { pollIntervalMinutes = -1 })));
+
+        Assert.False(result.Success);
+        Assert.False(updater.WasCalled);
+    }
+
+    [Fact]
+    public async Task Non_numeric_poll_interval_is_a_validation_error()
+    {
+        var updater = new RecordingUpdater();
+        var handler = CreateHandler(updater);
+
+        var result = await handler.HandleAsync(new UpdateVcsSettingsCommand(
+            Body(new { pollIntervalMinutes = "soon" })));
+
+        Assert.False(result.Success);
+        Assert.False(updater.WasCalled);
+    }
+
+    [Fact]
     public async Task Success_returns_the_masked_current_options_never_echoing_the_token()
     {
         // The masked response is built from IOptionsMonitor.CurrentValue (post-reload in production).
         var options = new StaticOptionsMonitor<VcsOptions>(new VcsOptions
         {
             WorkspaceRoot = "/w",
+            PollIntervalMinutes = 7,
             GitHub = new VcsOptions.ProviderAuth { Token = "ghp_secret" },
             GitLab = new VcsOptions.ProviderAuth { Token = null },
         });
@@ -159,6 +214,7 @@ public class UpdateVcsSettingsCommandHandlerTests
 
         Assert.True(result.Success);
         Assert.Equal("/w", result.Response!.WorkspaceRoot);
+        Assert.Equal(7, result.Response.PollIntervalMinutes);
         Assert.True(result.Response.Github.TokenSet);
         Assert.False(result.Response.Gitlab.TokenSet);
         // The masked shape carries only flags — the raw token value is never present.

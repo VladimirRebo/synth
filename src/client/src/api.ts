@@ -77,14 +77,16 @@ export type IndexSource = { path: string } | { repoUrl: string; branch?: string 
 // whether one is currently set.
 export interface VcsSettings {
   workspaceRoot: string | null
+  pollIntervalMinutes: number
   github: { tokenSet: boolean }
   gitlab: { tokenSet: boolean }
 }
 
 // PUT patch shape: a field present-but-omitted-here is left unchanged server-side; an explicit
-// empty string clears a token back to anonymous access.
+// empty string clears a token back to anonymous access. pollIntervalMinutes: 0 disables polling.
 export interface VcsSettingsPatch {
   workspaceRoot?: string | null
+  pollIntervalMinutes?: number
   github?: { token?: string }
   gitlab?: { token?: string }
 }

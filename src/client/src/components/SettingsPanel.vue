@@ -25,6 +25,7 @@ const loadError = ref('')
 
 const vcs = ref<VcsSettings | null>(null)
 const workspaceRoot = ref('')
+const pollIntervalMinutes = ref(5)
 const githubToken = ref('')
 const githubClear = ref(false)
 const gitlabToken = ref('')
@@ -87,6 +88,7 @@ function applyRaw(json: string) {
 function applyVcs(settings: VcsSettings) {
   vcs.value = settings
   workspaceRoot.value = settings.workspaceRoot ?? ''
+  pollIntervalMinutes.value = settings.pollIntervalMinutes
   githubToken.value = ''
   githubClear.value = false
   gitlabToken.value = ''
@@ -209,6 +211,9 @@ async function saveVcs() {
   if (workspaceRoot.value.trim() !== (vcs.value.workspaceRoot ?? '')) {
     patch.workspaceRoot = workspaceRoot.value.trim() || null
   }
+  if (pollIntervalMinutes.value !== vcs.value.pollIntervalMinutes) {
+    patch.pollIntervalMinutes = pollIntervalMinutes.value
+  }
   if (githubClear.value) patch.github = { token: '' }
   else if (githubToken.value) patch.github = { token: githubToken.value }
   if (gitlabClear.value) patch.gitlab = { token: '' }
@@ -313,6 +318,14 @@ const providerLabel = computed(() =>
           <div class="field">
             <label>Workspace root</label>
             <input v-model="workspaceRoot" type="text" placeholder="~/.synth/workspaces (default)" />
+          </div>
+          <div class="field">
+            <label>Poll interval (minutes)</label>
+            <input v-model.number="pollIntervalMinutes" type="number" min="0" step="1" />
+            <p class="hint">
+              How often each indexed repository is checked for a new commit and reindexed if one is
+              found. 0 disables polling.
+            </p>
           </div>
           <div class="field">
             <label>GitHub token</label>

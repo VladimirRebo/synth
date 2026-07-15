@@ -22,6 +22,7 @@ function pullStatus(overrides: Partial<api.OllamaPullStatus> = {}): api.OllamaPu
 function vcs(overrides: Partial<api.VcsSettings> = {}): api.VcsSettings {
   return {
     workspaceRoot: null,
+    pollIntervalMinutes: 5,
     github: { tokenSet: false },
     gitlab: { tokenSet: false },
     ...overrides,
@@ -81,6 +82,20 @@ describe('SettingsPanel', () => {
     await flushPromises()
 
     expect(mockedUpdateVcs).toHaveBeenCalledWith({ workspaceRoot: '/tmp/work' })
+  })
+
+  it('sends a changed poll interval, omitting untouched fields', async () => {
+    mockedUpdateVcs.mockResolvedValue(vcs({ pollIntervalMinutes: 15 }))
+
+    const wrapper = mount(SettingsPanel)
+    await flushPromises()
+
+    await wrapper.get('input[type="number"]').setValue(15)
+    const saveButtons = wrapper.findAll('.save-row button')
+    await saveButtons[0].trigger('click')
+    await flushPromises()
+
+    expect(mockedUpdateVcs).toHaveBeenCalledWith({ pollIntervalMinutes: 15 })
   })
 
   it('clearing a set token sends an empty string', async () => {
