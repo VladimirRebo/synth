@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Synth.Domain;
+using Synth.Domain.Graph;
 
 namespace Synth.Chunkers.Go;
 
@@ -17,11 +18,11 @@ namespace Synth.Chunkers.Go;
 /// <see cref="CodeChunk.ClassName"/>, mirroring a C# method's enclosing class) — plus
 /// <c>type Name struct</c> and <c>type Name interface</c> declarations. Other top-level forms (plain
 /// <c>type Name = ...</c> aliases, package-level <c>var</c>/<c>const</c> blocks) are out of scope, the
-/// same "declaration boundary" trade-off TsVueChunker makes for TS/Vue. This is a chunker only: it
-/// does not implement <see cref="Graph.ICallSiteExtractor"/> (call-graph extraction stays C#-only for
-/// now).
+/// same "declaration boundary" trade-off TsVueChunker makes for TS/Vue. <see cref="ExtractCallSites"/>
+/// implements <see cref="ICallSiteExtractor"/> only for <c>func</c> spans (structs/interfaces have no
+/// callable body to scan).
 /// </remarks>
-public sealed partial class GoChunker : IFileChunker
+public sealed partial class GoChunker : IFileChunker, ICallSiteExtractor
 {
     /// <inheritdoc />
     public bool CanHandle(string filePath) =>
@@ -100,6 +101,70 @@ public sealed partial class GoChunker : IFileChunker
         return (ChunkType.Method, string.Empty, string.Empty);
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<RawCallSite> ExtractCallSites(string filePath, string relativePath, string content)
+    {
+        content = (content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n");
+        relativePath ??= string.Empty;
+
+        var newlineOffsets = NewlineOffsets(content);
+        var matches = DeclarationRegex().Matches(content);
+        var sites = new List<RawCallSite>();
+
+        for (var i = 0; i < matches.Count; i++)
+        {
+            // Only func spans have a callable body; struct/interface declarations have nothing to scan.
+            if (!matches[i].Groups["fn"].Success)
+                continue;
+
+            var recv = matches[i].Groups["recv"].Value;
+            var fn = matches[i].Groups["fn"].Value;
+            var callerQualifiedName = recv.Length > 0 ? $"{recv}.{fn}" : fn;
+
+            var start = matches[i].Index;
+            var end = i + 1 < matches.Count ? matches[i + 1].Index : content.Length;
+            var declNameStart = matches[i].Groups["fn"].Index;
+
+            CollectInvocations(content, start, end, declNameStart, callerQualifiedName, relativePath, newlineOffsets, sites);
+        }
+
+        return sites;
+    }
+
+    // Scans [spanStart, spanEnd) for invocations (an identifier, optionally dotted, followed by '(') and
+    // records one RawCallSite per match — except the declaration's own name (declNameStart), which would
+    // otherwise be misread as it calling itself (func Name( looks exactly like an invocation of Name).
+    // Go keywords that can precede '(' without being a call (if a condition happened to be parenthesized,
+    // a type switch, etc.) are filtered by name, not position, so a real call anywhere else in the span
+    // is still found.
+    private static void CollectInvocations(
+        string content, int spanStart, int spanEnd, int declNameStart, string callerQualifiedName,
+        string sourceFile, int[] newlineOffsets, List<RawCallSite> sites)
+    {
+        var region = content.Substring(spanStart, spanEnd - spanStart);
+        foreach (Match invocation in InvocationRegex().Matches(region))
+        {
+            var nameGroup = invocation.Groups["name"];
+            var absoluteStart = spanStart + nameGroup.Index;
+            if (absoluteStart == declNameStart)
+                continue;
+
+            var invokedName = nameGroup.Value;
+            if (GoKeywords.Contains(invokedName))
+                continue;
+
+            sites.Add(new RawCallSite(callerQualifiedName, invokedName, sourceFile, LineAt(newlineOffsets, absoluteStart)));
+        }
+    }
+
+    // Keywords that could precede '(' without being a call, so they never appear as a real invocation's
+    // name (Go rarely parenthesizes these — no parens around if/for conditions — but the guard is cheap).
+    private static readonly HashSet<string> GoKeywords =
+    [
+        "if", "for", "switch", "select", "case", "default", "func", "go", "defer", "return", "range",
+        "chan", "map", "struct", "interface", "type", "var", "const", "package", "import", "else",
+    ];
+
     private static int[] NewlineOffsets(string content)
     {
         var offsets = new List<int>();
@@ -145,4 +210,10 @@ public sealed partial class GoChunker : IFileChunker
         @"|^type\s+(?<ifaceName>[A-Za-z_]\w*)\s+interface\b",
         RegexOptions.Multiline)]
     private static partial Regex DeclarationRegex();
+
+    // An invocation: an identifier — optionally dotted (s.Handle(), pkg.Foo()) — immediately followed by
+    // '('. Only the last segment is captured, so a dotted call resolves to its bare name, the same "last
+    // segment" convention CSharpRoslynChunker's InvokedSimpleName uses.
+    [GeneratedRegex(@"(?:[A-Za-z_]\w*\.)*(?<name>[A-Za-z_]\w*)\s*\(")]
+    private static partial Regex InvocationRegex();
 }

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Synth.Domain;
+using Synth.Domain.Graph;
 
 namespace Synth.Chunkers.Python;
 
@@ -18,10 +19,15 @@ namespace Synth.Chunkers.Python;
 /// above a declaration are captured into the same chunk as the declaration they decorate. A leading
 /// triple-quoted docstring, if the declaration's body opens with one, is extracted into
 /// <see cref="CodeChunk.Summary"/> — the Python-idiomatic counterpart to the C# chunker's XML doc
-/// comment extraction. This is a chunker only: it does not implement
-/// <see cref="Graph.ICallSiteExtractor"/> (call-graph extraction stays C#-only for now).
+/// comment extraction. <see cref="ExtractCallSites"/> implements <see cref="ICallSiteExtractor"/> at
+/// the same granularity <see cref="Chunk"/> emits chunks at — a call made anywhere inside a top-level
+/// class's body (including its nested methods, which do not get their own chunk) is attributed to
+/// that class as a whole, matching the caller identity <c>IndexingPipeline</c> can actually resolve
+/// (a nested method's qualified name is never a known chunk, so it could never be resolved as a
+/// callee either — attributing calls to a finer-grained name that can never match anything would be
+/// misleading, not just imprecise).
 /// </remarks>
-public sealed partial class PythonChunker : IFileChunker
+public sealed partial class PythonChunker : IFileChunker, ICallSiteExtractor
 {
     /// <inheritdoc />
     public bool CanHandle(string filePath) =>
@@ -100,6 +106,75 @@ public sealed partial class PythonChunker : IFileChunker
         return (ChunkType.Method, string.Empty, string.Empty);
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<RawCallSite> ExtractCallSites(string filePath, string relativePath, string content)
+    {
+        content = (content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n");
+        relativePath ??= string.Empty;
+
+        var newlineOffsets = NewlineOffsets(content);
+        var matches = DeclarationRegex().Matches(content);
+        var sites = new List<RawCallSite>();
+
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var (_, className, methodName) = Classify(matches[i]);
+            var callerQualifiedName = QualifiedNameOf(className, methodName);
+            if (callerQualifiedName.Length == 0)
+                continue;
+
+            var start = matches[i].Index;
+            var end = i + 1 < matches.Count ? matches[i + 1].Index : content.Length;
+
+            CollectInvocations(content, start, end, callerQualifiedName, relativePath, newlineOffsets, sites);
+        }
+
+        return sites;
+    }
+
+    private static string QualifiedNameOf(string className, string methodName)
+    {
+        if (className.Length > 0 && methodName.Length > 0)
+            return $"{className}.{methodName}";
+        return className.Length > 0 ? className : methodName;
+    }
+
+    // Scans [spanStart, spanEnd) for invocations (an identifier, optionally dotted, followed by '(') and
+    // records one RawCallSite per match. Two kinds of false positive are filtered:
+    //   - A declaration's own name (def foo( / class Foo(Base): both look exactly like foo/Foo calling
+    //     itself) — InvocationRegex's own leading negative lookbehind excludes anything immediately
+    //     preceded by "def "/"class ", which also covers a *nested* def inside a class body (nested defs
+    //     don't get their own chunk here, but the whole class span — including their signature lines —
+    //     is still scanned, so without this they'd read as the class calling each of its own methods).
+    //   - Keywords that can precede '(' without being a call ("except (Foo, Bar):", "return (x)"),
+    //     filtered by name, not position, so a real call nested anywhere in the span — including one in
+    //     a default-argument expression on a signature line — is still found.
+    private static void CollectInvocations(
+        string content, int spanStart, int spanEnd, string callerQualifiedName,
+        string sourceFile, int[] newlineOffsets, List<RawCallSite> sites)
+    {
+        var region = content.Substring(spanStart, spanEnd - spanStart);
+        foreach (Match invocation in InvocationRegex().Matches(region))
+        {
+            var nameGroup = invocation.Groups["name"];
+            var invokedName = nameGroup.Value;
+            if (PythonKeywords.Contains(invokedName))
+                continue;
+
+            var absoluteStart = spanStart + nameGroup.Index;
+            sites.Add(new RawCallSite(callerQualifiedName, invokedName, sourceFile, LineAt(newlineOffsets, absoluteStart)));
+        }
+    }
+
+    // Keywords that can be immediately followed by '(' without being a call (e.g. "except (Foo, Bar):",
+    // "return (x)"), so they never appear as a real invocation's name.
+    private static readonly HashSet<string> PythonKeywords =
+    [
+        "if", "elif", "else", "while", "for", "in", "not", "and", "or", "is", "return", "yield", "assert",
+        "del", "raise", "except", "with", "as", "lambda", "global", "nonlocal", "pass", "break", "continue",
+        "import", "from", "class", "def", "async", "await", "try", "finally",
+    ];
+
     // Best-effort: the first triple-quoted string anywhere in the slice, which for a well-formed
     // def/class is that declaration's own docstring (the first statement in its body). A rare false
     // positive — a triple-quoted string used as a default-argument value ahead of the real docstring
@@ -162,4 +237,12 @@ public sealed partial class PythonChunker : IFileChunker
     // First triple-quoted string (single- or double-quote flavor) anywhere in a chunk slice.
     [GeneratedRegex("\"\"\"(?<doc>.*?)\"\"\"|'''(?<doc2>.*?)'''", RegexOptions.Singleline)]
     private static partial Regex DocstringRegex();
+
+    // An invocation: an identifier — optionally dotted (self.foo(), a.b.foo()) — immediately followed
+    // by '('. Only the last segment is captured, so a dotted call resolves to its bare method name, the
+    // same "last segment" convention CSharpRoslynChunker's InvokedSimpleName uses. The leading negative
+    // lookbehind excludes any "def "/"class " immediately before — a declaration's own signature, not a
+    // call to it — whether it's the span's own outer declaration or a nested def inside a class body.
+    [GeneratedRegex(@"(?<!\b(?:def|class)\s+)\b(?:[A-Za-z_]\w*\.)*(?<name>[A-Za-z_]\w*)\s*\(")]
+    private static partial Regex InvocationRegex();
 }

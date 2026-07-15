@@ -1,5 +1,6 @@
 using Synth.Chunkers.Go;
 using Synth.Domain;
+using Synth.Domain.Graph;
 
 namespace Synth.Chunkers.Go.Tests;
 
@@ -9,6 +10,9 @@ public class GoChunkerTests
 
     private static IReadOnlyList<CodeChunk> ChunkGo(string source) =>
         Chunker.Chunk("/repo/sample.go", "sample.go", source);
+
+    private static IReadOnlyList<RawCallSite> ExtractCallSites(string source) =>
+        Chunker.ExtractCallSites("/repo/sample.go", "sample.go", source);
 
     [Theory]
     [InlineData("/repo/main.go", true)]
@@ -90,5 +94,103 @@ public class GoChunkerTests
         Assert.Equal(ChunkType.Method, chunk.ChunkType);
         Assert.Contains("const y = 2", chunk.Content);
         Assert.Equal(1, chunk.StartLine);
+    }
+
+    // --- Call-site extraction: raw, unresolved invocations per top-level func. ---
+
+    [Fact]
+    public void ExtractCallSites_RecordsCallerNameInvokedNameAndLine()
+    {
+        const string source = """
+            package main
+
+            func handle() {
+                work()
+            }
+            """;
+
+        var site = Assert.Single(ExtractCallSites(source), s => s.InvokedName == "work");
+        Assert.Equal("handle", site.CallerQualifiedName);
+        Assert.Equal("sample.go", site.SourceFile);
+        Assert.Equal(4, site.Line);
+    }
+
+    [Fact]
+    public void ExtractCallSites_MethodWithReceiver_QualifiesCallerByReceiverType()
+    {
+        const string source = """
+            package main
+
+            func (s *Service) Handle() {
+                s.doWork()
+            }
+            """;
+
+        var site = Assert.Single(ExtractCallSites(source), s => s.InvokedName == "doWork");
+        Assert.Equal("Service.Handle", site.CallerQualifiedName);
+    }
+
+    [Fact]
+    public void ExtractCallSites_TakesLastSegmentOfADottedCall()
+    {
+        const string source = """
+            package main
+
+            func handle(repo *Repo) {
+                repo.Load()
+                pkg.sub.Deep()
+            }
+            """;
+
+        var invoked = ExtractCallSites(source).Select(s => s.InvokedName).ToList();
+        Assert.Contains("Load", invoked);
+        Assert.Contains("Deep", invoked);
+    }
+
+    [Fact]
+    public void ExtractCallSites_DoesNotTreatTheFunctionsOwnNameAsACallToItself()
+    {
+        const string source = """
+            package main
+
+            func standalone() {
+            }
+            """;
+
+        Assert.Empty(ExtractCallSites(source));
+    }
+
+    [Fact]
+    public void ExtractCallSites_SkipsStructAndInterfaceDeclarations()
+    {
+        // Neither has a callable body, so nothing should be attributed to them as a caller.
+        const string source = """
+            package main
+
+            type Shape struct {
+                Area float64
+            }
+
+            type Greeter interface {
+                Greet() string
+            }
+            """;
+
+        Assert.Empty(ExtractCallSites(source));
+    }
+
+    [Fact]
+    public void ExtractCallSites_EmitsNothingForFileWithoutInvocations()
+    {
+        const string source = """
+            package main
+
+            func compute() int {
+                x := 1
+                return x
+            }
+            """;
+
+        Assert.Empty(ExtractCallSites(source));
     }
 }

@@ -16,7 +16,8 @@ namespace Synth.Chunkers.TsVue;
 /// For <c>.vue</c> files only the <c>&lt;script&gt;</c>/<c>&lt;script setup&gt;</c> block(s) are scanned —
 /// a component's searchable code lives there; <c>&lt;template&gt;</c>/<c>&lt;style&gt;</c> are out of scope.
 /// This is a chunker only: it deliberately does not implement <see cref="Graph.ICallSiteExtractor"/>
-/// (call-graph extraction stays C#-only for now). Recognized declarations reuse the existing
+/// (unlike <c>CSharpRoslynChunker</c>/<c>PythonChunker</c>/<c>GoChunker</c>, which do — TS/Vue call-graph
+/// extraction is a possible future addition, not a fundamental limitation). Recognized declarations reuse the existing
 /// <see cref="ChunkType"/> values (<see cref="ChunkType.Class"/>/<see cref="ChunkType.Interface"/>/
 /// <see cref="ChunkType.Method"/>) — a regex heuristic doesn't warrant growing the enum, and every
 /// slice is code, so the only <see cref="ChunkType"/>-driven behavior that matters (the <c>[code]</c>
