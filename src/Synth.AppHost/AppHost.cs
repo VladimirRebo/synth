@@ -7,7 +7,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ollama = builder.AddOllama("ollama")
     .WithDataVolume();
 
-var embeddings = ollama.AddModel("embeddings", "qwen3-embedding:4b");
+// nomic-embed-text, not the larger qwen3-embedding:4b: Ollama runs CPU-only in this Docker
+// setup (no GPU passthrough), and the 4b model's embed requests routinely exceeded the
+// default 100s HttpClient timeout, stalling indexing almost entirely. Not worth the
+// complexity of raising timeouts/retries for better embedding quality during local dev.
+var embeddings = ollama.AddModel("embeddings", "nomic-embed-text");
 
 // Qdrant is Synth's vector store. Run it as an Aspire-managed container with a
 // persistent data volume so the index survives restarts. The referenced resource
