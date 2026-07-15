@@ -10,11 +10,11 @@ namespace Synth.Api.Tests;
 /// end-to-end against an offline mock chat client, with no live LLM credentials
 /// and no network access.
 /// </summary>
-public class ExampleAgentTests : IClassFixture<WebApplicationFactory<Program>>
+public class ExampleAgentTests : IClassFixture<TestApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public ExampleAgentTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public ExampleAgentTests(TestApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Example_agent_runs_offline_and_echoes_input()

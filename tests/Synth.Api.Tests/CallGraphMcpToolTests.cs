@@ -83,7 +83,7 @@ public class CallGraphMcpToolTests
     {
         // Being resolvable as McpServerTools proves Program.cs wired them into
         // AddMcpServer().WithTools<CallGraphTool>() over the HTTP transport.
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new TestApiFactory();
 
         var tools = factory.Services.GetServices<McpServerTool>();
 

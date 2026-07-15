@@ -137,7 +137,7 @@ public class CodeSearchMcpToolTests
     {
         // The tool being resolvable as an McpServerTool proves Program.cs wired it into
         // AddMcpServer().WithTools<CodeSearchTool>() over the HTTP transport.
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new TestApiFactory();
 
         var tools = factory.Services.GetServices<McpServerTool>();
 

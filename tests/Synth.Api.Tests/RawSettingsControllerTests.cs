@@ -20,11 +20,11 @@ namespace Synth.Api.Tests;
 // secrets round-trip verbatim, guarding against someone "fixing" this into masking by copy-paste.
 // SYNTH-71 converted this from RawSettingsEndpoints to RawSettingsController + the CQRS handler; this
 // is the HTTP counterpart to ReplaceRawSettingsCommandHandlerTests' unit-level warning assertions.
-public class RawSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class RawSettingsControllerTests : IClassFixture<TestApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public RawSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public RawSettingsControllerTests(TestApiFactory factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(string? initialJson = null)
     {

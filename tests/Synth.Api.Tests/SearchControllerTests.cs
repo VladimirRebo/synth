@@ -14,7 +14,7 @@ namespace Synth.Api.Tests;
 // directory first (via POST /index), then search it. The real Ollama-backed embedding
 // generator is swapped for a deterministic fake, mirroring IndexingEndpointTests, so this
 // runs without a live Ollama/Docker.
-public class SearchControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class SearchControllerTests : IClassFixture<TestApiFactory>
 {
     private sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
     {
@@ -37,7 +37,7 @@ public class SearchControllerTests : IClassFixture<WebApplicationFactory<Program
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public SearchControllerTests(WebApplicationFactory<Program> factory) =>
+    public SearchControllerTests(TestApiFactory factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));

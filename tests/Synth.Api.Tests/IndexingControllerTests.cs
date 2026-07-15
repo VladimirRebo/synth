@@ -18,7 +18,7 @@ namespace Synth.Api.Tests;
 // HTTP-level contract (routes, status codes) is unchanged, so these assertions hold as-is. The real
 // Ollama-backed embedding generator is swapped for a deterministic fake so this runs without a live
 // Ollama/Docker, mirroring the fake used in Synth.Application.Tests' IndexingPipelineTests.
-public class IndexingControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class IndexingControllerTests : IClassFixture<TestApiFactory>
 {
     private sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
     {
@@ -46,7 +46,7 @@ public class IndexingControllerTests : IClassFixture<WebApplicationFactory<Progr
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public IndexingControllerTests(WebApplicationFactory<Program> factory) =>
+    public IndexingControllerTests(TestApiFactory factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));

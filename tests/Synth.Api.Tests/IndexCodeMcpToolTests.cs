@@ -14,7 +14,7 @@ namespace Synth.Api.Tests;
 // and — like the REST endpoint — returns immediately (fire-and-forget) rather than blocking until
 // indexing finishes. Runs offline: the real Ollama-backed embedding generator is swapped for a
 // deterministic fake (mirroring IndexingEndpointTests), so no live Ollama/Qdrant/git is needed.
-public class IndexCodeMcpToolTests : IClassFixture<WebApplicationFactory<Program>>
+public class IndexCodeMcpToolTests : IClassFixture<TestApiFactory>
 {
     private sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
     {
@@ -34,7 +34,7 @@ public class IndexCodeMcpToolTests : IClassFixture<WebApplicationFactory<Program
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public IndexCodeMcpToolTests(WebApplicationFactory<Program> factory) =>
+    public IndexCodeMcpToolTests(TestApiFactory factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new FakeEmbeddingGenerator())));

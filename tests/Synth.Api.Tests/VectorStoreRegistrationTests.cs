@@ -17,7 +17,7 @@ public class VectorStoreRegistrationTests
     [Fact]
     public void ICodeChunkStore_falls_back_to_Local_without_a_qdrant_connection()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new TestApiFactory();
         using var scope = factory.Services.CreateScope();
 
         var store = scope.ServiceProvider.GetService<ICodeChunkStore>();
@@ -28,7 +28,7 @@ public class VectorStoreRegistrationTests
     [Fact]
     public void ICodeChunkStore_is_Qdrant_backed_when_a_qdrant_connection_is_present()
     {
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        using var factory = new TestApiFactory().WithWebHostBuilder(builder =>
             // Stand in for the connection string Aspire injects via service discovery.
             builder.UseSetting($"ConnectionStrings:{VectorStoreServiceExtensions.QdrantConnectionName}", QdrantConnectionString));
         using var scope = factory.Services.CreateScope();

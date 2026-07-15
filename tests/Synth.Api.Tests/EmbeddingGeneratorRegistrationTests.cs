@@ -9,14 +9,14 @@ namespace Synth.Api.Tests;
 // the Aspire-supplied connection string (no hardcoded value in the app). The Ollama
 // client is created lazily and does not open a socket, so this runs without a live
 // Ollama server/Docker.
-public class EmbeddingGeneratorRegistrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class EmbeddingGeneratorRegistrationTests : IClassFixture<TestApiFactory>
 {
     // Endpoint;Model shape Aspire injects for a referenced Ollama model resource.
     private const string TestConnectionString = "Endpoint=http://localhost:11434;Model=nomic-embed-text";
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public EmbeddingGeneratorRegistrationTests(WebApplicationFactory<Program> factory) =>
+    public EmbeddingGeneratorRegistrationTests(TestApiFactory factory) =>
         _factory = factory.WithWebHostBuilder(builder =>
             // Stand in for the connection string Aspire injects via service discovery.
             builder.UseSetting("ConnectionStrings:embeddings", TestConnectionString));

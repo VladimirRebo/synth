@@ -15,14 +15,14 @@ namespace Synth.Api.Tests;
 // MCP tools do and are scoped by collection. Hermetic: the DI ICodeGraphStore is swapped for an
 // in-memory store seeded with known edges (no Mongo/Docker), mirroring SearchEndpointTests'
 // fake-dependency approach.
-public class CallGraphControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class CallGraphControllerTests : IClassFixture<TestApiFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions =
         new() { PropertyNameCaseInsensitive = true };
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public CallGraphControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public CallGraphControllerTests(TestApiFactory factory) => _factory = factory;
 
     private static CallEdge Edge(string collection, string caller, string callee) =>
         new(collection, caller, callee, $"{caller}.cs", 42);

@@ -110,7 +110,7 @@ public class DeleteCollectionMcpToolTests
     [Fact]
     public void Delete_collection_tool_is_registered_on_the_mcp_server()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new TestApiFactory();
 
         var tools = factory.Services.GetServices<McpServerTool>();
 

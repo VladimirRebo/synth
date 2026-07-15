@@ -18,11 +18,11 @@ namespace Synth.Api.Tests;
 // configuration layer, so the round trip is hermetic and the store's Changed event genuinely reloads
 // IOptionsMonitor<EmbeddingOptions>. The network-talking piece (the probe generator) is faked, so no
 // live Ollama/OpenAI is needed and the probe can be made to succeed or fail deterministically.
-public class EmbeddingSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class EmbeddingSettingsControllerTests : IClassFixture<TestApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public EmbeddingSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public EmbeddingSettingsControllerTests(TestApiFactory factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(
         string? initialJson = null, IEmbeddingGeneratorFactory? probeFactory = null)

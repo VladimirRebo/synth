@@ -15,13 +15,13 @@ namespace Synth.Api.Tests;
 // fully deterministic (no live Serilog pipeline, no timing) and every filter can be asserted
 // precisely. Only the store substitution changed from the pre-SYNTH-28 version (was a raw
 // RingBufferLogSink); the filter behavior under test is unchanged.
-public class LogsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class LogsControllerTests : IClassFixture<TestApiFactory>
 {
     private static readonly DateTimeOffset Base = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public LogsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public LogsControllerTests(TestApiFactory factory) => _factory = factory;
 
     private HttpClient CreateClient(ILogEntryStore store) =>
         _factory

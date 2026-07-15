@@ -16,11 +16,11 @@ namespace Synth.Api.Tests;
 // configured), mirroring CallGraphEndpointTests' fake-dependency approach. Proves the two routes behave
 // exactly as before the conversion — pagination/validation on GET, the deleted collection no longer
 // listing, an unknown collection returning 404, and the cloned-remote checkout cleanup.
-public class RepositoriesControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class RepositoriesControllerTests : IClassFixture<TestApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public RepositoriesControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public RepositoriesControllerTests(TestApiFactory factory) => _factory = factory;
 
     private HttpClient CreateClient(IRepositoryRegistry registry, string? workspaceRoot = null) =>
         _factory

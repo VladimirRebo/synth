@@ -14,11 +14,11 @@ namespace Synth.Api.Tests;
 // IConfigStore is shared between the controller/command handler (via DI) and an extra configuration
 // layer, so the round trip is hermetic (no Mongo, Docker, or ~/.synth/config.json) AND the store's
 // Changed event genuinely reloads IOptionsMonitor<VcsOptions> — the reload path the handler relies on.
-public class VcsSettingsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class VcsSettingsControllerTests : IClassFixture<TestApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TestApiFactory _factory;
 
-    public VcsSettingsControllerTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public VcsSettingsControllerTests(TestApiFactory factory) => _factory = factory;
 
     private (HttpClient Client, InMemoryConfigStore Store) CreateClient(
         string? initialJson = null, FakeHttpClientFactory? probeFactory = null)

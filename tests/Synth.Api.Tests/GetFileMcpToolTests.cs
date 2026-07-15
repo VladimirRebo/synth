@@ -91,7 +91,7 @@ public sealed class GetFileMcpToolTests : IDisposable
     [Fact]
     public void Get_file_tool_is_registered_on_the_mcp_server()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new TestApiFactory();
 
         var tools = factory.Services.GetServices<McpServerTool>();
 
