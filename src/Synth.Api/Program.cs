@@ -18,90 +18,51 @@ using Synth.Infrastructure.Vcs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog sink that captures log events onto a bounded channel (SYNTH-28). Constructed once here
-// so it can be attached to Serilog below; the actual persistence happens off the request hot path
-// on LogEntryStoreWriter's background thread, into the ILogEntryStore wired by AddSynthLogging
-// (the local SQLite store). Emit itself only enqueues, so it never touches the database.
+// Captures log events onto a bounded channel; a background writer drains it into the SQLite log
+// store off the request hot path, so Emit itself never touches the database.
 var logSink = new LogEntryStoreSink();
 
-// Serilog, wired early (before other builder calls that might log) so structured events exist to
-// capture. Console output is preserved for local-dev visibility; writeToProviders keeps the
-// Aspire/OpenTelemetry logging pipeline (registered by AddServiceDefaults) working alongside.
+// Wired before any other builder call that might log. writeToProviders keeps the Aspire/OpenTelemetry
+// pipeline (registered by AddServiceDefaults below) working alongside the console + sink.
 builder.Host.UseSerilog((context, loggerConfig) => loggerConfig
     .ReadFrom.Configuration(context.Configuration)
     .WriteTo.Console()
     .WriteTo.Sink(logSink), writeToProviders: true);
 
-// Log persistence: registers the sink as a DI singleton, wires the ILogEntryStore to the local
-// SQLite store (shared ~/.synth/synth.db, like the config/registry/graph stores), and starts the
-// background service that drains the sink's channel into that store.
 builder.AddSynthLogging(logSink);
-
-// Aspire service defaults: OpenTelemetry, health checks, and service discovery.
 builder.AddServiceDefaults();
 
-// Serialize enums (e.g. CodeSearchResult.ChunkType) as their string name, not the underlying
-// int, in Minimal API JSON responses — matches the MCP tool's own serialization (which already
-// renders ChunkType as e.g. "Method"), so the two search transports agree on the wire shape.
+// Serialize enums as their string name (e.g. "Method", not the underlying int) so Controller and MCP
+// tool responses agree on the wire shape.
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-
-// Controllers (issue #82, slice 10): the endpoint-mapping files are being converted from Minimal
-// APIs to Controllers one at a time — SearchController is the first. AddControllers() is set up
-// once here (later conversions just rely on it). The same JsonStringEnumConverter is applied to the
-// Controller JSON pipeline so Controller and still-Minimal-API responses agree on the wire shape
-// (enums as their string name) until every endpoint file has converted.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// Config layering: appsettings.json (bootstrap) -> IConfigStore document
-// (local ~/.synth/config.json, live-reloaded) -> environment variables (always win).
+// Config layering: appsettings.json (bootstrap) -> IConfigStore document (local ~/.synth/config.json,
+// live-reloaded) -> environment variables (always win).
 builder.AddSynthConfigStore();
 
-// Embedding generator (Ollama-backed IEmbeddingGenerator<string, Embedding<float>>).
-// The endpoint + model arrive via Aspire service discovery from the AppHost's Ollama
-// resource; the client connects lazily, so no live Ollama is needed to start up.
 builder.AddSynthEmbeddings();
-
-// Vector store for code chunks. Uses Qdrant when the AppHost supplies a "qdrant"
-// connection (endpoint + API key via service discovery), otherwise an in-memory Local
-// store — the same fallback tests and Docker-less local dev run on. Registers ICodeChunkStore.
 builder.AddSynthVectorStore();
-
-// Indexing pipeline: registers the file chunkers + IndexingPipeline that walks a
-// directory, chunks/embeds each file and upserts the chunks into the vector store.
 builder.AddSynthIndexing();
-
-// VCS layer: GitRepoService (clone/fetch remote repos) + the repository registry that
-// records what has been indexed, backed by the local ~/.synth/synth.db SQLite file.
 builder.AddSynthVcs();
 
-// Startup orphan sweep (SYNTH-45): a one-shot hosted service that GCs workspace-root checkouts with
-// no matching registry entry (collections deleted before checkout cleanup existed, or removed
-// out-of-band). Registered like LogEntryStoreWriter (SYNTH-28); runs once at startup and returns.
+// One-shot hosted service: GCs workspace-root checkouts with no matching registry entry.
 builder.Services.AddHostedService<OrphanCheckoutSweeper>();
 
-// Call-graph storage: registers ICodeGraphStore for structural "who calls X / what does X call"
-// edges (issue #33), backed by the local ~/.synth/synth.db SQLite file. Registration only —
-// extraction (SYNTH-26) and query tools (SYNTH-27) build on top of it later.
 builder.AddSynthCodeGraph();
 
-// Health checks: registers IHealthCheckService (real Qdrant + embedding reachability probes) and
-// its Qdrant probe seam, backing the GET /health endpoint below. Depends on the QdrantClient and
-// IEmbeddingGeneratorFactory registered above, so it comes after the vector store + embeddings.
+// Depends on the QdrantClient + IEmbeddingGeneratorFactory registered above, so it must come after
+// the vector store and embeddings.
 builder.Services.AddSynthHealthChecks();
 
-// Search layer: registers QueryExpander + CodeSearchService (over-fetch, rerank, dedup)
-// on top of the embedding generator and vector store registered above.
 builder.AddSynthSearch();
 
-// Microsoft Agent Framework: register one minimal offline example agent.
-// Proof-of-wiring only — see SYNTH-5; does not replace the existing agent loop.
+// Proof-of-wiring for the Microsoft Agent Framework only; does not replace the existing agent loop.
 builder.Services.AddSynthAgents();
 
-// MCP layer: register the MCP server with HTTP transport and the transport-agnostic
-// `search_code` tool wrapping CodeSearchService. Endpoints are mapped via MapMcp below.
 builder.AddSynthMcp();
 
 var app = builder.Build();
@@ -120,49 +81,13 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
 }));
 
-// Aspire default endpoints (liveness at /alive in development). Synth.Api keeps
-// ownership of the readiness endpoint at /health below.
+// Aspire liveness endpoint (/alive in development). Synth.Api keeps ownership of the readiness
+// endpoint at /health, served by HealthController below.
 app.MapDefaultEndpoints();
 
-// Readiness check (GET /health): probes Qdrant and the configured embedding provider (cached briefly
-// by the service so polling doesn't hammer either). A fully healthy system still returns 200 so nothing
-// checking only status-code-200 regresses; if a component is down the body reports which and the status
-// code is 503. Served by HealthController, mapped by app.MapControllers() below (SYNTH-74).
-
-// GET/PUT /settings/vcs (read/write the workspace root and provider tokens at runtime, masking
-// secrets and live-reloading IOptionsMonitor<VcsOptions>) is a Controller — VcsSettingsController,
-// mapped by app.MapControllers() below (SYNTH-68).
-
-// GET/PUT /settings/embedding (read/write the provider/model/key at runtime, masking the OpenAI key
-// and probing a candidate config before it is persisted so a broken provider is never saved) is a
-// Controller — EmbeddingSettingsController, mapped by app.MapControllers() below (SYNTH-69).
-
-// Ollama model picker for the Embedding settings (SYNTH-50) — list locally-available models
-// (GET /settings/embedding/ollama/models), pull a new one (POST .../pull) with polled progress
-// (GET .../pull/status) — is served by EmbeddingSettingsController, mapped by app.MapControllers()
-// below (SYNTH-70). Fire-and-forget + polling, matching the indexing job pattern — no SSE.
-
-// Advanced Settings escape hatch (GET/PUT /settings/raw): read/replace the whole config document as
-// plain JSON, secrets unmasked, no probe — a deliberate power-user path that trusts the caller and
-// validates only that the body is a well-formed JSON object. Shares the section endpoints' reload path.
-// Served by RawSettingsController, mapped by app.MapControllers() below (SYNTH-71).
-
-// Plain REST call-graph queries (GET /callers?symbol=..., GET /callees?symbol=...) — the
-// human-facing equivalent of the find_callers/find_callees MCP tools over ICodeGraphStore.
-// Served by CallGraphController, mapped by app.MapControllers() below (SYNTH-72).
-
-// Filterable read of the in-memory log ring buffer (GET /logs?level=&since=&search=) so the Vue
-// client can poll the live log — `since` returns only entries newer than the last poll.
-// Served by LogsController, mapped by app.MapControllers() below (SYNTH-73).
-
-// Controller routes (issue #82): SearchController (GET /search, GET
-// /repositories/{collection}/files/{*relativePath}), IndexingController (POST /index, GET
-// /index/status) and RepositoriesController (GET /repositories, DELETE /repositories/{collection})
-// auto-register their routes here — no per-file mapping call needed. Runs once; later endpoint-file
-// conversions reuse this same call.
 app.MapControllers();
 
-// MCP Streamable HTTP transport endpoints (the `search_code` tool is served here).
+// MCP Streamable HTTP transport (the search_code/get_symbol/... tools are served here).
 app.MapMcp("/mcp");
 
 app.Run();
