@@ -73,19 +73,19 @@ export interface RepositoryEntry {
 
 export type IndexSource = { path: string } | { repoUrl: string; branch?: string }
 
-// Mirrors Synth.Api.Vcs.VcsSettingsResponse. Tokens are never sent by the server — only
+// Mirrors Synth.Api.Vcs.VcsSettingsResponse. Tokens/secrets are never sent by the server — only
 // whether one is currently set.
 export interface VcsSettings {
   workspaceRoot: string | null
-  github: { tokenSet: boolean }
+  github: { tokenSet: boolean; webhookSecretSet: boolean }
   gitlab: { tokenSet: boolean }
 }
 
 // PUT patch shape: a field present-but-omitted-here is left unchanged server-side; an explicit
-// empty string clears a token back to anonymous access.
+// empty string clears a token/secret back to anonymous access / webhooks rejected.
 export interface VcsSettingsPatch {
   workspaceRoot?: string | null
-  github?: { token?: string }
+  github?: { token?: string; webhookSecret?: string }
   gitlab?: { token?: string }
 }
 

@@ -39,6 +39,7 @@ public sealed class UpdateVcsSettingsCommandHandler
     private const string GitHubKey = "GitHub";
     private const string GitLabKey = "GitLab";
     private const string TokenKey = "Token";
+    private const string WebhookSecretKey = "WebhookSecret";
 
     // Public API endpoints hit for the auth check (see VcsOptions: no configurable host, hence
     // gitlab.com only). A short timeout so an unreachable/hung provider fails the PUT quickly.
@@ -91,8 +92,9 @@ public sealed class UpdateVcsSettingsCommandHandler
             if (TryGetPropertyIgnoreCase(body, "workspaceRoot", out var workspaceRoot))
                 section[WorkspaceRootKey] = ToStringValueOrNull(workspaceRoot);
 
-            ApplyTokenUpdate(body, "github", section, GitHubKey);
-            ApplyTokenUpdate(body, "gitlab", section, GitLabKey);
+            ApplyProviderStringField(body, "github", section, GitHubKey, "token", TokenKey);
+            ApplyProviderStringField(body, "github", section, GitHubKey, "webhookSecret", WebhookSecretKey);
+            ApplyProviderStringField(body, "gitlab", section, GitLabKey, "token", TokenKey);
         }, cancellationToken);
 
         // The store's Changed event has already reloaded IConfiguration synchronously on save,
@@ -100,16 +102,19 @@ public sealed class UpdateVcsSettingsCommandHandler
         return UpdateVcsSettingsResult.Ok(VcsSettingsResponse.Mask(_options.CurrentValue));
     }
 
-    // Applies the token for one provider block: only touches the section when the block AND its
-    // "token" field are present, so a partial PUT that omits a provider leaves its stored token intact.
-    // An empty string (or JSON null) clears the token back to anonymous access.
-    private static void ApplyTokenUpdate(JsonElement body, string requestProperty, JsonObject section, string sectionKey)
+    // Applies one string field (token, webhookSecret, ...) of one provider block: only touches the
+    // section when the block AND that field are present, so a partial PUT that omits a provider (or
+    // omits just this field) leaves its stored value intact. An empty string (or JSON null) clears
+    // the value back to null (anonymous access for a token; "webhooks rejected" for a webhook secret).
+    private static void ApplyProviderStringField(
+        JsonElement body, string requestProperty, JsonObject section, string sectionKey,
+        string jsonFieldName, string configFieldName)
     {
         if (!TryGetPropertyIgnoreCase(body, requestProperty, out var provider) ||
             provider.ValueKind != JsonValueKind.Object)
             return;
 
-        if (!TryGetPropertyIgnoreCase(provider, "token", out var token))
+        if (!TryGetPropertyIgnoreCase(provider, jsonFieldName, out var fieldValue))
             return;
 
         if (section[sectionKey] is not JsonObject providerSection)
@@ -118,16 +123,14 @@ public sealed class UpdateVcsSettingsCommandHandler
             section[sectionKey] = providerSection;
         }
 
-        var value = ToStringValueOrNull(token);
-        // Empty string means "clear"; store null so the masked view reads as not-set and git falls
-        // back to anonymous access.
-        providerSection[TokenKey] = string.IsNullOrEmpty(value) ? null : value;
+        var value = ToStringValueOrNull(fieldValue);
+        providerSection[configFieldName] = string.IsNullOrEmpty(value) ? null : value;
     }
 
     // True when the request sets a *new, non-empty* token for the provider block (block present &
-    // an object, "token" field present, value a non-empty string) — the exact case ApplyTokenUpdate
-    // would persist as a set token. An omitted provider, an omitted token field, or a clearing empty
-    // string / null yields false, so those are never probed.
+    // an object, "token" field present, value a non-empty string) — the exact case
+    // ApplyProviderStringField would persist as a set token. An omitted provider, an omitted token
+    // field, or a clearing empty string / null yields false, so those are never probed.
     private static bool TryGetNewToken(JsonElement body, string requestProperty, out string token)
     {
         token = string.Empty;

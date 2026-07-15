@@ -27,6 +27,8 @@ const vcs = ref<VcsSettings | null>(null)
 const workspaceRoot = ref('')
 const githubToken = ref('')
 const githubClear = ref(false)
+const githubWebhookSecret = ref('')
+const githubWebhookSecretClear = ref(false)
 const gitlabToken = ref('')
 const gitlabClear = ref(false)
 const vcsStatus = ref<SaveStatus>('idle')
@@ -89,6 +91,8 @@ function applyVcs(settings: VcsSettings) {
   workspaceRoot.value = settings.workspaceRoot ?? ''
   githubToken.value = ''
   githubClear.value = false
+  githubWebhookSecret.value = ''
+  githubWebhookSecretClear.value = false
   gitlabToken.value = ''
   gitlabClear.value = false
 }
@@ -209,8 +213,13 @@ async function saveVcs() {
   if (workspaceRoot.value.trim() !== (vcs.value.workspaceRoot ?? '')) {
     patch.workspaceRoot = workspaceRoot.value.trim() || null
   }
-  if (githubClear.value) patch.github = { token: '' }
-  else if (githubToken.value) patch.github = { token: githubToken.value }
+  const github: { token?: string; webhookSecret?: string } = {}
+  if (githubClear.value) github.token = ''
+  else if (githubToken.value) github.token = githubToken.value
+  if (githubWebhookSecretClear.value) github.webhookSecret = ''
+  else if (githubWebhookSecret.value) github.webhookSecret = githubWebhookSecret.value
+  if (Object.keys(github).length > 0) patch.github = github
+
   if (gitlabClear.value) patch.gitlab = { token: '' }
   else if (gitlabToken.value) patch.gitlab = { token: gitlabToken.value }
 
@@ -326,6 +335,28 @@ const providerLabel = computed(() =>
               <input v-model="githubClear" type="checkbox" :disabled="!vcs?.github.tokenSet" />
               Clear
             </label>
+          </div>
+          <div class="field">
+            <label>GitHub webhook secret</label>
+            <input
+              v-model="githubWebhookSecret"
+              type="password"
+              :disabled="githubWebhookSecretClear"
+              :placeholder="vcs?.github.webhookSecretSet ? '•••• (set — leave blank to keep)' : 'not set'"
+            />
+            <label class="clear-toggle">
+              <input
+                v-model="githubWebhookSecretClear"
+                type="checkbox"
+                :disabled="!vcs?.github.webhookSecretSet"
+              />
+              Clear
+            </label>
+            <p class="hint">
+              Paste the same secret into the repo's GitHub Settings → Webhooks → Add webhook (Payload
+              URL: this server's <code>/webhooks/github</code>, content type
+              <code>application/json</code>, event: <code>push</code>).
+            </p>
           </div>
           <div class="field">
             <label>GitLab token</label>
