@@ -28,6 +28,9 @@ public class DeleteCollectionCommandHandlerTests
         public void RemoveCheckout(string slug) => RemovedCheckoutSlug = slug;
 
         public string ResolveCheckoutPath(string slug) => slug;
+
+        public Task<string?> GetRemoteHeadShaAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
     }
 
     private static async Task<InMemoryRepositoryRegistry> SeededRegistry(

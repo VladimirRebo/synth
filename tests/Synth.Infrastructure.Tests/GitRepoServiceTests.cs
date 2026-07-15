@@ -126,6 +126,69 @@ public sealed class GitRepoServiceTests : IDisposable
         Assert.Equal("v1", File.ReadAllText(Path.Combine(results[0], "README.md")));
     }
 
+    [Fact]
+    public async Task GetRemoteHeadShaAsync_returns_the_default_branchs_head_sha()
+    {
+        var expected = Git(_authoring, "rev-parse", "HEAD");
+        var service = NewService();
+
+        var sha = await service.GetRemoteHeadShaAsync(_originUrl, branch: null);
+
+        Assert.Equal(expected, sha);
+    }
+
+    [Fact]
+    public async Task GetRemoteHeadShaAsync_changes_after_a_new_commit_is_pushed_upstream()
+    {
+        var service = NewService();
+        var before = await service.GetRemoteHeadShaAsync(_originUrl, branch: null);
+
+        CommitFile("README.md", "v2");
+        Git(_authoring, "push", "origin", "main");
+        var after = await service.GetRemoteHeadShaAsync(_originUrl, branch: null);
+
+        Assert.NotEqual(before, after);
+        Assert.Equal(Git(_authoring, "rev-parse", "HEAD"), after);
+    }
+
+    [Fact]
+    public async Task GetRemoteHeadShaAsync_resolves_a_specific_branch()
+    {
+        Git(_authoring, "checkout", "-b", "feature");
+        CommitFile("feature.txt", "on feature");
+        Git(_authoring, "push", "-u", "origin", "feature");
+        var featureSha = Git(_authoring, "rev-parse", "feature");
+        Git(_authoring, "checkout", "main");
+
+        var service = NewService();
+        var sha = await service.GetRemoteHeadShaAsync(_originUrl, branch: "feature");
+
+        Assert.Equal(featureSha, sha);
+        // The default branch's own SHA is unaffected — proves the ref argument was actually used.
+        Assert.NotEqual(featureSha, await service.GetRemoteHeadShaAsync(_originUrl, branch: null));
+    }
+
+    [Fact]
+    public async Task GetRemoteHeadShaAsync_returns_null_for_an_unknown_branch()
+    {
+        var service = NewService();
+
+        var sha = await service.GetRemoteHeadShaAsync(_originUrl, branch: "does-not-exist");
+
+        Assert.Null(sha);
+    }
+
+    [Fact]
+    public async Task GetRemoteHeadShaAsync_never_touches_the_local_checkout()
+    {
+        // Purely a remote query — no workspace-root directory should be created at all.
+        var service = NewService();
+
+        await service.GetRemoteHeadShaAsync(_originUrl, branch: null);
+
+        Assert.False(Directory.Exists(_workspaceRoot));
+    }
+
     private void CommitFile(string relativePath, string content)
     {
         File.WriteAllText(Path.Combine(_authoring, relativePath), content);
@@ -134,7 +197,8 @@ public sealed class GitRepoServiceTests : IDisposable
     }
 
     // Runs git in the given directory with a throwaway identity so no global git config is needed.
-    private static void Git(string workingDirectory, params string[] arguments)
+    // Returns trimmed stdout, so a caller wanting e.g. `rev-parse HEAD`'s SHA can just capture it.
+    private static string Git(string workingDirectory, params string[] arguments)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -159,10 +223,13 @@ public sealed class GitRepoServiceTests : IDisposable
             startInfo.ArgumentList.Add(argument);
 
         using var process = Process.Start(startInfo)!;
+        var stdout = process.StandardOutput.ReadToEnd();
         var stderr = process.StandardError.ReadToEnd();
         process.WaitForExit();
         if (process.ExitCode != 0)
             throw new InvalidOperationException($"git {string.Join(' ', arguments)} failed: {stderr}");
+
+        return stdout.Trim();
     }
 
     public void Dispose()

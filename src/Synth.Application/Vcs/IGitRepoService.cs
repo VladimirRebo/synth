@@ -35,4 +35,15 @@ public interface IGitRepoService
     /// referencing the concrete <c>GitRepoService</c>.
     /// </summary>
     string ResolveCheckoutPath(string slug);
+
+    /// <summary>
+    /// Cheaply resolves the current HEAD commit SHA of <paramref name="branch"/> (the repository's
+    /// default branch when null/empty) on <paramref name="repoUrl"/>'s remote, without cloning or
+    /// fetching — a single <c>git ls-remote</c> round trip. Exposed on the port so
+    /// <c>RepositoryPollingService</c> can check for a new commit without pulling in the concrete
+    /// <c>GitRepoService</c>. Returns null if the remote has no ref matching <paramref name="branch"/>
+    /// (e.g. it was renamed or deleted upstream) rather than throwing — a poll tick that can't resolve
+    /// one repository should not take down the others.
+    /// </summary>
+    Task<string?> GetRemoteHeadShaAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default);
 }

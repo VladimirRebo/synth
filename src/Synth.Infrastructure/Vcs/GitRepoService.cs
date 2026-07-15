@@ -98,6 +98,34 @@ public sealed class GitRepoService : IGitRepoService
     }
 
     /// <summary>
+    /// Cheaply resolves <paramref name="repoUrl"/>'s current remote HEAD commit SHA for
+    /// <paramref name="branch"/> (the default branch when null/empty) via a single <c>git ls-remote</c>
+    /// call — no clone, no fetch, no local checkout touched. Used by <c>RepositoryPollingService</c> to
+    /// check for a new commit before paying for a full reindex.
+    /// </summary>
+    public async Task<string?> GetRemoteHeadShaAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repoUrl);
+
+        var info = RepoUrlInfo.Parse(repoUrl);
+        var options = _options.CurrentValue;
+        var auth = AuthArgs(info.Provider, TokenFor(info.Provider, options));
+
+        var gitRef = string.IsNullOrWhiteSpace(branch) ? "HEAD" : $"refs/heads/{branch}";
+        var args = new List<string>(auth) { "ls-remote", repoUrl, gitRef };
+
+        // ls-remote needs no repository of its own to run from — the system temp dir always exists and
+        // is never mutated by it.
+        var stdout = await RunGitAsync(Path.GetTempPath(), args, cancellationToken).ConfigureAwait(false);
+
+        // Output is "<sha>\t<ref>" per matching ref, or empty if nothing matched (unknown/renamed
+        // branch) — take the first line's SHA, the only case that can occur for a single exact ref.
+        var firstLine = stdout.AsSpan().TrimStart();
+        var tabIndex = firstLine.IndexOf('\t');
+        return tabIndex > 0 ? firstLine[..tabIndex].ToString() : null;
+    }
+
+    /// <summary>
     /// Resolves the configured workspace root (the directory that holds one checkout subdirectory per
     /// repository slug), applying the same default-path/env-expansion logic <see cref="EnsureRepoAsync"/>
     /// and <see cref="ResolveCheckoutPath"/> use, so the three never drift. Used by the startup orphan

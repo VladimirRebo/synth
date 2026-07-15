@@ -31,6 +31,9 @@ public class DeleteCollectionMcpToolTests
         public void RemoveCheckout(string slug) { }
 
         public string ResolveCheckoutPath(string slug) => slug;
+
+        public Task<string?> GetRemoteHeadShaAsync(string repoUrl, string? branch = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
     }
 
     private static DeleteCollectionCommandHandler CreateHandler(

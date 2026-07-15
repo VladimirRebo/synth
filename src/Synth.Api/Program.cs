@@ -52,6 +52,11 @@ builder.AddSynthVcs();
 // One-shot hosted service: GCs workspace-root checkouts with no matching registry entry.
 builder.Services.AddHostedService<OrphanCheckoutSweeper>();
 
+// Periodic background loop: checks every repoUrl-indexed collection's remote for a new commit and
+// reindexes on change. Api-host-only (like the sweeper above) — not run by Synth.Mcp.Stdio, so only
+// one process ever owns this loop.
+builder.Services.AddHostedService<RepositoryPollingService>();
+
 builder.AddSynthCodeGraph();
 
 // Depends on the QdrantClient + IEmbeddingGeneratorFactory registered above, so it must come after

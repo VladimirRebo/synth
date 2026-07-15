@@ -32,6 +32,10 @@ public static class VcsServiceExtensions
         builder.Services.TryAddSingleton<SqliteConnectionFactory>();
         builder.Services.AddSingleton<IRepositoryRegistry>(sp =>
             new SqliteRepositoryRegistry(sp.GetRequiredService<SqliteConnectionFactory>()));
+        // Bookkeeping for RepositoryPollingService (registered separately, Api-host-only, like
+        // OrphanCheckoutSweeper) — shared here regardless so it's available wherever AddSynthVcs runs.
+        builder.Services.AddSingleton<IRepositoryPollState>(sp =>
+            new SqlitePollStateStore(sp.GetRequiredService<SqliteConnectionFactory>()));
         // CQRS command handler for the collection-delete flow (SYNTH-67, issue #82). Explicit
         // one-line registration, no scanning — DELETE /repositories/{collection} and the
         // delete_collection MCP tool resolve it by its ICommandHandler<DeleteCollectionCommand, bool>
