@@ -23,6 +23,7 @@ public sealed class IndexRepositoryCommandHandler
     private readonly IndexingPipeline _pipeline;
     private readonly IGitRepoService _gitRepoService;
     private readonly IRepositoryRegistry _registry;
+    private readonly ICodeChunkStore _store;
     private readonly IIndexJobTracker _tracker;
     private readonly ILogger _logger;
 
@@ -30,12 +31,14 @@ public sealed class IndexRepositoryCommandHandler
         IndexingPipeline pipeline,
         IGitRepoService gitRepoService,
         IRepositoryRegistry registry,
+        ICodeChunkStore store,
         IIndexJobTracker tracker,
         ILoggerFactory loggerFactory)
     {
         _pipeline = pipeline;
         _gitRepoService = gitRepoService;
         _registry = registry;
+        _store = store;
         _tracker = tracker;
         _logger = loggerFactory.CreateLogger(typeof(IndexRepositoryCommandHandler).FullName!);
     }
@@ -141,9 +144,14 @@ public sealed class IndexRepositoryCommandHandler
                     collection, indexRoot, CancellationToken.None, progress, repoInfo, branch);
 
                 // Registry upsert moved here from the endpoint body: it can no longer happen before
-                // the response is sent, so it runs once the work actually finished.
+                // the response is sent, so it runs once the work actually finished. ChunkCount reads
+                // the store's true total rather than summary.ChunksIndexed: the latter is only this
+                // run's newly-(re-)embedded delta, which is legitimately 0 on an incremental reindex
+                // where every file was unchanged — using it here would clobber the displayed count to
+                // zero even though the collection still holds every chunk from the prior run.
+                var chunkCount = await _store.CountAsync(collection, CancellationToken.None);
                 await _registry.UpsertAsync(
-                    entry with { ChunkCount = summary.ChunksIndexed, LastIndexedAt = DateTime.UtcNow },
+                    entry with { ChunkCount = chunkCount, LastIndexedAt = DateTime.UtcNow },
                     CancellationToken.None);
 
                 _tracker.Complete(summary.FilesIndexed, summary.FilesSkipped, summary.ChunksIndexed);

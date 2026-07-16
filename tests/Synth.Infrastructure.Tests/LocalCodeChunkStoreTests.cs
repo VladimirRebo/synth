@@ -226,4 +226,24 @@ public class LocalCodeChunkStoreTests
         // Should not throw for a collection that was never created.
         await store.DeleteCollectionAsync("never-created");
     }
+
+    [Fact]
+    public async Task CountAsync_returns_the_total_chunks_in_a_collection()
+    {
+        var store = new LocalCodeChunkStore();
+        await store.UpsertAsync("repo-a", [Chunk("a.cs", 1, [1f, 0f]), Chunk("a.cs", 5, [1f, 0f])]);
+        await store.UpsertAsync("repo-b", [Chunk("b.cs", 1, [1f, 0f])]);
+
+        // Scoped per collection, and unaffected by a second collection's chunk count.
+        Assert.Equal(2, await store.CountAsync("repo-a"));
+        Assert.Equal(1, await store.CountAsync("repo-b"));
+    }
+
+    [Fact]
+    public async Task CountAsync_is_zero_for_an_unknown_collection()
+    {
+        var store = new LocalCodeChunkStore();
+
+        Assert.Equal(0, await store.CountAsync("never-created"));
+    }
 }

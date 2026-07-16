@@ -137,6 +137,13 @@ public sealed class LocalCodeChunkStore : ICodeChunkStore
         return Task.CompletedTask;
     }
 
+    public Task<int> CountAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+
+        return Task.FromResult(_collections.TryGetValue(collection, out var bucket) ? bucket.Count : 0);
+    }
+
     // Cosine similarity in [-1, 1]; 0 when either vector has zero magnitude. Assumes the
     // spans have equal length (guaranteed by the caller's length filter).
     private static float CosineSimilarity(ReadOnlyMemory<float> aMemory, ReadOnlyMemory<float> bMemory)

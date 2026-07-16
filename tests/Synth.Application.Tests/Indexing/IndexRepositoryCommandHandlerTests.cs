@@ -106,16 +106,18 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
 
     private IndexRepositoryCommandHandler CreateHandler(IGitRepoService? git = null)
     {
+        var store = new LocalCodeChunkStore();
         var pipeline = new IndexingPipeline(
             [new CSharpRoslynChunker()],
             new FakeEmbeddingGenerator(),
-            new LocalCodeChunkStore(),
+            store,
             new FakeCodeGraphStore());
 
         return new IndexRepositoryCommandHandler(
             pipeline,
             git ?? new FakeGitRepoService(_root),
             _registry,
+            store,
             _tracker,
             NullLoggerFactory.Instance);
     }
@@ -163,6 +165,38 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
         Assert.Equal("local", entry.SourceType);
         Assert.Equal(_root, entry.Source);
         Assert.Equal(_tracker.Current.ChunksIndexed, entry.ChunkCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_keeps_the_registrys_ChunkCount_at_the_store_total_on_an_unchanged_reindex()
+    {
+        // A second run over unchanged files hits IndexingPipeline's incremental skip for every file,
+        // so that run's own ChunksIndexed delta is legitimately 0 — the registry's ChunkCount must
+        // still reflect the store's real total from the first run, not get clobbered to 0.
+        WriteFile("Sample.cs", """
+            namespace Sample;
+
+            public class Greeter
+            {
+                public string Greet(string name) => $"Hello, {name}!";
+            }
+            """);
+
+        var handler = CreateHandler();
+
+        await handler.HandleAsync(new IndexRepositoryCommand(Path: _root));
+        await WaitForTerminalAsync();
+        var firstChunkCount = Assert.Single(
+            await _registry.ListAsync(), e => e.Collection == CollectionNames.Default).ChunkCount;
+        Assert.True(firstChunkCount > 0);
+
+        await handler.HandleAsync(new IndexRepositoryCommand(Path: _root));
+        await WaitForTerminalAsync();
+
+        Assert.Equal(0, _tracker.Current.ChunksIndexed); // This run's own delta: nothing changed.
+        var secondEntry = Assert.Single(
+            await _registry.ListAsync(), e => e.Collection == CollectionNames.Default);
+        Assert.Equal(firstChunkCount, secondEntry.ChunkCount); // But the store's total is unchanged.
     }
 
     [Fact]

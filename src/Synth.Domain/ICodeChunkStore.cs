@@ -81,4 +81,13 @@ public interface ICodeChunkStore
     Task DeleteCollectionAsync(
         string collection,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the total number of chunks currently held in <paramref name="collection"/> (0 for an
+    /// unknown collection). Used to record <see cref="Synth.Domain.Vcs.RepositoryEntry.ChunkCount"/>
+    /// after a run — the store's true total, not just the chunks that run happened to (re-)embed, so
+    /// an incremental reindex that skips every unchanged file still reports the real count instead of
+    /// clobbering it to the run's embed-delta (which can legitimately be zero).
+    /// </summary>
+    Task<int> CountAsync(string collection, CancellationToken cancellationToken = default);
 }

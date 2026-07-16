@@ -220,6 +220,17 @@ public sealed class QdrantCodeChunkStore : ICodeChunkStore
             .ConfigureAwait(false);
     }
 
+    public async Task<int> CountAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        var collectionName = SanitizeCollectionName(collection);
+
+        if (!await CollectionExistsAsync(collectionName, cancellationToken).ConfigureAwait(false))
+            return 0;
+
+        var info = await _client.GetCollectionInfoAsync(collectionName, cancellationToken).ConfigureAwait(false);
+        return (int)info.PointsCount;
+    }
+
     private Task<bool> CollectionExistsAsync(string collectionName, CancellationToken cancellationToken) =>
         _client.CollectionExistsAsync(collectionName, cancellationToken);
 
