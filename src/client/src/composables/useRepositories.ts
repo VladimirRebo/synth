@@ -6,16 +6,22 @@ import { listRepositories, type RepositoryEntry } from '../api'
 // cross-component-singleton pattern as useTheme/useSearchFocus, avoids prop/event drilling.
 const repositories = ref<RepositoryEntry[]>([])
 const loaded = ref(false)
+const error = ref('')
 
 export function useRepositories() {
   async function refresh() {
     try {
       const result = await listRepositories()
       repositories.value = Array.isArray(result) ? result : []
+      error.value = ''
+    } catch (err) {
+      // Leave the previous `repositories` value in place (stale-but-known beats empty-and-wrong)
+      // and surface the failure instead of swallowing it, so callers can show it to the user.
+      error.value = err instanceof Error ? err.message : String(err)
     } finally {
       loaded.value = true
     }
   }
 
-  return { repositories, loaded, refresh }
+  return { repositories, loaded, error, refresh }
 }

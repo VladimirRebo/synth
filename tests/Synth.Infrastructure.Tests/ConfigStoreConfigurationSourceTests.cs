@@ -82,4 +82,36 @@ public class ConfigStoreConfigurationSourceTests
 
         Assert.Equal("after", config["Key"]);
     }
+
+    [Fact]
+    public void Flattens_a_null_value_to_a_null_key()
+    {
+        const string json = """{ "Section": { "Key": null } }""";
+
+        var config = new ConfigurationBuilder()
+            .Add(new ConfigStoreConfigurationSource(new InMemoryConfigStore(json)))
+            .Build();
+
+        // A present-but-null key reads back as null, distinct from an absent key (also null) —
+        // the meaningful assertion here is that Flatten doesn't throw or stringify "null".
+        Assert.Null(config["Section:Key"]);
+    }
+
+    [Fact]
+    public async Task Disposing_the_provider_stops_it_reacting_to_further_store_changes()
+    {
+        var store = new InMemoryConfigStore("""{ "Key": "before" }""");
+        var provider = new ConfigStoreConfigurationProvider(store);
+        provider.Load();
+        Assert.True(provider.TryGet("Key", out var initial));
+        Assert.Equal("before", initial);
+
+        provider.Dispose();
+        await store.SaveAsync("""{ "Key": "after" }""");
+
+        // Dispose unsubscribes from IConfigStore.Changed, so the provider's own Data is never
+        // touched by a change that happens after disposal — it still holds what Load() last saw.
+        Assert.True(provider.TryGet("Key", out var afterDispose));
+        Assert.Equal("before", afterDispose);
+    }
 }
