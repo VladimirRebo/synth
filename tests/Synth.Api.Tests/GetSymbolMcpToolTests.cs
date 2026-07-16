@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Mcp;
 using Synth.Domain;
+using Synth.Domain.Vcs;
 using Synth.Infrastructure.Storage;
+using Synth.Infrastructure.Vcs;
 
 namespace Synth.Api.Tests;
 
@@ -24,6 +26,23 @@ public class GetSymbolMcpToolTests
             EndLine = startLine + 1,
         };
 
+    // A registry reporting CollectionNames.Default so an omitted `collection` argument resolves back
+    // to it (CollectionNameResolver's fast path), matching this file's pre-existing intent of "no
+    // collection specified" meaning the default collection.
+    private static async Task<IRepositoryRegistry> DefaultRegistry()
+    {
+        var registry = new InMemoryRepositoryRegistry();
+        await registry.UpsertAsync(new RepositoryEntry
+        {
+            Collection = CollectionNames.Default,
+            SourceType = "local",
+            Source = "/tmp/default",
+            LastIndexedAt = DateTime.UtcNow,
+            ChunkCount = 0,
+        });
+        return registry;
+    }
+
     [Fact]
     public async Task Get_symbol_tool_returns_matching_chunks_projected_to_results()
     {
@@ -33,9 +52,10 @@ public class GetSymbolMcpToolTests
             Chunk("repo.cs", "UserRepository", "GetUserById", startLine: 10),
             Chunk("hash.cs", "Hasher", "ComputeChecksum", startLine: 20),
         ]);
+        var registry = await DefaultRegistry();
 
         // Exact class lookup, case-insensitive — no vector search involved.
-        var results = await GetSymbolTool.GetSymbolAsync(store, className: "userrepository", methodName: null);
+        var results = await GetSymbolTool.GetSymbolAsync(store, registry, className: "userrepository", methodName: null);
 
         var only = Assert.Single(results);
         Assert.Equal("UserRepository", only.ClassName);
@@ -53,8 +73,9 @@ public class GetSymbolMcpToolTests
             Chunk("repo.cs", "UserRepository", "GetById", startLine: 10),
             Chunk("order.cs", "OrderRepository", "GetById", startLine: 5),
         ]);
+        var registry = await DefaultRegistry();
 
-        var results = await GetSymbolTool.GetSymbolAsync(store, className: null, methodName: "GetById");
+        var results = await GetSymbolTool.GetSymbolAsync(store, registry, className: null, methodName: "GetById");
 
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.Equal("GetById", r.MethodName));
@@ -64,9 +85,10 @@ public class GetSymbolMcpToolTests
     public async Task Get_symbol_tool_rejects_when_neither_class_nor_method_is_given()
     {
         var store = new LocalCodeChunkStore();
+        var registry = new InMemoryRepositoryRegistry();
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            GetSymbolTool.GetSymbolAsync(store, className: null, methodName: "   "));
+            GetSymbolTool.GetSymbolAsync(store, registry, className: null, methodName: "   "));
 
         Assert.Contains("at least one", ex.Message);
     }

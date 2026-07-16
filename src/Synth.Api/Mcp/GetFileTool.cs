@@ -44,9 +44,8 @@ public sealed class GetFileTool
         if (string.IsNullOrWhiteSpace(relativePath))
             throw new ArgumentException("'relativePath' is required.");
 
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
-
         var entries = await registry.ListAsync(cancellationToken);
+        var target = CollectionNameResolver.Resolve(collection, entries);
         var entry = entries.FirstOrDefault(e => string.Equals(e.Collection, target, StringComparison.Ordinal))
             ?? throw new ArgumentException($"Unknown collection: '{target}'.");
 

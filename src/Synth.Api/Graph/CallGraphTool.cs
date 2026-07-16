@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Synth.Domain.Graph;
+using Synth.Domain.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Graph;
@@ -29,6 +30,7 @@ public sealed class CallGraphTool
         "source file and line).")]
     public static async Task<IReadOnlyList<CallEdge>> FindCallersAsync(
         ICodeGraphStore store,
+        IRepositoryRegistry registry,
         [Description(
             "Qualified name of the symbol whose callers to find, in the extractor's " +
             "Namespace.ClassName.MethodName form (e.g. \"Synth.Application.CodeSearchService.SearchAsync\").")]
@@ -39,7 +41,7 @@ public sealed class CallGraphTool
         string collection = CollectionNames.Default,
         CancellationToken cancellationToken = default)
     {
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
         return await store.FindCallersAsync(target, symbol, cancellationToken);
     }
 
@@ -55,6 +57,7 @@ public sealed class CallGraphTool
         "and line).")]
     public static async Task<IReadOnlyList<CallEdge>> FindCalleesAsync(
         ICodeGraphStore store,
+        IRepositoryRegistry registry,
         [Description(
             "Qualified name of the symbol whose callees to find, in the extractor's " +
             "Namespace.ClassName.MethodName form (e.g. \"Synth.Application.CodeSearchService.SearchAsync\").")]
@@ -65,7 +68,7 @@ public sealed class CallGraphTool
         string collection = CollectionNames.Default,
         CancellationToken cancellationToken = default)
     {
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
         return await store.FindCalleesAsync(target, symbol, cancellationToken);
     }
 }

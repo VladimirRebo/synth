@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Synth.Domain;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Mcp;
 
@@ -29,6 +30,7 @@ public sealed class GetSymbolTool
         "matching both. Returns each match's file path, class/method name and source snippet.")]
     public static async Task<IReadOnlyList<SymbolResult>> GetSymbolAsync(
         ICodeChunkStore store,
+        IRepositoryRegistry registry,
         [Description(
             "Exact class (or interface) name to match, case-insensitive. Provide this and/or " +
             "'methodName' — at least one is required.")]
@@ -46,7 +48,7 @@ public sealed class GetSymbolTool
         if (string.IsNullOrWhiteSpace(className) && string.IsNullOrWhiteSpace(methodName))
             throw new ArgumentException("Provide at least one of 'className' or 'methodName'.");
 
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
         var chunks = await store.GetBySymbolAsync(
             target,
             string.IsNullOrWhiteSpace(className) ? null : className,

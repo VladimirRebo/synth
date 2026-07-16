@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Synth.Api.Graph;
 using Synth.Domain.Graph;
+using Synth.Domain.Vcs;
 using Synth.Infrastructure.Graph;
+using Synth.Infrastructure.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Tests;
@@ -27,12 +29,30 @@ public class CallGraphMcpToolTests
         return store;
     }
 
+    // A registry reporting CollectionNames.Default so an omitted `collection` argument resolves back
+    // to it (CollectionNameResolver's fast path), matching this file's pre-existing intent of "no
+    // collection specified" meaning the default collection.
+    private static async Task<IRepositoryRegistry> DefaultRegistry()
+    {
+        var registry = new InMemoryRepositoryRegistry();
+        await registry.UpsertAsync(new RepositoryEntry
+        {
+            Collection = CollectionNames.Default,
+            SourceType = "local",
+            Source = "/tmp/default",
+            LastIndexedAt = DateTime.UtcNow,
+            ChunkCount = 0,
+        });
+        return registry;
+    }
+
     [Fact]
     public async Task Find_callers_returns_edges_into_the_symbol()
     {
         var store = await SeededStore();
+        var registry = await DefaultRegistry();
 
-        var callers = await CallGraphTool.FindCallersAsync(store, "App.Repo.Load");
+        var callers = await CallGraphTool.FindCallersAsync(store, registry, "App.Repo.Load");
 
         Assert.Equal(2, callers.Count);
         Assert.All(callers, e => Assert.Equal("App.Repo.Load", e.Callee));
@@ -44,8 +64,9 @@ public class CallGraphMcpToolTests
     public async Task Find_callees_returns_edges_out_of_the_symbol()
     {
         var store = await SeededStore();
+        var registry = await DefaultRegistry();
 
-        var callees = await CallGraphTool.FindCalleesAsync(store, "App.Repo.Load");
+        var callees = await CallGraphTool.FindCalleesAsync(store, registry, "App.Repo.Load");
 
         var edge = Assert.Single(callees);
         Assert.Equal("App.Repo.Load", edge.Caller);
@@ -56,8 +77,9 @@ public class CallGraphMcpToolTests
     public async Task Find_callers_returns_empty_for_unknown_symbol()
     {
         var store = await SeededStore();
+        var registry = await DefaultRegistry();
 
-        var callers = await CallGraphTool.FindCallersAsync(store, "App.Nope.Missing");
+        var callers = await CallGraphTool.FindCallersAsync(store, registry, "App.Nope.Missing");
 
         Assert.Empty(callers);
     }
@@ -68,9 +90,10 @@ public class CallGraphMcpToolTests
         var store = new InMemoryCodeGraphStore();
         await store.ReplaceEdgesAsync("repo-a", [Edge("repo-a", "A.Source", "A.Target")]);
         await store.ReplaceEdgesAsync("repo-b", [Edge("repo-b", "A.Source", "B.Target")]);
+        var registry = new InMemoryRepositoryRegistry();
 
-        var inA = await CallGraphTool.FindCalleesAsync(store, "A.Source", "repo-a");
-        var inB = await CallGraphTool.FindCalleesAsync(store, "A.Source", "repo-b");
+        var inA = await CallGraphTool.FindCalleesAsync(store, registry, "A.Source", "repo-a");
+        var inB = await CallGraphTool.FindCalleesAsync(store, registry, "A.Source", "repo-b");
 
         Assert.Equal("A.Target", Assert.Single(inA).Callee);
         Assert.Equal("B.Target", Assert.Single(inB).Callee);

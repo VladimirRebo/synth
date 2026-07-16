@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Synth.Domain.Graph;
+using Synth.Domain.Vcs;
 using Synth.Domain;
 
 namespace Synth.Api.Controllers;
@@ -33,12 +34,13 @@ public class CallGraphController : ControllerBase
     public async Task<IActionResult> Callers(
         string? symbol,
         string? collection,
+        [FromServices] IRepositoryRegistry registry,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(symbol))
             return BadRequest(new { error = "symbol is required" });
 
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
         var edges = await _store.FindCallersAsync(target, symbol, cancellationToken);
         return Ok(edges);
     }
@@ -52,12 +54,13 @@ public class CallGraphController : ControllerBase
     public async Task<IActionResult> Callees(
         string? symbol,
         string? collection,
+        [FromServices] IRepositoryRegistry registry,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(symbol))
             return BadRequest(new { error = "symbol is required" });
 
-        var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+        var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
         var edges = await _store.FindCalleesAsync(target, symbol, cancellationToken);
         return Ok(edges);
     }

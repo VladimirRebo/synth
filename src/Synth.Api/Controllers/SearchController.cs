@@ -50,10 +50,10 @@ public class SearchController : ControllerBase
         }
         else
         {
-            // Optional ?collection= scopes the search to one indexed repo; defaults to the main
-            // codebase so existing callers are unaffected. Omitting it still means "the default
-            // collection" — the all-collections mode is opt-in via the explicit '*' sentinel.
-            var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+            // Optional ?collection= scopes the search to one indexed repo; omitting it resolves to
+            // the main indexed codebase (CollectionNameResolver) so existing callers are unaffected.
+            // The all-collections mode is opt-in via the explicit '*' sentinel above.
+            var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
             chunks = await searchService.SearchAsync(target, q, limit ?? 10, cancellationToken);
         }
 

@@ -50,7 +50,7 @@ public sealed class CodeSearchTool
         }
         else
         {
-            var target = string.IsNullOrWhiteSpace(collection) ? CollectionNames.Default : collection;
+            var target = await CollectionNameResolver.ResolveAsync(collection, registry, cancellationToken);
             chunks = await searchService.SearchAsync(target, query, limit, cancellationToken);
         }
 
