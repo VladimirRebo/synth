@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getFileChunks, type FileChunk } from '../api'
 import { useRepositories } from '../composables/useRepositories'
 import { highlightCode } from '../highlight'
 
 const { repositories, refresh: refreshRepositories } = useRepositories()
 
-// Empty selection browses the default collection (CollectionNames.Default), same convention as
-// SearchPanel's picker — that's the collection local-path indexing writes to.
+// Local-path indexing lands in a path-derived collection (LocalPathSlug), not a shared "default"
+// bucket, so there's no fixed name to fall back to. When exactly one collection is indexed —
+// the common case for this tool — auto-select it; otherwise the picker requires an explicit choice.
 const collection = ref('')
+const soleCollection = computed(() =>
+  repositories.value.length === 1 ? repositories.value[0].collection : '',
+)
 const path = ref('')
 const chunks = ref<FileChunk[]>([])
 const loading = ref(false)
@@ -21,12 +25,17 @@ async function onSubmit() {
   const relativePath = path.value.trim()
   if (!relativePath) return
 
+  const target = collection.value || soleCollection.value
+  if (!target) {
+    error.value = 'Pick a collection first — more than one is indexed.'
+    return
+  }
+
   loading.value = true
   error.value = ''
 
   try {
-    // Empty picker selection → "default", the same fallback the backend applies for search.
-    chunks.value = await getFileChunks(collection.value || 'default', relativePath)
+    chunks.value = await getFileChunks(target, relativePath)
     hasBrowsed.value = true
     browsedPath.value = relativePath
   } catch (err) {
@@ -51,12 +60,8 @@ onMounted(() => {
 
     <form class="browse-form" @submit.prevent="onSubmit">
       <select v-model="collection" aria-label="Collection to browse" class="collection">
-        <option value="">Default</option>
-        <option
-          v-for="repo in repositories.filter((r) => r.collection !== 'default')"
-          :key="repo.collection"
-          :value="repo.collection"
-        >
+        <option value="">{{ soleCollection ? 'Auto' : 'Select a collection' }}</option>
+        <option v-for="repo in repositories" :key="repo.collection" :value="repo.collection">
           {{ repo.collection }} ({{ repo.sourceType }})
         </option>
       </select>

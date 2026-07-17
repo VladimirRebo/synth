@@ -23,8 +23,8 @@ const ALL_COLLECTIONS = '*'
 const query = ref('')
 const limit = ref(10)
 // Defaults to all-collections. The empty string selects GET /search's own fallback
-// (CollectionNames.Default, "default" — the same collection local-path indexing uses, so it shows
-// up in the picker too once something's been indexed); a real collection name scopes to that repo.
+// (CollectionNameResolver: the sole indexed collection when there's exactly one, otherwise
+// ambiguous); a real collection name scopes to that repo.
 const collection = ref(ALL_COLLECTIONS)
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
@@ -155,12 +155,13 @@ const filteredResults = computed(() => {
 
 // --- Repository resolution (for editor deep-links) ---------------------------------------
 // A result's owning collection is its own `collection` in all-collections mode, otherwise the
-// picker's selection ('' being GET /search's "default" fallback). Match that against the loaded
-// RepositoryEntry list so SearchResultItem can build a local-editor link from `source`/`sourceType`.
+// picker's selection — falling back to the sole indexed collection when the picker was left blank
+// and there's exactly one, mirroring GET /search's own CollectionNameResolver fallback. Match that
+// against the loaded RepositoryEntry list so SearchResultItem can build a local-editor link.
 function repoForResult(result: SearchResult): RepositoryEntry | undefined {
+  const sole = repositories.value.length === 1 ? repositories.value[0].collection : undefined
   const name =
-    result.collection ??
-    (collection.value === ALL_COLLECTIONS ? undefined : collection.value || 'default')
+    result.collection ?? (collection.value === ALL_COLLECTIONS ? undefined : collection.value || sole)
   if (!name) return undefined
   return repositories.value.find((r) => r.collection === name)
 }
@@ -262,12 +263,8 @@ onUnmounted(() => {
       </div>
       <select v-model="collection" aria-label="Collection to search" class="collection">
         <option :value="ALL_COLLECTIONS">All collections</option>
-        <option value="">Default</option>
-        <option
-          v-for="repo in repositories.filter((r) => r.collection !== 'default')"
-          :key="repo.collection"
-          :value="repo.collection"
-        >
+        <option value="">Auto</option>
+        <option v-for="repo in repositories" :key="repo.collection" :value="repo.collection">
           {{ repo.collection }} ({{ repo.sourceType }})
         </option>
       </select>

@@ -23,10 +23,24 @@ function chunk(overrides: Partial<api.FileChunk> = {}): api.FileChunk {
   }
 }
 
+function repo(overrides: Partial<api.RepositoryEntry> = {}): api.RepositoryEntry {
+  return {
+    collection: 'local-my-project',
+    sourceType: 'local',
+    source: '/local/my-project',
+    branch: null,
+    lastIndexedAt: '2026-07-10T00:00:00Z',
+    chunkCount: 1,
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   mockedGetFileChunks.mockReset()
   mockedListRepositories.mockReset()
-  mockedListRepositories.mockResolvedValue([])
+  // A single indexed collection, so the panel auto-selects it when the picker is left blank —
+  // mirrors GET /search's own CollectionNameResolver sole-collection fallback.
+  mockedListRepositories.mockResolvedValue([repo()])
 })
 
 async function browse(wrapper: ReturnType<typeof mount>, path = 'src/Calculator.cs') {
@@ -53,8 +67,8 @@ describe('BrowsePanel', () => {
     await flushPromises()
     await browse(wrapper)
 
-    // Empty picker selection falls back to the default collection.
-    expect(mockedGetFileChunks).toHaveBeenCalledWith('default', 'src/Calculator.cs')
+    // Empty picker selection auto-resolves to the sole indexed collection.
+    expect(mockedGetFileChunks).toHaveBeenCalledWith('local-my-project', 'src/Calculator.cs')
     expect(wrapper.text()).toContain('2 chunks')
     expect(wrapper.text()).toContain('Sample.Calculator.Add')
     expect(wrapper.text()).toContain('Sample.Calculator.Subtract')
@@ -102,6 +116,20 @@ describe('BrowsePanel', () => {
     await flushPromises()
 
     expect(mockedGetFileChunks).not.toHaveBeenCalled()
+  })
+
+  it('requires an explicit collection choice when more than one is indexed', async () => {
+    mockedListRepositories.mockResolvedValue([
+      repo({ collection: 'local-project-a' }),
+      repo({ collection: 'local-project-b', source: '/local/project-b' }),
+    ])
+
+    const wrapper = mount(BrowsePanel)
+    await flushPromises()
+    await browse(wrapper)
+
+    expect(mockedGetFileChunks).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Pick a collection')
   })
 
   it('shows an error message when the fetch fails', async () => {

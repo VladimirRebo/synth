@@ -74,8 +74,12 @@ public sealed class IndexRepositoryCommandHandler
             if (!Directory.Exists(command.Path))
                 return IndexStartOutcome.ValidationError($"Directory not found: {command.Path}");
 
-            // Local-path indexing lands in the default collection, unchanged from before SYNTH-19.
-            collection = CollectionNames.Default;
+            // Slugged from the full path (LocalPathSlug), not the single CollectionNames.Default
+            // bucket every local-path index used to share — two different local directories used to
+            // silently collide into that one collection (indexing a second one would delete the
+            // first's chunks via IndexingPipeline's own-stale-file cleanup). The same directory always
+            // slugs back to the same collection, so re-indexing it stays idempotent.
+            collection = LocalPathSlug.From(command.Path!);
             source = command.Path!;
             localRoot = command.Path!;
             entry = new RepositoryEntry

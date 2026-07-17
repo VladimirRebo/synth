@@ -149,10 +149,11 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
 
         var outcome = await handler.HandleAsync(new IndexRepositoryCommand(Path: _root));
 
-        // Fire-and-forget: the outcome is Started with the default collection before the background
-        // run has necessarily finished.
+        // Fire-and-forget: the outcome is Started with the path-slugged collection before the
+        // background run has necessarily finished.
+        var expectedCollection = LocalPathSlug.From(_root);
         Assert.Equal(IndexStartOutcome.Kind.Started, outcome.Status);
-        Assert.Equal(CollectionNames.Default, outcome.Collection);
+        Assert.Equal(expectedCollection, outcome.Collection);
         Assert.Null(outcome.Error);
 
         await WaitForTerminalAsync();
@@ -161,7 +162,7 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
         Assert.True(_tracker.Current.ChunksIndexed > 0);
 
         var entries = await _registry.ListAsync();
-        var entry = Assert.Single(entries, e => e.Collection == CollectionNames.Default);
+        var entry = Assert.Single(entries, e => e.Collection == expectedCollection);
         Assert.Equal("local", entry.SourceType);
         Assert.Equal(_root, entry.Source);
         Assert.Equal(_tracker.Current.ChunksIndexed, entry.ChunkCount);
@@ -184,10 +185,12 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
 
         var handler = CreateHandler();
 
+        var expectedCollection = LocalPathSlug.From(_root);
+
         await handler.HandleAsync(new IndexRepositoryCommand(Path: _root));
         await WaitForTerminalAsync();
         var firstChunkCount = Assert.Single(
-            await _registry.ListAsync(), e => e.Collection == CollectionNames.Default).ChunkCount;
+            await _registry.ListAsync(), e => e.Collection == expectedCollection).ChunkCount;
         Assert.True(firstChunkCount > 0);
 
         await handler.HandleAsync(new IndexRepositoryCommand(Path: _root));
@@ -195,7 +198,7 @@ public class IndexRepositoryCommandHandlerTests : IDisposable
 
         Assert.Equal(0, _tracker.Current.ChunksIndexed); // This run's own delta: nothing changed.
         var secondEntry = Assert.Single(
-            await _registry.ListAsync(), e => e.Collection == CollectionNames.Default);
+            await _registry.ListAsync(), e => e.Collection == expectedCollection);
         Assert.Equal(firstChunkCount, secondEntry.ChunkCount); // But the store's total is unchanged.
     }
 

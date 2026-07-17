@@ -6,6 +6,7 @@ using Synth.Api.Mcp;
 using Synth.Application.Cqrs;
 using Synth.Application.Indexing;
 using Synth.Domain;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 
@@ -81,7 +82,7 @@ public class IndexCodeMcpToolTests : IClassFixture<TestApiFactory>
             // Fire-and-forget: the tool returns "started" with the resolved collection before the
             // background indexing has necessarily finished.
             Assert.Equal("started", result.Status);
-            Assert.Equal(CollectionNames.Default, result.Collection);
+            Assert.Equal(LocalPathSlug.From(tempDir.FullName), result.Collection);
             Assert.Null(result.Error);
 
             // Let the detached run finish so it doesn't leak into sibling tests sharing the tracker.

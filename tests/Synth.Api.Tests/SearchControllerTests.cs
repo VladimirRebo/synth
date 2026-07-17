@@ -7,6 +7,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Synth.Api.Mcp;
 using Synth.Api.Search;
+using Synth.Domain.Vcs;
 
 namespace Synth.Api.Tests;
 
@@ -82,7 +83,11 @@ public class SearchControllerTests : IClassFixture<TestApiFactory>
             Assert.Equal(HttpStatusCode.Accepted, indexResponse.StatusCode);
             await WaitForIndexDoneAsync(client);
 
-            var searchResponse = await client.GetAsync("/search?q=greet");
+            // Local-path indexing lands in a path-derived collection (LocalPathSlug), and the shared
+            // TestApiFactory registry can carry other tests' local collections too, so the "omitted
+            // collection resolves to the sole one" fallback isn't reliable here — name it explicitly.
+            var collection = LocalPathSlug.From(tempDir.FullName);
+            var searchResponse = await client.GetAsync($"/search?q=greet&collection={collection}");
 
             Assert.Equal(HttpStatusCode.OK, searchResponse.StatusCode);
             var raw = await searchResponse.Content.ReadAsStringAsync();
@@ -141,9 +146,14 @@ public class SearchControllerTests : IClassFixture<TestApiFactory>
             var results = JsonSerializer.Deserialize<List<CodeSearchResult>>(raw, deserializeOptions);
             Assert.NotNull(results);
             Assert.NotEmpty(results);
-            // Every result reports which collection it came from — here the only indexed one, "default".
-            Assert.All(results, r => Assert.Equal("default", r.Collection));
-            Assert.Contains(results, r => r.ClassName == "Greeter");
+            // Every result reports which collection it came from. Local-path indexing lands in a
+            // path-derived collection (LocalPathSlug), not a shared "default" bucket — and the shared
+            // TestApiFactory registry may carry other tests' (differently-named-but-similar) local
+            // collections too, so scope the assertion to this test's own collection specifically.
+            var collection = LocalPathSlug.From(tempDir.FullName);
+            var ownResults = results.Where(r => r.Collection == collection).ToList();
+            Assert.NotEmpty(ownResults);
+            Assert.Contains(ownResults, r => r.ClassName == "Greeter");
         }
         finally
         {
@@ -187,8 +197,10 @@ public class SearchControllerTests : IClassFixture<TestApiFactory>
             Assert.Equal(HttpStatusCode.Accepted, indexResponse.StatusCode);
             await WaitForIndexDoneAsync(client);
 
-            // Local-path indexing uses the default collection, so browse it back by relative path.
-            var response = await client.GetAsync("/repositories/default/files/Calculator.cs");
+            // Local-path indexing lands in a path-derived collection (LocalPathSlug), so browse it
+            // back by that same slug + relative path.
+            var collection = LocalPathSlug.From(tempDir.FullName);
+            var response = await client.GetAsync($"/repositories/{collection}/files/Calculator.cs");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var raw = await response.Content.ReadAsStringAsync();

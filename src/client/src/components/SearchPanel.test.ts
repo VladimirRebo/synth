@@ -63,7 +63,7 @@ describe('SearchPanel', () => {
     expect(wrapper.text()).toContain('Sample.Greeter.Greet')
   })
 
-  it('scopes to the default collection (undefined) when "Default" is picked', async () => {
+  it('omits the collection param (server-side auto-resolve) when "Auto" is picked', async () => {
     mockedSearch.mockResolvedValue([sampleResult])
 
     const wrapper = await mountSearchPanel()
