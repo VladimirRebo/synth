@@ -193,4 +193,40 @@ public class GoChunkerTests
 
         Assert.Empty(ExtractCallSites(source));
     }
+
+    [Fact]
+    public void LongStruct_IsSplitIntoHeadAndBody()
+    {
+        var fields = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"\tField{i} int"));
+        var source = $"package main\n\ntype Huge struct {{\n{fields}\n}}\n";
+
+        var chunks = ChunkGo(source);
+
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Struct);
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeHead);
+        var body = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeBody);
+        Assert.Equal("Huge", head.ClassName);
+        Assert.Equal("Huge", body.ClassName);
+        Assert.Equal(GoChunker.ChunkHeadLines, head.Content.Split('\n').Length);
+        Assert.Contains("Field1 int", head.Content);
+        Assert.DoesNotContain("Field350 int", head.Content);
+        Assert.Contains("Field350 int", body.Content);
+        Assert.Equal(head.EndLine + 1, body.StartLine);
+    }
+
+    [Fact]
+    public void LongFunction_IsSplitIntoHeadAndBody()
+    {
+        var body = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"\tx{i} := {i}"));
+        var source = $"package main\n\nfunc huge() {{\n{body}\n}}\n";
+
+        var chunks = ChunkGo(source);
+
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Method);
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodHead);
+        var tail = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodBody);
+        Assert.Equal("huge", head.MethodName);
+        Assert.Equal("huge", tail.MethodName);
+        Assert.Equal(head.EndLine + 1, tail.StartLine);
+    }
 }

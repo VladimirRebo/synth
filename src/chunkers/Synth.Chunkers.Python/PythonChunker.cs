@@ -29,6 +29,12 @@ namespace Synth.Chunkers.Python;
 /// </remarks>
 public sealed partial class PythonChunker : IFileChunker, ICallSiteExtractor
 {
+    /// <summary>Chunks with more source lines than this are split into head/body chunks.</summary>
+    public const int LongChunkLineThreshold = 300;
+
+    /// <summary>Number of leading lines kept in the head chunk of an oversized declaration.</summary>
+    public const int ChunkHeadLines = 50;
+
     /// <inheritdoc />
     public bool CanHandle(string filePath) =>
         !string.IsNullOrEmpty(filePath) && filePath.EndsWith(".py", StringComparison.OrdinalIgnoreCase);
@@ -57,19 +63,15 @@ public sealed partial class PythonChunker : IFileChunker, ICallSiteExtractor
 
             var (chunkType, className, methodName) = Classify(matches[i]);
 
-            chunks.Add(new CodeChunk
-            {
-                FilePath = filePath,
-                RelativePath = relativePath,
-                ClassName = className,
-                MethodName = methodName,
-                ChunkType = chunkType,
-                Content = slice,
-                Summary = ExtractDocstring(slice),
-                StartLine = LineAt(newlineOffsets, start),
-                EndLine = LineAt(newlineOffsets, start + slice.Length - 1),
-                FileHash = fileHash,
-            });
+            // A class's slice embeds its whole body (nested methods included, per the "top-level
+            // only" design above) with no separate per-member chunk to fall back on — so unlike the
+            // C# chunker, there's nothing else already covering this content. Still, an unbounded
+            // chunk dilutes its own embedding and bloats get_symbol/search responses, so split it the
+            // same way an oversized C# type/method chunk already is.
+            AddChunkOrSplit(
+                chunks, filePath, relativePath, className, methodName, chunkType, slice,
+                ExtractDocstring(slice), LineAt(newlineOffsets, start),
+                LineAt(newlineOffsets, start + slice.Length - 1), fileHash);
         }
 
         // Nothing recognized (no top-level def/class): index the whole file as a single chunk
@@ -104,6 +106,65 @@ public sealed partial class PythonChunker : IFileChunker, ICallSiteExtractor
             return (ChunkType.Method, string.Empty, match.Groups["fn"].Value);
 
         return (ChunkType.Method, string.Empty, string.Empty);
+    }
+
+    // Adds one chunk for a declaration's slice, or — past LongChunkLineThreshold lines — a head/body
+    // pair instead, mirroring CSharpRoslynChunker's split: a class's oversized slice becomes
+    // TypeHead/TypeBody, a top-level function's becomes MethodHead/MethodBody.
+    private static void AddChunkOrSplit(
+        List<CodeChunk> chunks, string filePath, string relativePath, string className, string methodName,
+        ChunkType chunkType, string content, string summary, int startLine, int endLine, string fileHash)
+    {
+        var lines = content.Split('\n');
+        if (lines.Length <= LongChunkLineThreshold)
+        {
+            chunks.Add(new CodeChunk
+            {
+                FilePath = filePath,
+                RelativePath = relativePath,
+                ClassName = className,
+                MethodName = methodName,
+                ChunkType = chunkType,
+                Content = content,
+                Summary = summary,
+                StartLine = startLine,
+                EndLine = endLine,
+                FileHash = fileHash,
+            });
+            return;
+        }
+
+        var (headType, bodyType) = chunkType == ChunkType.Class
+            ? (ChunkType.TypeHead, ChunkType.TypeBody)
+            : (ChunkType.MethodHead, ChunkType.MethodBody);
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = headType,
+            Content = string.Join('\n', lines.Take(ChunkHeadLines)),
+            Summary = summary,
+            StartLine = startLine,
+            EndLine = startLine + ChunkHeadLines - 1,
+            FileHash = fileHash,
+        });
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = bodyType,
+            Content = string.Join('\n', lines.Skip(ChunkHeadLines)),
+            Summary = summary,
+            StartLine = startLine + ChunkHeadLines,
+            EndLine = endLine,
+            FileHash = fileHash,
+        });
     }
 
     /// <inheritdoc />

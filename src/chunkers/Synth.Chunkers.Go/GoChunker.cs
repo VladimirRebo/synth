@@ -24,6 +24,12 @@ namespace Synth.Chunkers.Go;
 /// </remarks>
 public sealed partial class GoChunker : IFileChunker, ICallSiteExtractor
 {
+    /// <summary>Chunks with more source lines than this are split into head/body chunks.</summary>
+    public const int LongChunkLineThreshold = 300;
+
+    /// <summary>Number of leading lines kept in the head chunk of an oversized declaration.</summary>
+    public const int ChunkHeadLines = 50;
+
     /// <inheritdoc />
     public bool CanHandle(string filePath) =>
         !string.IsNullOrEmpty(filePath) && filePath.EndsWith(".go", StringComparison.OrdinalIgnoreCase);
@@ -52,18 +58,13 @@ public sealed partial class GoChunker : IFileChunker, ICallSiteExtractor
 
             var (chunkType, className, methodName) = Classify(matches[i]);
 
-            chunks.Add(new CodeChunk
-            {
-                FilePath = filePath,
-                RelativePath = relativePath,
-                ClassName = className,
-                MethodName = methodName,
-                ChunkType = chunkType,
-                Content = slice,
-                StartLine = LineAt(newlineOffsets, start),
-                EndLine = LineAt(newlineOffsets, start + slice.Length - 1),
-                FileHash = fileHash,
-            });
+            // A struct/interface's slice is the only chunk covering its body (no separate per-member
+            // chunk exists to fall back on), so bound it the same way an oversized C# type/method
+            // chunk already is — an unbounded chunk dilutes its own embedding and bloats
+            // get_symbol/search responses.
+            AddChunkOrSplit(
+                chunks, filePath, relativePath, className, methodName, chunkType, slice,
+                LineAt(newlineOffsets, start), LineAt(newlineOffsets, start + slice.Length - 1), fileHash);
         }
 
         // Nothing recognized: index the whole file as a single chunk rather than silently dropping it.
@@ -99,6 +100,62 @@ public sealed partial class GoChunker : IFileChunker, ICallSiteExtractor
             return (ChunkType.Interface, match.Groups["ifaceName"].Value, string.Empty);
 
         return (ChunkType.Method, string.Empty, string.Empty);
+    }
+
+    // Adds one chunk for a declaration's slice, or — past LongChunkLineThreshold lines — a head/body
+    // pair instead, mirroring CSharpRoslynChunker's split: a struct/interface's oversized slice
+    // becomes TypeHead/TypeBody, a func's becomes MethodHead/MethodBody.
+    private static void AddChunkOrSplit(
+        List<CodeChunk> chunks, string filePath, string relativePath, string className, string methodName,
+        ChunkType chunkType, string content, int startLine, int endLine, string fileHash)
+    {
+        var lines = content.Split('\n');
+        if (lines.Length <= LongChunkLineThreshold)
+        {
+            chunks.Add(new CodeChunk
+            {
+                FilePath = filePath,
+                RelativePath = relativePath,
+                ClassName = className,
+                MethodName = methodName,
+                ChunkType = chunkType,
+                Content = content,
+                StartLine = startLine,
+                EndLine = endLine,
+                FileHash = fileHash,
+            });
+            return;
+        }
+
+        var (headType, bodyType) = chunkType is ChunkType.Struct or ChunkType.Interface
+            ? (ChunkType.TypeHead, ChunkType.TypeBody)
+            : (ChunkType.MethodHead, ChunkType.MethodBody);
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = headType,
+            Content = string.Join('\n', lines.Take(ChunkHeadLines)),
+            StartLine = startLine,
+            EndLine = startLine + ChunkHeadLines - 1,
+            FileHash = fileHash,
+        });
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = bodyType,
+            Content = string.Join('\n', lines.Skip(ChunkHeadLines)),
+            StartLine = startLine + ChunkHeadLines,
+            EndLine = endLine,
+            FileHash = fileHash,
+        });
     }
 
     /// <inheritdoc />

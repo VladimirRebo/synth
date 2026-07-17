@@ -240,4 +240,50 @@ public class PythonChunkerTests
 
         Assert.Empty(ExtractCallSites(source));
     }
+
+    [Fact]
+    public void LongClass_IsSplitIntoHeadAndBody()
+    {
+        // A class's slice embeds its whole body (nested defs included, per the "top-level only"
+        // design), so unlike C# there's no separate member chunk already covering this content —
+        // still, an unbounded chunk dilutes its own embedding, so it's capped the same way.
+        var body = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"    field_{i} = {i}"));
+        var source = $"class Huge:\n{body}\n\n    def tiny(self):\n        pass\n";
+
+        var chunks = ChunkPy(source);
+
+        // No plain Class chunk for the oversized type — it is split instead.
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Class);
+
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeHead);
+        var body2 = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeBody);
+        Assert.Equal("Huge", head.ClassName);
+        Assert.Equal("Huge", body2.ClassName);
+        Assert.Equal(PythonChunker.ChunkHeadLines, head.Content.Split('\n').Length);
+        Assert.Contains("field_1 =", head.Content);
+        Assert.DoesNotContain("field_350 =", head.Content);
+        Assert.Contains("field_350 =", body2.Content);
+        Assert.Equal(head.EndLine + 1, body2.StartLine);
+
+        // tiny(self) is nested (not a top-level def), so it stays embedded in the class's own
+        // chunk(s) — it does not get promoted to a separate chunk just because the class was split.
+        Assert.DoesNotContain(chunks, c => c.MethodName == "tiny");
+        Assert.Contains("def tiny", body2.Content);
+    }
+
+    [Fact]
+    public void LongTopLevelFunction_IsSplitIntoHeadAndBody()
+    {
+        var body = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"    x{i} = {i}"));
+        var source = $"def huge():\n{body}\n";
+
+        var chunks = ChunkPy(source);
+
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Method);
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodHead);
+        var tail = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodBody);
+        Assert.Equal("huge", head.MethodName);
+        Assert.Equal("huge", tail.MethodName);
+        Assert.Equal(head.EndLine + 1, tail.StartLine);
+    }
 }

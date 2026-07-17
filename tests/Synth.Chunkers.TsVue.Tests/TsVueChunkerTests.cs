@@ -161,4 +161,40 @@ public class TsVueChunkerTests
         Assert.Equal(ChunkType.Method, chunk.ChunkType);
         Assert.Contains("static markup only", chunk.Content);
     }
+
+    [Fact]
+    public void LongClass_IsSplitIntoHeadAndBody()
+    {
+        var body = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"  field{i} = {i};"));
+        var source = $"export class Huge {{\n{body}\n}}\n";
+
+        var chunks = ChunkTs(source);
+
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Class);
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeHead);
+        var tail = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeBody);
+        Assert.Equal("Huge", head.ClassName);
+        Assert.Equal("Huge", tail.ClassName);
+        Assert.Equal(TsVueChunker.ChunkHeadLines, head.Content.Split('\n').Length);
+        Assert.Contains("field1 =", head.Content);
+        Assert.DoesNotContain("field350 =", head.Content);
+        Assert.Contains("field350 =", tail.Content);
+        Assert.Equal(head.EndLine + 1, tail.StartLine);
+    }
+
+    [Fact]
+    public void LongFunction_IsSplitIntoHeadAndBody()
+    {
+        var body = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"  const x{i} = {i};"));
+        var source = $"export function huge() {{\n{body}\n}}\n";
+
+        var chunks = ChunkTs(source);
+
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Method);
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodHead);
+        var tail = Assert.Single(chunks, c => c.ChunkType == ChunkType.MethodBody);
+        Assert.Equal("huge", head.MethodName);
+        Assert.Equal("huge", tail.MethodName);
+        Assert.Equal(head.EndLine + 1, tail.StartLine);
+    }
 }

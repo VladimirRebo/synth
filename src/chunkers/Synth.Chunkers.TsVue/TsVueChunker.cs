@@ -27,6 +27,12 @@ public sealed partial class TsVueChunker : IFileChunker
 {
     private static readonly string[] SupportedExtensions = [".ts", ".tsx", ".vue"];
 
+    /// <summary>Chunks with more source lines than this are split into head/body chunks.</summary>
+    public const int LongChunkLineThreshold = 300;
+
+    /// <summary>Number of leading lines kept in the head chunk of an oversized declaration.</summary>
+    public const int ChunkHeadLines = 50;
+
     /// <inheritdoc />
     public bool CanHandle(string filePath) =>
         !string.IsNullOrEmpty(filePath) &&
@@ -91,6 +97,27 @@ public sealed partial class TsVueChunker : IFileChunker
 
             var (chunkType, className, methodName) = Classify(matches[i]);
 
+            // A class/interface's slice is the only chunk covering its body (no separate per-member
+            // chunk exists to fall back on), so bound it the same way an oversized C# type/method
+            // chunk already is — an unbounded chunk dilutes its own embedding and bloats
+            // get_symbol/search responses.
+            AddChunkOrSplit(
+                chunks, filePath, relativePath, className, methodName, chunkType, slice,
+                LineAt(newlineOffsets, absoluteStart), LineAt(newlineOffsets, absoluteStart + slice.Length - 1),
+                fileHash);
+        }
+    }
+
+    // Adds one chunk for a declaration's slice, or — past LongChunkLineThreshold lines — a head/body
+    // pair instead, mirroring CSharpRoslynChunker's split: a class/interface's oversized slice
+    // becomes TypeHead/TypeBody, a function/const-arrow's becomes MethodHead/MethodBody.
+    private static void AddChunkOrSplit(
+        List<CodeChunk> chunks, string filePath, string relativePath, string className, string methodName,
+        ChunkType chunkType, string content, int startLine, int endLine, string fileHash)
+    {
+        var lines = content.Split('\n');
+        if (lines.Length <= LongChunkLineThreshold)
+        {
             chunks.Add(new CodeChunk
             {
                 FilePath = filePath,
@@ -98,12 +125,43 @@ public sealed partial class TsVueChunker : IFileChunker
                 ClassName = className,
                 MethodName = methodName,
                 ChunkType = chunkType,
-                Content = slice,
-                StartLine = LineAt(newlineOffsets, absoluteStart),
-                EndLine = LineAt(newlineOffsets, absoluteStart + slice.Length - 1),
+                Content = content,
+                StartLine = startLine,
+                EndLine = endLine,
                 FileHash = fileHash,
             });
+            return;
         }
+
+        var (headType, bodyType) = chunkType is ChunkType.Class or ChunkType.Interface
+            ? (ChunkType.TypeHead, ChunkType.TypeBody)
+            : (ChunkType.MethodHead, ChunkType.MethodBody);
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = headType,
+            Content = string.Join('\n', lines.Take(ChunkHeadLines)),
+            StartLine = startLine,
+            EndLine = startLine + ChunkHeadLines - 1,
+            FileHash = fileHash,
+        });
+
+        chunks.Add(new CodeChunk
+        {
+            FilePath = filePath,
+            RelativePath = relativePath,
+            ClassName = className,
+            MethodName = methodName,
+            ChunkType = bodyType,
+            Content = string.Join('\n', lines.Skip(ChunkHeadLines)),
+            StartLine = startLine + ChunkHeadLines,
+            EndLine = endLine,
+            FileHash = fileHash,
+        });
     }
 
     private static CodeChunk WholeFileChunk(
