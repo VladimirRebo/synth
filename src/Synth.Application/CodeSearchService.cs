@@ -136,10 +136,11 @@ public sealed class CodeSearchService
     internal static double ChunkTypeWeight(ChunkType chunkType) => chunkType switch
     {
         ChunkType.Class or ChunkType.Interface or ChunkType.Record or ChunkType.Struct => 1.15,
+        ChunkType.TypeHead => 1.15, // an oversized type's head plays the same role as a whole-type chunk.
         ChunkType.Method or ChunkType.Constructor => 1.10,
         ChunkType.MethodHead => 1.05,
         ChunkType.Property => 0.95,
-        ChunkType.MethodBody => 0.90,
+        ChunkType.MethodBody or ChunkType.TypeBody => 0.90,
         ChunkType.Markdown => 0.85,
         _ => 0.90,
     };

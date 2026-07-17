@@ -14,17 +14,20 @@ namespace Synth.Chunkers.CSharp;
 /// </summary>
 /// <remarks>
 /// Emits one chunk per type (class/interface/record/struct) covering its whole body,
-/// and one chunk per method/constructor. Methods longer than
-/// <see cref="LongMethodLineThreshold"/> lines are split into a
-/// <see cref="ChunkType.MethodHead"/> chunk (first <see cref="MethodHeadLines"/> lines)
-/// and a <see cref="ChunkType.MethodBody"/> chunk (the remainder).
+/// and one chunk per method/constructor. Anything longer than
+/// <see cref="LongMethodLineThreshold"/> lines — a method/constructor, or a type's own whole-body
+/// chunk (its members are already covered by their own chunks, so re-embedding all of them again
+/// unbounded inside the type chunk would only dilute it) — is split into a head chunk (first
+/// <see cref="MethodHeadLines"/> lines: <see cref="ChunkType.MethodHead"/> or
+/// <see cref="ChunkType.TypeHead"/>) and a body chunk covering the remainder
+/// (<see cref="ChunkType.MethodBody"/> or <see cref="ChunkType.TypeBody"/>).
 /// </remarks>
 public sealed class CSharpRoslynChunker : IFileChunker, ICallSiteExtractor
 {
-    /// <summary>Methods with more source lines than this are split into head/body chunks.</summary>
+    /// <summary>Methods and type bodies with more source lines than this are split into head/body chunks.</summary>
     public const int LongMethodLineThreshold = 300;
 
-    /// <summary>Number of leading lines kept in the <see cref="ChunkType.MethodHead"/> chunk.</summary>
+    /// <summary>Number of leading lines kept in the head chunk of an oversized method or type.</summary>
     public const int MethodHeadLines = 50;
 
     /// <inheritdoc />
@@ -190,20 +193,65 @@ public sealed class CSharpRoslynChunker : IFileChunker, ICallSiteExtractor
 
         var className = typeDecl.Identifier.Text;
         var (startLine, endLine) = LineSpanOf(typeDecl);
+        var content = typeDecl.ToString();
+        var summary = ExtractSummary(typeDecl);
 
-        chunks.Add(new CodeChunk
+        // A whole-type chunk's Content is the type's full source, members included verbatim — but
+        // every member already gets its own chunk below, so for a large type this duplicated nearly
+        // the whole file into one unbounded blob (diluting its embedding and bloating get_symbol/
+        // search results with content already present elsewhere). Split the same way an oversized
+        // method already does, keeping only the head (declaration/doc-comment/fields — the part
+        // that's actually useful standalone) at full weight and demoting the redundant tail.
+        var lines = content.Split('\n');
+        if (lines.Length > LongMethodLineThreshold)
         {
-            FilePath = context.FilePath,
-            RelativePath = context.RelativePath,
-            Namespace = ns,
-            ClassName = className,
-            ChunkType = chunkType.Value,
-            Content = typeDecl.ToString(),
-            Summary = ExtractSummary(typeDecl),
-            StartLine = startLine,
-            EndLine = endLine,
-            FileHash = context.FileHash,
-        });
+            var head = string.Join('\n', lines.Take(MethodHeadLines));
+            var body = string.Join('\n', lines.Skip(MethodHeadLines));
+
+            chunks.Add(new CodeChunk
+            {
+                FilePath = context.FilePath,
+                RelativePath = context.RelativePath,
+                Namespace = ns,
+                ClassName = className,
+                ChunkType = ChunkType.TypeHead,
+                Content = head,
+                Summary = summary,
+                StartLine = startLine,
+                EndLine = startLine + MethodHeadLines - 1,
+                FileHash = context.FileHash,
+            });
+
+            chunks.Add(new CodeChunk
+            {
+                FilePath = context.FilePath,
+                RelativePath = context.RelativePath,
+                Namespace = ns,
+                ClassName = className,
+                ChunkType = ChunkType.TypeBody,
+                Content = body,
+                Summary = summary,
+                StartLine = startLine + MethodHeadLines,
+                EndLine = endLine,
+                FileHash = context.FileHash,
+            });
+        }
+        else
+        {
+            chunks.Add(new CodeChunk
+            {
+                FilePath = context.FilePath,
+                RelativePath = context.RelativePath,
+                Namespace = ns,
+                ClassName = className,
+                ChunkType = chunkType.Value,
+                Content = content,
+                Summary = summary,
+                StartLine = startLine,
+                EndLine = endLine,
+                FileHash = context.FileHash,
+            });
+        }
 
         foreach (var member in typeDecl.Members)
         {

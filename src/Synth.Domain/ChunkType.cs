@@ -33,6 +33,13 @@ public enum ChunkType
     /// <summary>The body of a method, split out from its head.</summary>
     MethodBody,
 
+    /// <summary>The leading part of an oversized type's body (declaration, doc comment, fields),
+    /// split out the same way a long method is.</summary>
+    TypeHead,
+
+    /// <summary>The rest of an oversized type's body, split out from its head.</summary>
+    TypeBody,
+
     /// <summary>Documentation prose (e.g. a Markdown file or section).</summary>
     Markdown,
 }

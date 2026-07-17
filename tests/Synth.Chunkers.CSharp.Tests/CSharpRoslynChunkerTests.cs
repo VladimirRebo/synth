@@ -129,6 +129,51 @@ public class CSharpRoslynChunkerTests
     }
 
     [Fact]
+    public void LongType_IsSplitIntoHeadAndBody()
+    {
+        // 350 one-line fields pad the type's own whole-body chunk (typeDecl.ToString(), which embeds
+        // every member's source verbatim) well past the threshold, without any individual member
+        // being long enough to trigger the method-level split tested above. A trailing short method
+        // proves the type-level split doesn't disturb ordinary member chunking.
+        var fields = string.Join('\n', Enumerable.Range(1, 350).Select(i => $"    public int Field{i};"));
+        var source = $$"""
+            namespace Big;
+
+            public class Huge
+            {
+            {{fields}}
+
+                public void Tiny() { }
+            }
+            """;
+
+        var chunks = ChunkSource(source);
+
+        // No plain Class chunk for the oversized type — it is split instead.
+        Assert.DoesNotContain(chunks, c => c.ChunkType == ChunkType.Class);
+
+        var head = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeHead);
+        var tail = Assert.Single(chunks, c => c.ChunkType == ChunkType.TypeBody);
+
+        Assert.Equal("Huge", head.ClassName);
+        Assert.Equal("Huge", tail.ClassName);
+
+        // Head keeps the first MethodHeadLines lines; body carries the remainder.
+        Assert.Equal(CSharpRoslynChunker.MethodHeadLines, head.Content.Split('\n').Length);
+        Assert.Contains("Field1;", head.Content);
+        Assert.DoesNotContain("Field350;", head.Content);
+        Assert.Contains("Field350;", tail.Content);
+
+        // Line ranges are contiguous across the split.
+        Assert.Equal(head.EndLine + 1, tail.StartLine);
+
+        // The type-level split is independent of member chunking: the trailing method still gets
+        // its own ordinary (un-split) Method chunk.
+        var method = Assert.Single(chunks, c => c.ChunkType == ChunkType.Method);
+        Assert.Equal("Tiny", method.MethodName);
+    }
+
+    [Fact]
     public void XmlDocComment_IsExtractedIntoSummary()
     {
         const string source = """
