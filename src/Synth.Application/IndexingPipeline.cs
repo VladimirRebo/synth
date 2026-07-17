@@ -211,6 +211,20 @@ public sealed class IndexingPipeline
                 return;
             }
 
+            // The file changed since it was last indexed (or is new). Clear any chunks from its
+            // previous chunking first: CodeChunk.ChunkId is "{RelativePath}:{StartLine}-{EndLine}", so
+            // an edit that shifts line numbers anywhere before a file's last chunk gives every
+            // following chunk a new ID — upserting only adds/overwrites points by ID, it never removes
+            // ones whose ID no longer appears in the fresh set. Without this, the store would
+            // accumulate an orphaned duplicate of every chunk after the edit point on essentially every
+            // edit, not just a chunker-shape change. A no-op for a genuinely new file (stored.Count ==
+            // 0 leaves nothing to delete). The brief window between this delete and the upsert below
+            // means a file can end up with zero chunks if the embed+upsert step then exhausts its
+            // retries — an acceptable tradeoff against silently-growing duplicate garbage, and the same
+            // one the stale-file cleanup below already makes unconditionally.
+            if (stored.Count > 0)
+                await _store.DeleteByFileAsync(collection, relativePath, ct);
+
             var embedded = await TryEmbedAndUpsertAsync(collection, chunks, ct);
             if (embedded is null)
             {

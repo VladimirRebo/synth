@@ -591,6 +591,54 @@ public class IndexingPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IndexDirectoryAsync_does_not_orphan_chunks_when_a_files_chunk_boundaries_shift()
+    {
+        // CodeChunk.ChunkId is "{RelativePath}:{StartLine}-{EndLine}", so inserting a member before
+        // an existing one shifts every following chunk's line span onto a new ID. Upserting alone
+        // only adds/overwrites points by ID — without an explicit delete-then-upsert of the whole
+        // file, the old-ID chunks from the previous chunking would be stranded as orphaned duplicates
+        // forever (found live: this is what happened to every file whose chunking shape ever changed).
+        WriteFile("Growing.cs", """
+            namespace S;
+
+            public class Growing
+            {
+                public void Second() { }
+            }
+            """);
+
+        var store = new LocalCodeChunkStore();
+        var pipeline = PipelineFor(store, new FakeEmbeddingGenerator());
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        var before = await store.GetByFileAsync(CollectionNames.Default, "Growing.cs");
+        var secondBefore = Assert.Single(before, c => c.MethodName == "Second");
+
+        // Insert a new method before Second() — its own line span, and the class chunk's EndLine,
+        // both shift, giving every one of those chunks a different ChunkId than before.
+        WriteFile("Growing.cs", """
+            namespace S;
+
+            public class Growing
+            {
+                public void First() { }
+
+                public void Second() { }
+            }
+            """);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+        var after = await store.GetByFileAsync(CollectionNames.Default, "Growing.cs");
+
+        // Exactly the fresh chunk set: one Growing class chunk, one First, one Second — not a stale
+        // duplicate left behind at Second()'s old position alongside the one at its new position.
+        Assert.Single(after, c => c.ChunkType == ChunkType.Class);
+        Assert.Single(after, c => c.MethodName == "First");
+        var secondAfter = Assert.Single(after, c => c.MethodName == "Second");
+        Assert.NotEqual(secondBefore.StartLine, secondAfter.StartLine); // proves it actually shifted
+    }
+
+    [Fact]
     public async Task IndexDirectoryAsync_deletes_chunks_of_files_removed_from_disk()
     {
         WriteFile("Keep.cs", "namespace S; public class Keep { public void A() { } }");
