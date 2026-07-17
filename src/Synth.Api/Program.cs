@@ -63,6 +63,11 @@ builder.Services.AddSingleton<RepositoryPollingService>();
 builder.Services.AddHostedService<RepositoryPollingService>(sp => sp.GetRequiredService<RepositoryPollingService>());
 builder.Services.AddSingleton<IRepositoryPoller>(sp => sp.GetRequiredService<RepositoryPollingService>());
 
+// RepositoryPollingService's counterpart for locally-indexed directories, which have no remote to
+// poll: watches each one's filesystem and reindexes a few seconds after the last detected change, so
+// editing a local project keeps its search results fresh without a manual reindex.
+builder.Services.AddHostedService<LocalDirectoryWatchService>();
+
 builder.AddSynthCodeGraph();
 
 // Depends on the QdrantClient + IEmbeddingGeneratorFactory registered above, so it must come after
