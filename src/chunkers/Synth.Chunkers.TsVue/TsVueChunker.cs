@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Synth.Domain;
+using Synth.Domain.Graph;
 
 namespace Synth.Chunkers.TsVue;
 
@@ -15,15 +16,21 @@ namespace Synth.Chunkers.TsVue;
 /// <remarks>
 /// For <c>.vue</c> files only the <c>&lt;script&gt;</c>/<c>&lt;script setup&gt;</c> block(s) are scanned —
 /// a component's searchable code lives there; <c>&lt;template&gt;</c>/<c>&lt;style&gt;</c> are out of scope.
-/// This is a chunker only: it deliberately does not implement <see cref="Graph.ICallSiteExtractor"/>
-/// (unlike <c>CSharpRoslynChunker</c>/<c>PythonChunker</c>/<c>GoChunker</c>, which do — TS/Vue call-graph
-/// extraction is a possible future addition, not a fundamental limitation). Recognized declarations reuse the existing
-/// <see cref="ChunkType"/> values (<see cref="ChunkType.Class"/>/<see cref="ChunkType.Interface"/>/
-/// <see cref="ChunkType.Method"/>) — a regex heuristic doesn't warrant growing the enum, and every
-/// slice is code, so the only <see cref="ChunkType"/>-driven behavior that matters (the <c>[code]</c>
-/// embedding prefix) is already correct.
+/// Recognized declarations reuse the existing <see cref="ChunkType"/> values
+/// (<see cref="ChunkType.Class"/>/<see cref="ChunkType.Interface"/>/<see cref="ChunkType.Method"/>) — a
+/// regex heuristic doesn't warrant growing the enum, and every slice is code, so the only
+/// <see cref="ChunkType"/>-driven behavior that matters (the <c>[code]</c> embedding prefix) is already
+/// correct. <see cref="ExtractCallSites"/> implements <see cref="ICallSiteExtractor"/> at the same
+/// granularity <see cref="Chunk"/> emits chunks at — same "top-level declarations only" scope as
+/// <c>PythonChunker</c>/<c>GoChunker</c>: a call made anywhere inside a top-level class's body is
+/// attributed to the class as a whole (its own nested members never get a separate chunk to attribute
+/// to). Known, accepted gap: a class's own nested method declarations (<c>methodName() { ... }</c>, no
+/// leading keyword the way <c>function</c>/<c>def</c> gives Go/Python/TS-function declarations something
+/// to exclude on) can misread as the class "calling" that method name — same regex-only tradeoff already
+/// accepted elsewhere in this chunker, and this codebase's own Vue components use the Composition API
+/// (top-level <c>const</c>/<c>function</c> declarations, not classes), so it isn't the common case here.
 /// </remarks>
-public sealed partial class TsVueChunker : IFileChunker
+public sealed partial class TsVueChunker : IFileChunker, ICallSiteExtractor
 {
     private static readonly string[] SupportedExtensions = [".ts", ".tsx", ".vue"];
 
@@ -203,6 +210,87 @@ public sealed partial class TsVueChunker : IFileChunker
         return (ChunkType.Method, string.Empty, string.Empty);
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<RawCallSite> ExtractCallSites(string filePath, string relativePath, string content)
+    {
+        content = (content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n");
+        filePath ??= string.Empty;
+        relativePath ??= string.Empty;
+
+        var newlineOffsets = NewlineOffsets(content);
+        var isVue = filePath.EndsWith(".vue", StringComparison.OrdinalIgnoreCase);
+        var regions = isVue ? ScriptRegions(content) : [(0, content.Length)];
+
+        var sites = new List<RawCallSite>();
+        foreach (var (regionStart, regionEnd) in regions)
+            CollectRegionCallSites(content, regionStart, regionEnd, relativePath, newlineOffsets, sites);
+
+        return sites;
+    }
+
+    private static void CollectRegionCallSites(
+        string content, int regionStart, int regionEnd, string sourceFile, int[] newlineOffsets, List<RawCallSite> sites)
+    {
+        if (regionEnd <= regionStart)
+            return;
+
+        var regionText = content.Substring(regionStart, regionEnd - regionStart);
+        var matches = DeclarationRegex().Matches(regionText);
+
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var (chunkType, className, methodName) = Classify(matches[i]);
+
+            // An interface body holds only method signature stubs, never real invocations — scanning
+            // it would misread every "name(" signature as the interface "calling" that name.
+            if (chunkType == ChunkType.Interface)
+                continue;
+
+            var callerQualifiedName = className.Length > 0 ? className : methodName;
+            if (callerQualifiedName.Length == 0)
+                continue;
+
+            var spanStart = regionStart + matches[i].Index;
+            var spanEnd = i + 1 < matches.Count ? regionStart + matches[i + 1].Index : regionEnd;
+
+            CollectInvocations(content, spanStart, spanEnd, callerQualifiedName, sourceFile, newlineOffsets, sites);
+        }
+    }
+
+    // Scans [spanStart, spanEnd) for invocations (an identifier, optionally dotted, followed by '(') and
+    // records one RawCallSite per match, mirroring PythonChunker's CollectInvocations. Two kinds of
+    // false positive are filtered:
+    //   - A function declaration's own name ("function foo(" looks exactly like foo calling itself) —
+    //     InvocationRegex's negative lookbehind excludes anything immediately preceded by "function "/
+    //     "function* ". A const/let/var arrow declaration's name is never immediately followed by '('
+    //     (there's always "= " in between), so it can't self-match this way.
+    //   - Keywords that can precede '(' without being a call ("if (x)", "return (x)", "typeof (x)"),
+    //     filtered by name like PythonChunker's PythonKeywords.
+    private static void CollectInvocations(
+        string content, int spanStart, int spanEnd, string callerQualifiedName,
+        string sourceFile, int[] newlineOffsets, List<RawCallSite> sites)
+    {
+        var region = content.Substring(spanStart, spanEnd - spanStart);
+        foreach (Match invocation in InvocationRegex().Matches(region))
+        {
+            var nameGroup = invocation.Groups["name"];
+            var invokedName = nameGroup.Value;
+            if (TsKeywords.Contains(invokedName))
+                continue;
+
+            var absoluteStart = spanStart + nameGroup.Index;
+            sites.Add(new RawCallSite(callerQualifiedName, invokedName, sourceFile, LineAt(newlineOffsets, absoluteStart)));
+        }
+    }
+
+    // Keywords that can be immediately followed by '(' without being a call (e.g. "if (x)", "typeof
+    // (x)"), so they never appear as a real invocation's name.
+    private static readonly HashSet<string> TsKeywords =
+    [
+        "if", "else", "while", "for", "switch", "catch", "do", "return", "typeof", "instanceof",
+        "in", "of", "yield", "await", "delete", "void", "with", "function", "case", "throw",
+    ];
+
     private static IEnumerable<(int Start, int End)> ScriptRegions(string content)
     {
         foreach (Match match in ScriptBlockRegex().Matches(content))
@@ -222,7 +310,7 @@ public sealed partial class TsVueChunker : IFileChunker
                 offsets.Add(i);
         }
 
-        return offsets.ToArray();
+        return [.. offsets];
     }
 
     // 1-based line number of a char offset: one more than the count of newlines strictly before it.
@@ -265,4 +353,12 @@ public sealed partial class TsVueChunker : IFileChunker
     // <script> and <script setup lang="ts"> forms; multiple blocks in one SFC each yield a region.
     [GeneratedRegex(@"<script\b[^>]*>(?<body>.*?)</script>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex ScriptBlockRegex();
+
+    // An invocation: an identifier — optionally dotted (obj.foo(), a.b.foo()) — immediately followed by
+    // '('. Only the last segment is captured, so a dotted call resolves to its bare method name, the
+    // same "last segment" convention CSharpRoslynChunker's InvokedSimpleName uses. The leading negative
+    // lookbehind excludes a name immediately preceded by "function "/"function* " — a function
+    // declaration's own signature, not a call to it.
+    [GeneratedRegex(@"(?<!\bfunction\*?\s+)\b(?:[A-Za-z_$][\w$]*\.)*(?<name>[A-Za-z_$][\w$]*)\s*\(")]
+    private static partial Regex InvocationRegex();
 }

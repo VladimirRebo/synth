@@ -1,5 +1,6 @@
 using Synth.Chunkers.TsVue;
 using Synth.Domain;
+using Synth.Domain.Graph;
 
 namespace Synth.Chunkers.TsVue.Tests;
 
@@ -12,6 +13,12 @@ public class TsVueChunkerTests
 
     private static IReadOnlyList<CodeChunk> ChunkVue(string source) =>
         Chunker.Chunk("/repo/src/App.vue", "src/App.vue", source);
+
+    private static IReadOnlyList<RawCallSite> ExtractCallSitesTs(string source) =>
+        Chunker.ExtractCallSites("/repo/src/sample.ts", "src/sample.ts", source);
+
+    private static IReadOnlyList<RawCallSite> ExtractCallSitesVue(string source) =>
+        Chunker.ExtractCallSites("/repo/src/App.vue", "src/App.vue", source);
 
     [Theory]
     [InlineData("/repo/src/foo.ts", true)]
@@ -196,5 +203,130 @@ public class TsVueChunkerTests
         Assert.Equal("huge", head.MethodName);
         Assert.Equal("huge", tail.MethodName);
         Assert.Equal(head.EndLine + 1, tail.StartLine);
+    }
+
+    // --- Call-site extraction: raw, unresolved invocations per top-level declaration. ---
+
+    [Fact]
+    public void ExtractCallSites_RecordsCallerNameInvokedNameAndLine()
+    {
+        const string source = """
+            export function handle() {
+              work();
+            }
+            """;
+
+        var site = Assert.Single(ExtractCallSitesTs(source), s => s.InvokedName == "work");
+        Assert.Equal("handle", site.CallerQualifiedName);
+        Assert.Equal("src/sample.ts", site.SourceFile);
+        Assert.Equal(2, site.Line);
+    }
+
+    [Fact]
+    public void ExtractCallSites_TakesLastSegmentOfADottedCall()
+    {
+        const string source = """
+            export function handle() {
+              this.local();
+              repo.load();
+              a.b.c.deep();
+            }
+            """;
+
+        var invoked = ExtractCallSitesTs(source).Select(s => s.InvokedName).ToList();
+        Assert.Contains("local", invoked);
+        Assert.Contains("load", invoked);
+        Assert.Contains("deep", invoked);
+    }
+
+    [Fact]
+    public void ExtractCallSites_AttributesConstArrowCallsToTheDeclaredName()
+    {
+        const string source = """
+            const onSubmit = async () => {
+              await search();
+            };
+            """;
+
+        var site = Assert.Single(ExtractCallSitesTs(source), s => s.InvokedName == "search");
+        Assert.Equal("onSubmit", site.CallerQualifiedName);
+    }
+
+    [Fact]
+    public void ExtractCallSites_DoesNotTreatTheFunctionDeclarationsOwnNameAsACallToItself()
+    {
+        const string source = """
+            export function standalone() {
+              return 1;
+            }
+            """;
+
+        Assert.Empty(ExtractCallSitesTs(source));
+    }
+
+    [Fact]
+    public void ExtractCallSites_DoesNotTreatKeywordsFollowedByParensAsInvocations()
+    {
+        const string source = """
+            export function handle(x: number) {
+              if (x) {
+                work();
+              }
+              return (x);
+            }
+            """;
+
+        var invoked = ExtractCallSitesTs(source).Select(s => s.InvokedName).ToList();
+        Assert.Contains("work", invoked);
+        Assert.DoesNotContain("if", invoked);
+        Assert.DoesNotContain("return", invoked);
+    }
+
+    [Fact]
+    public void ExtractCallSites_NeverScansAnInterfaceBody()
+    {
+        // An interface body holds only method signature stubs ("load(): void") — never real
+        // invocations. Scanning it would misread every signature as the interface "calling" that name.
+        const string source = """
+            export interface Repo {
+              load(): void;
+              save(item: string): void;
+            }
+            """;
+
+        Assert.Empty(ExtractCallSitesTs(source));
+    }
+
+    [Fact]
+    public void ExtractCallSites_EmitsNothingForFileWithoutInvocations()
+    {
+        const string source = """
+            export function compute() {
+              const x = 1;
+              return x;
+            }
+            """;
+
+        Assert.Empty(ExtractCallSitesTs(source));
+    }
+
+    [Fact]
+    public void ExtractCallSites_OnlyScansScriptBlocksOfAVueFile()
+    {
+        const string source = """
+            <template>
+              <div>{{ greet() }}</div>
+            </template>
+
+            <script setup lang="ts">
+            function onSubmit() {
+              search();
+            }
+            </script>
+            """;
+
+        var site = Assert.Single(ExtractCallSitesVue(source));
+        Assert.Equal("onSubmit", site.CallerQualifiedName);
+        Assert.Equal("search", site.InvokedName);
     }
 }
