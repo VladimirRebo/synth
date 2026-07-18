@@ -118,7 +118,10 @@ public sealed class IndexingPipeline
         // ConcurrentBag for the append-only call sites, and ConcurrentDictionary-as-set for the two
         // sets, whose keys feed the sequential stage-2 resolution below unchanged.
         var rawCallSites = new ConcurrentBag<RawCallSite>();
-        var knownSymbols = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+        // Qualified name -> the relative path it was declared in (used by ResolveEdges to derive a
+        // coarse per-language bucket, so a call site is never matched against a same-named symbol from
+        // an unrelated language — see ResolveEdges/LanguageOf).
+        var knownSymbols = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
         // Relative paths of every on-disk file seen this run. Diffed against the store at the end to
         // delete chunks of files that were indexed before but no longer exist on disk (SYNTH-33).
@@ -190,7 +193,7 @@ public sealed class IndexingPipeline
             foreach (var chunk in chunks)
             {
                 if (IsCallableMember(chunk.ChunkType) && chunk.QualifiedName.Length > 0)
-                    knownSymbols.TryAdd(chunk.QualifiedName, 0);
+                    knownSymbols.TryAdd(chunk.QualifiedName, chunk.RelativePath);
             }
 
             if (chunker is ICallSiteExtractor extractor)
@@ -261,7 +264,7 @@ public sealed class IndexingPipeline
         // Stage 2: resolve every raw call site against the whole collection's known method names and
         // replace the graph in one shot. An empty edge set (no .cs files, or no resolved calls) still
         // replaces — clearing any stale edges from a previous index run.
-        var edges = ResolveEdges(collection, rawCallSites, knownSymbols.Keys);
+        var edges = ResolveEdges(collection, rawCallSites, knownSymbols);
         await _graphStore.ReplaceEdgesAsync(collection, edges, cancellationToken);
 
         // Final report guarantees the last-seen counts match the summary even when the run ended on a
@@ -278,21 +281,30 @@ public sealed class IndexingPipeline
         chunkType is ChunkType.Method or ChunkType.Constructor or ChunkType.MethodHead or ChunkType.MethodBody;
 
     // Resolves raw call sites into edges by matching each invoked simple name against every known
-    // qualified name sharing that last segment. One invoked name matching several methods emits one
-    // edge per match (approximate, by design — issue #33); a name matching nothing emits no edge.
+    // qualified name sharing that last segment AND the same source language (see LanguageOf) — one
+    // invoked name matching several methods emits one edge per match (approximate, by design — issue
+    // #33); a name matching nothing (or only candidates from a different language) emits no edge.
     private static IReadOnlyList<CallEdge> ResolveEdges(
         string collection,
         IEnumerable<RawCallSite> callSites,
-        IEnumerable<string> knownSymbols)
+        IEnumerable<KeyValuePair<string, string>> knownSymbols)
     {
+        // Live-verified bug: without the language key, a JS/TS "new Set(...)" (the built-in collection
+        // type) resolved against a same-named C# test helper's Set() method, purely because both files
+        // happened to be indexed into the same collection — the bare-name match had no notion of which
+        // language a call site or a declared symbol actually came from. Each chunker owns disjoint file
+        // extensions, so a call site can never legitimately target a symbol from a different chunker's
+        // language; bucketing by (simple name, language) closes that entire cross-language false-
+        // positive class in one place, rather than enumerating each language's built-ins one at a time.
         var bySimpleName = knownSymbols
-            .GroupBy(SimpleNameOf, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+            .GroupBy(kv => (Name: SimpleNameOf(kv.Key), Language: LanguageOf(kv.Value)))
+            .ToDictionary(group => group.Key, group => group.Select(kv => kv.Key).ToList());
 
         var edges = new List<CallEdge>();
         foreach (var site in callSites)
         {
-            if (!bySimpleName.TryGetValue(site.InvokedName, out var callees))
+            var key = (Name: site.InvokedName, Language: LanguageOf(site.SourceFile));
+            if (!bySimpleName.TryGetValue(key, out var callees))
                 continue;
 
             foreach (var callee in callees)
@@ -306,6 +318,22 @@ public sealed class IndexingPipeline
     {
         var lastDot = qualifiedName.LastIndexOf('.');
         return lastDot < 0 ? qualifiedName : qualifiedName[(lastDot + 1)..];
+    }
+
+    // Coarse per-language bucket derived from a file's extension — exactly the boundary each chunker's
+    // own CanHandle already draws (disjoint extensions, per AddSynthIndexing's registration comment),
+    // so this mirrors chunker identity without needing to thread the chunker itself through.
+    private static string LanguageOf(string relativePath)
+    {
+        var ext = Path.GetExtension(relativePath);
+        return ext.ToLowerInvariant() switch
+        {
+            ".cs" => "csharp",
+            ".py" => "python",
+            ".go" => "go",
+            ".ts" or ".tsx" or ".vue" => "tsvue",
+            _ => "other",
+        };
     }
 
     // Embeds a file's chunks and upserts them, retrying the whole step a few times with backoff when

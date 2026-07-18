@@ -494,6 +494,50 @@ public class IndexingPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IndexDirectoryAsync_never_resolves_a_call_site_against_a_different_languages_symbol()
+    {
+        // Live-verified bug: IndexingPipeline.ResolveEdges matched a call site's bare invoked name
+        // against every known symbol in the WHOLE collection regardless of language — "new Set(...)"
+        // (the JS/TS built-in collection type) resolved against an unrelated C# method that happened
+        // to also be named "Set", purely because both files were indexed into the same collection.
+        WriteFile("Options.cs", """
+            namespace Sample;
+
+            public class Options
+            {
+                public void Set() { }
+            }
+            """);
+        WriteFile("widget.ts", """
+            export function helper() {
+              return 1;
+            }
+
+            export function build() {
+              const items = new Set();
+              helper();
+            }
+            """);
+
+        var graphStore = new FakeCodeGraphStore();
+        var pipeline = new IndexingPipeline(
+            [new CSharpRoslynChunker(), new TsVueChunker()],
+            new FakeEmbeddingGenerator(),
+            new LocalCodeChunkStore(),
+            graphStore);
+
+        await pipeline.IndexDirectoryAsync(CollectionNames.Default, _root);
+
+        // The C# Options.Set() has no real caller — "new Set()" in the TS file must never resolve to it.
+        var callers = await graphStore.FindCallersAsync(CollectionNames.Default, "Sample.Options.Set");
+        Assert.Empty(callers);
+
+        // A genuine same-language (TS-to-TS) call still resolves normally.
+        var callees = await graphStore.FindCalleesAsync(CollectionNames.Default, "build");
+        Assert.Contains(callees, e => e.Callee == "helper");
+    }
+
+    [Fact]
     public async Task IndexDirectoryAsync_leaves_empty_graph_when_no_calls_resolve()
     {
         // Handle() calls Missing(), which no file declares — no edge, no error.
