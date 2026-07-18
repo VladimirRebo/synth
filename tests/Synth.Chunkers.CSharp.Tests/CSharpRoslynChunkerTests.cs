@@ -263,7 +263,6 @@ public class CSharpRoslynChunkerTests
                 {
                     this.Local();
                     _repo.Load();
-                    System.Console.WriteLine("x");
                 }
 
                 public void Local() { }
@@ -272,8 +271,44 @@ public class CSharpRoslynChunkerTests
 
         var invoked = ExtractCallSites(source).Select(s => s.InvokedName).ToList();
         Assert.Contains("Local", invoked);   // this.Local()
-        Assert.Contains("Load", invoked);     // _repo.Load()
-        Assert.Contains("WriteLine", invoked); // System.Console.WriteLine(...)
+        Assert.Contains("Load", invoked);    // _repo.Load()
+    }
+
+    // Live-verified bug: IndexingPipeline.ResolveEdges matches every call site's bare method name
+    // against every declared symbol sharing it, with no receiver/type check — so calls like
+    // Process.Start(...) were misattributed to an unrelated same-named project method. A call whose
+    // receiver is a well-known BCL static-utility type can never be a project symbol, so it must never
+    // become a RawCallSite at all — this locks that exclusion in for both unqualified (Process.Start)
+    // and fully-qualified (System.Console.WriteLine) forms, while still keeping project-local calls
+    // whose receiver isn't a known BCL type (_repo.Load(), where Repo could plausibly be ours).
+    [Fact]
+    public void ExtractCallSites_ExcludesCallsOnKnownBclTypes()
+    {
+        const string source = """
+            namespace Acme;
+
+            public class Service
+            {
+                private readonly Repo _repo = new();
+
+                public void Handle()
+                {
+                    System.Diagnostics.Process.Start("git");
+                    Console.WriteLine("x");
+                    System.Console.WriteLine("y");
+                    _repo.Load();
+                    Local();
+                }
+
+                public void Local() { }
+            }
+            """;
+
+        var invoked = ExtractCallSites(source).Select(s => s.InvokedName).ToList();
+        Assert.DoesNotContain("Start", invoked);
+        Assert.DoesNotContain("WriteLine", invoked);
+        Assert.Contains("Load", invoked);
+        Assert.Contains("Local", invoked);
     }
 
     [Fact]

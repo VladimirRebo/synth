@@ -26,8 +26,9 @@ public sealed class CallGraphTool
     [McpServerTool(Name = "find_callers")]
     [Description(
         "Find the call sites that call a given symbol (its callers) using Synth's structural call " +
-        "graph — exact, unlike vector search. Returns one edge per call site (caller, callee, " +
-        "source file and line).")]
+        "graph — name-based matching, not full type resolution, so it's more precise than vector " +
+        "search but calls to an unrelated symbol sharing the same method name can occasionally " +
+        "still be misattributed. Returns one edge per call site (caller, callee, source file and line).")]
     public static async Task<IReadOnlyList<CallEdge>> FindCallersAsync(
         ICodeGraphStore store,
         IRepositoryRegistry registry,
@@ -53,8 +54,9 @@ public sealed class CallGraphTool
     [McpServerTool(Name = "find_callees")]
     [Description(
         "Find the symbols a given symbol calls (its callees) using Synth's structural call graph — " +
-        "exact, unlike vector search. Returns one edge per call site (caller, callee, source file " +
-        "and line).")]
+        "name-based matching, not full type resolution, so it's more precise than vector search but " +
+        "calls to an unrelated symbol sharing the same method name can occasionally still be " +
+        "misattributed. Returns one edge per call site (caller, callee, source file and line).")]
     public static async Task<IReadOnlyList<CallEdge>> FindCalleesAsync(
         ICodeGraphStore store,
         IRepositoryRegistry registry,

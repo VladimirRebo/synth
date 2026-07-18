@@ -131,6 +131,9 @@ public sealed class CSharpRoslynChunker : IFileChunker, ICallSiteExtractor
     {
         foreach (var invocation in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
+            if (IsKnownExternalCall(invocation.Expression))
+                continue;
+
             var invokedName = InvokedSimpleName(invocation.Expression);
             if (invokedName is null)
                 continue;
@@ -148,6 +151,34 @@ public sealed class CSharpRoslynChunker : IFileChunker, ICallSiteExtractor
         MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.Text,
         MemberBindingExpressionSyntax memberBinding => memberBinding.Name.Identifier.Text,
         SimpleNameSyntax simpleName => simpleName.Identifier.Text,
+        _ => null,
+    };
+
+    // IndexingPipeline.ResolveEdges matches every call site's bare method name against every symbol
+    // this codebase declares, with no receiver/type check at all (there's no full semantic model here,
+    // just a syntax tree) — so a call like Process.Start(...) was silently misattributed to any
+    // same-named project method (e.g. a Start() on some unrelated handler), a real false positive
+    // live-verified against this very codebase's own call graph. There's no reliable syntax-only way to
+    // resolve _repo.Load() to a specific declared symbol, but a call whose receiver is a well-known BCL
+    // static-utility type can never be a project symbol — dropping those cuts the worst offenders
+    // (Process/Console/File/... calls) without needing full semantic binding.
+    private static readonly HashSet<string> KnownExternalTypeReceivers = new(StringComparer.Ordinal)
+    {
+        "Process", "Console", "Task", "File", "Directory", "Path", "Regex", "Environment", "Thread",
+        "Math", "Convert", "DateTime", "DateTimeOffset", "TimeSpan", "Guid", "Enum", "Type", "Activator",
+        "GC", "Debug", "Trace", "Encoding", "CultureInfo", "Interlocked", "Uri", "Array", "Enumerable",
+        "BitConverter", "Marshal", "JsonSerializer", "XDocument", "XElement",
+    };
+
+    private static bool IsKnownExternalCall(ExpressionSyntax expression) =>
+        expression is MemberAccessExpressionSyntax { Expression: var receiver } &&
+        ReceiverLeafName(receiver) is { } name &&
+        KnownExternalTypeReceivers.Contains(name);
+
+    private static string? ReceiverLeafName(ExpressionSyntax expression) => expression switch
+    {
+        MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.Text,
+        IdentifierNameSyntax identifier => identifier.Identifier.Text,
         _ => null,
     };
 
