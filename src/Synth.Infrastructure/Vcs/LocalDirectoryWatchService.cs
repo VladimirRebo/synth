@@ -151,12 +151,18 @@ public sealed class LocalDirectoryWatchService : BackgroundService
         if (IsIgnored(root, changedPath))
             return;
 
-        // (Re)start the debounce timer so a burst of changes (an editor autosave writing several
-        // files, a build, a branch switch) collapses into exactly one reindex, fired once things go
-        // quiet for _debounceDelay rather than once per individual file event.
+        ScheduleReindex(collection, root);
+    }
+
+    // (Re)starts the debounce timer so a burst of changes (an editor autosave writing several files,
+    // a build, a branch switch) collapses into exactly one reindex, fired once things go quiet for
+    // _debounceDelay rather than once per individual file event. Also used by TriggerReindex to retry
+    // after losing the single-job-slot race (see there) — same debounce delay doubles as a backoff.
+    private void ScheduleReindex(string collection, string path)
+    {
         _pendingReindexes.AddOrUpdate(
             collection,
-            _ => new Timer(_ => TriggerReindex(collection, root), null, _debounceDelay, Timeout.InfiniteTimeSpan),
+            _ => new Timer(_ => TriggerReindex(collection, path), null, _debounceDelay, Timeout.InfiniteTimeSpan),
             (_, existing) =>
             {
                 existing.Change(_debounceDelay, Timeout.InfiniteTimeSpan);
@@ -196,8 +202,15 @@ public sealed class LocalDirectoryWatchService : BackgroundService
             var outcome = await _indexHandler.HandleAsync(new IndexRepositoryCommand(Path: path));
             if (outcome.Status == IndexStartOutcome.Kind.AlreadyRunning)
             {
+                // Losing the single-job-slot race (another collection's poll/watch/manual reindex is
+                // running) must not drop this change on the floor — the debounce timer that would have
+                // retried it already fired and removed itself, so nothing else will ever pick it back
+                // up. Re-arm one more debounce cycle instead; this repeats until a run finds the slot
+                // free, which is fine since IIndexJobTracker jobs are typically sub-second for a single
+                // local directory.
                 _logger.LogInformation(
-                    "Skipped auto-reindexing '{Collection}': another job is already running.", collection);
+                    "Deferred auto-reindexing '{Collection}': another job is already running; retrying shortly.", collection);
+                ScheduleReindex(collection, path);
             }
             else
             {

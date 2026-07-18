@@ -151,6 +151,30 @@ public class LocalDirectoryWatchServiceTests : IDisposable
         await WaitForAsync(() => index.CallCount > 0);
     }
 
+    // Live-verified bug (two local directories changed together; one always lost the race for
+    // IIndexJobTracker's single job slot and its change was never picked back up): losing that race
+    // must retry, not silently drop the change until some unrelated later file event happens to land.
+    [Fact]
+    public async Task An_AlreadyRunning_outcome_is_retried_once_the_slot_frees_up()
+    {
+        var dir = CreateTempDir();
+        var registry = await SeededRegistry(("local-repo", "local", dir));
+        var index = new FakeIndexHandler { NextOutcome = IndexStartOutcome.AlreadyRunning() };
+        using var service = CreateService(registry, index);
+
+        await service.StartAsync(CancellationToken.None);
+        await WaitUntilWatchingAsync();
+
+        File.WriteAllText(Path.Combine(dir, "new.txt"), "hello");
+
+        // The first attempt loses the race for the single job slot.
+        await WaitForAsync(() => index.CallCount > 0);
+        index.NextOutcome = null; // The slot frees up: the retry should actually start a run.
+
+        await WaitForAsync(() => index.CallCount > 1);
+        Assert.Equal(dir, index.LastCommand!.Path);
+    }
+
     // Gives the background sync loop time to run at least one tick and attach its FileSystemWatcher
     // before a test starts writing files, avoiding a race against the first tick.
     private static Task WaitUntilWatchingAsync() => Task.Delay(SyncInterval * 3);
