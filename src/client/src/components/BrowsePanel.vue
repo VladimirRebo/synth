@@ -122,6 +122,7 @@ onMounted(() => {
 
 .browse-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -184,6 +185,10 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 16px;
+  /* Flex items default to min-width: auto, sizing to their content's intrinsic width — a long,
+     unbroken code line in .embedding would otherwise push this item (and the whole page) wider
+     instead of scrolling within .embedding's own overflow-x: auto. */
+  min-width: 0;
 }
 
 .chunk-header {

@@ -348,6 +348,7 @@ onUnmounted(() => {
 
 .search-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
   position: relative;
@@ -572,5 +573,12 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.results > li {
+  /* Flex items default to min-width: auto, sizing to their content's intrinsic width — a
+     long, unbroken code line in a result's snippet would otherwise push this item (and the
+     whole page) wider instead of scrolling within .snippet's own overflow-x: auto. */
+  min-width: 0;
 }
 </style>
