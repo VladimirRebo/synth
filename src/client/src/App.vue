@@ -46,8 +46,8 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
 .content {
   flex: 1;
   min-width: 0;
-  max-width: 720px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 24px 32px 48px;
 }
 </style>
