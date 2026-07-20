@@ -2,11 +2,12 @@
 import { onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
 
-// Ready-to-copy MCP setup snippets, adapted from Sonar's McpSetup.vue pattern but much
-// smaller — three tools, two transports. Descriptions mirror each tool's own [Description]
-// attribute verbatim: Synth.Api/Mcp/CodeSearchTool.cs (search_code) and
-// Synth.Api/Graph/CallGraphTool.cs (find_callers/find_callees, added by issue #33 — this list
-// went stale once before when that tool shipped without a client-side update, keep it in sync).
+// Ready-to-copy MCP setup snippets, adapted from Sonar's McpSetup.vue pattern. Descriptions
+// mirror each tool's own [Description] attribute verbatim — this list has already gone stale
+// twice before (once when find_callers/find_callees shipped, again when get_symbol/get_file/
+// index_code/list_collections/delete_collection/health_check shipped, all without a matching
+// client-side update) — verify against a live `tools/list` call before trusting this file, don't
+// just assume it's still complete.
 const HTTP_SNIPPET = 'claude mcp add --transport http synth http://localhost:5042/mcp'
 const STDIO_SNIPPET = 'claude mcp add synth -- dotnet run --project src/Synth.Mcp.Stdio'
 
@@ -23,18 +24,65 @@ const TOOLS: ToolDoc[] = [
       "query. Returns each hit's file path, class/method name and a source snippet.",
   },
   {
+    name: 'get_symbol',
+    description:
+      "Look up a class or method by its exact name (case-insensitive) in the indexed codebase — " +
+      "a cheap, precise alternative to search_code when you already know the name. Makes no " +
+      "embedding call. Provide at least one of 'className'/'methodName'; giving both narrows to " +
+      "chunks matching both. Returns each match's file path, class/method name and source snippet.",
+  },
+  {
+    name: 'get_file',
+    description:
+      'Read the full content of a file by its repository-relative path within an indexed ' +
+      "collection — useful once search_code or get_symbol has pointed you at a file and you " +
+      'want its whole context. Rejects paths that escape the repository root and files larger ' +
+      'than 10 MB.',
+  },
+  {
     name: 'find_callers',
     description:
-      'Find the call sites that call a given symbol (its callers) using Synth’s structural ' +
-      'call graph — exact, unlike vector search. Returns one edge per call site (caller, callee, ' +
-      'source file and line).',
+      "Find the call sites that call a given symbol (its callers) using Synth's structural call " +
+      "graph — name-based matching, not full type resolution, so it's more precise than vector " +
+      'search but calls to an unrelated symbol sharing the same method name can occasionally ' +
+      'still be misattributed. Returns one edge per call site (caller, callee, source file and line).',
   },
   {
     name: 'find_callees',
     description:
-      'Find the symbols a given symbol calls (its callees) using Synth’s structural call ' +
-      'graph — exact, unlike vector search. Returns one edge per call site (caller, callee, ' +
-      'source file and line).',
+      "Find the symbols a given symbol calls (its callees) using Synth's structural call graph " +
+      "— name-based matching, not full type resolution, so it's more precise than vector search " +
+      'but calls to an unrelated symbol sharing the same method name can occasionally still be ' +
+      'misattributed. Returns one edge per call site (caller, callee, source file and line).',
+  },
+  {
+    name: 'index_code',
+    description:
+      'Trigger (re)indexing of a repository so its code becomes searchable via search_code and ' +
+      'the call-graph tools. Fire-and-forget: returns immediately once the job has started (it ' +
+      "does NOT wait for indexing to finish). Provide exactly one of 'path' or 'repoUrl'.",
+  },
+  {
+    name: 'list_collections',
+    description:
+      'List the indexed collections (repositories) and their metadata — collection name, source ' +
+      'type/URL, indexed branch, last-indexed time and chunk count. Use this to discover valid ' +
+      'collection names to pass to search_code, get_symbol, get_file or delete_collection.',
+  },
+  {
+    name: 'delete_collection',
+    description:
+      'DESTRUCTIVE: permanently remove an indexed collection (repository) from Synth — deletes ' +
+      'its vector-store collection, its call-graph edges and its registry entry. This cannot be ' +
+      'undone; the collection must be re-indexed to search it again. Reports deleted=false when ' +
+      'no such collection existed.',
+  },
+  {
+    name: 'health_check',
+    description:
+      "Check whether Synth's live dependencies are reachable — the Qdrant vector store and the " +
+      'configured embedding provider. Returns an overall verdict plus a per-component result ' +
+      '(healthy plus, when unhealthy, a human-readable reason).',
   },
 ]
 
@@ -79,7 +127,7 @@ onUnmounted(clearResetTimer)
     <h2><Icon name="plug" :size="18" class="plug-icon" /> Connect via MCP</h2>
     <p class="intro">
       Synth exposes {{ TOOLS.length }} tools so an AI agent can search and navigate this codebase
-      directly — semantic search plus an exact structural call graph. Point Claude Code (or any
+      directly — semantic search plus a structural call graph. Point Claude Code (or any
       MCP client) at it:
     </p>
 

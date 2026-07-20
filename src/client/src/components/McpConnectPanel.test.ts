@@ -8,12 +8,26 @@ beforeEach(() => {
 
 describe('McpConnectPanel', () => {
   it('shows the HTTP snippet by default and every registered tool', () => {
+    // This list has gone stale twice before (a tool shipped server-side without a matching
+    // update here) — assert every tool actually registered on the MCP server (confirmed live
+    // via a real tools/list call), not just a couple, so a future omission fails a test instead
+    // of silently shipping.
     const wrapper = mount(McpConnectPanel)
 
     expect(wrapper.text()).toContain('claude mcp add --transport http synth')
-    expect(wrapper.text()).toContain('search_code')
-    expect(wrapper.text()).toContain('find_callers')
-    expect(wrapper.text()).toContain('find_callees')
+    for (const tool of [
+      'search_code',
+      'get_symbol',
+      'get_file',
+      'find_callers',
+      'find_callees',
+      'index_code',
+      'list_collections',
+      'delete_collection',
+      'health_check',
+    ]) {
+      expect(wrapper.text()).toContain(tool)
+    }
   })
 
   it('switches to the stdio snippet', async () => {
